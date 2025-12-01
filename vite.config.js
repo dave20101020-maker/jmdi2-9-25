@@ -11,6 +11,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@/lib/utils': path.resolve(__dirname, './src/utils/index.js'),
+      '@/utils': path.resolve(__dirname, './src/utils/index.js'),
+      '@/api/base44Client': path.resolve(__dirname, './src/api/base44Client.js'),
     },
     extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json']
   },
