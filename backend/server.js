@@ -4,6 +4,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
 import mongoose from 'mongoose';
+import logger from './utils/logger.js';
 import aiRoutes from './routes/ai.js';
 import habitsRoutes from './routes/habits.js';
 import entriesRoutes from './routes/entries.js';
@@ -33,16 +34,16 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
 // Validate critical environment variables
 if (!JWT_SECRET && envName === 'production') {
-  console.error('❌ FATAL: JWT_SECRET is required in production');
+  logger.error('FATAL: JWT_SECRET is required in production');
   process.exit(1);
 }
 
 if (!MONGO_URI) {
-  console.warn('⚠️  MONGO_URI not set — MongoDB connection will be skipped');
+  logger.warn('MONGO_URI not set — MongoDB connection will be skipped');
 }
 
 if (!JWT_SECRET) {
-  console.warn('⚠️  JWT_SECRET not set — using default (NOT SECURE for production)');
+  logger.warn('JWT_SECRET not set — using default (NOT SECURE for production)');
 }
 
 const app = express();
@@ -51,22 +52,21 @@ const app = express();
 // Configure CORS to allow client URL
 app.use(cors({ origin: CLIENT_URL, credentials: true }));
 
-// Request logging: friendly in development, structured JSON in production
-if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan((tokens, req, res) => {
-    const obj = {
-      time: new Date().toISOString(),
-      method: tokens.method(req, res),
-      url: tokens.url(req, res),
-      status: Number(tokens.status(req, res)),
-      res_header: tokens.res(req, res, 'content-length'),
-      response_time_ms: Number(tokens['response-time'](req, res))
-    };
-    return JSON.stringify(obj);
-  }));
-}
+// Request logging with Winston
+app.use(morgan('combined', { stream: logger.stream }));
+
+// Response time tracking middleware
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  res.on('finish', () => {
+    const responseTime = Date.now() - startTime;
+    logger.logRequest(req, res.statusCode, responseTime);
+  });
+  
+  next();
+});
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -102,34 +102,51 @@ if (MONGO_URI) {
   mongoose
     .connect(MONGO_URI)
     .then(() => {
-      console.log(`✅ Connected to MongoDB (${envName})`);
-      console.log(`📦 Database: ${mongoose.connection.name}`);
+      logger.info('Connected to MongoDB', { 
+        environment: envName,
+        database: mongoose.connection.name 
+      });
     })
     .catch((err) => {
-      console.error('❌ MongoDB connection error:', err);
+      logger.error('MongoDB connection error', { error: err.message, stack: err.stack });
       if (envName === 'production') {
         process.exit(1);
       }
     });
 } else {
-  console.warn('⚠️  MONGO_URI not set — skipping MongoDB connection');
+  logger.warn('MONGO_URI not set — skipping MongoDB connection');
 }
 
 // 404 handler
-// 404 handler
 app.use((req, res) => {
+  logger.warn('404 Not Found', { path: req.path, method: req.method, ip: req.ip });
   res.status(404).json({ error: true, message: 'Not Found', path: req.path, method: req.method });
 });
 
 // Global error handler
 import errorHandler from './middleware/errorHandler.js';
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  logger.logError(err, {
+    method: req.method,
+    path: req.path,
+    userId: req.user?.id || req.user?.email,
+    ip: req.ip,
+  });
   return errorHandler(err, req, res, next);
 });
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
+    logger.info('NorthStar Backend started', {
+      port: PORT,
+      environment: envName,
+      healthCheck: `http://localhost:${PORT}/health`,
+      aiEndpoints: `http://localhost:${PORT}/api/ai`,
+      jwtConfigured: !!JWT_SECRET,
+      mongoConfigured: !!MONGO_URI,
+      corsOrigin: CLIENT_URL,
+    });
+    
     console.log('\n' + '='.repeat(60));
     console.log(`🚀 NorthStar Backend running on http://localhost:${PORT}`);
     console.log(`📊 Environment: ${envName}`);
@@ -138,6 +155,7 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`🔐 JWT Secret: ${JWT_SECRET ? '✓ Set' : '✗ Not set (using default)'}`);
     console.log(`🗄️  MongoDB: ${MONGO_URI ? '✓ Connected' : '✗ Not configured'}`);
     console.log(`🌐 CORS Origin: ${CLIENT_URL}`);
+    console.log(`📝 Logs: ./logs/`);
     console.log('='.repeat(60) + '\n');
   });
 }
