@@ -9,6 +9,7 @@ import Pillar from './pages/Pillar'
 import Settings from './pages/Settings'
 import Pricing from './pages/Pricing'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
+import ErrorBoundary from './components/ErrorBoundary'
 import './App.css'
 
 function RequireAuth({ children }) {
@@ -20,32 +21,34 @@ function RequireAuth({ children }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="onboarding" element={<Onboarding />} />
-            <Route path="dashboard" element={
-              <RequireAuth>
-                <Dashboard />
-              </RequireAuth>
-            } />
-            <Route path="pillar/:pillarId" element={
-              <RequireAuth>
-                <Pillar />
-              </RequireAuth>
-            } />
-            <Route path="settings" element={<Settings />} />
-            <Route path="pricing" element={<Pricing />} />
-          </Route>
+            <Route path="/" element={<MainLayout />}>
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="onboarding" element={<Onboarding />} />
+              <Route path="dashboard" element={
+                <RequireAuth>
+                  <Dashboard />
+                </RequireAuth>
+              } />
+              <Route path="pillar/:pillarId" element={
+                <RequireAuth>
+                  <Pillar />
+                </RequireAuth>
+              } />
+              <Route path="settings" element={<Settings />} />
+              <Route path="pricing" element={<Pricing />} />
+            </Route>
 
-          <Route path="*" element={<div style={{padding:20}}>404 - Not Found</div>} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+            <Route path="*" element={<div style={{padding:20}}>404 - Not Found</div>} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
