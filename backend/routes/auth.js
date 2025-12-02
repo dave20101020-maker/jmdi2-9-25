@@ -2,6 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import { registerUser, loginUser, getCurrentUser } from '../controllers/authController.js';
+import { logout } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -17,6 +18,7 @@ const authLimiter = rateLimit({
 
 router.post('/register', authLimiter, registerUser);
 router.post('/login', authLimiter, loginUser);
+router.post('/logout', logout);
 router.get('/me', getCurrentUser);
 
 export default router;

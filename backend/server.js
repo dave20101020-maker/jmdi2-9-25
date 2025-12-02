@@ -25,13 +25,31 @@ const envName = process.env.NODE_ENV || 'development';
 const envPath = path.resolve(process.cwd(), `./backend/.env.${envName}`);
 dotenv.config({ path: envPath });
 
-const app = express();
+// Environment Variables
 const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI || process.env.DATABASE_URL;
+const JWT_SECRET = process.env.JWT_SECRET;
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+
+// Validate critical environment variables
+if (!JWT_SECRET && envName === 'production') {
+  console.error('❌ FATAL: JWT_SECRET is required in production');
+  process.exit(1);
+}
+
+if (!MONGO_URI) {
+  console.warn('⚠️  MONGO_URI not set — MongoDB connection will be skipped');
+}
+
+if (!JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET not set — using default (NOT SECURE for production)');
+}
+
+const app = express();
 
 // Middleware
-// Configure CORS to allow client URL when provided
-const clientUrl = process.env.CLIENT_URL || true;
-app.use(cors({ origin: clientUrl, credentials: true }));
+// Configure CORS to allow client URL
+app.use(cors({ origin: CLIENT_URL, credentials: true }));
 
 // Request logging: friendly in development, structured JSON in production
 if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
@@ -79,15 +97,22 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/timeline', timelineRoutes);
 app.use('/api/user', userRoutes);
 
-// Connect to MongoDB using MONGO_URI (preferred) or DATABASE_URL
-const DB_URL = process.env.MONGO_URI || process.env.DATABASE_URL;
-if (DB_URL) {
+// Connect to MongoDB
+if (MONGO_URI) {
   mongoose
-    .connect(DB_URL)
-    .then(() => console.log(`✅ Connected to MongoDB (${envName})`))
-    .catch((err) => console.error('❌ MongoDB connection error:', err));
+    .connect(MONGO_URI)
+    .then(() => {
+      console.log(`✅ Connected to MongoDB (${envName})`);
+      console.log(`📦 Database: ${mongoose.connection.name}`);
+    })
+    .catch((err) => {
+      console.error('❌ MongoDB connection error:', err);
+      if (envName === 'production') {
+        process.exit(1);
+      }
+    });
 } else {
-  console.warn('⚠️  MONGO_URI / DATABASE_URL not set — skipping MongoDB connection');
+  console.warn('⚠️  MONGO_URI not set — skipping MongoDB connection');
 }
 
 // 404 handler
@@ -105,9 +130,15 @@ app.use((err, req, res, next) => {
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
+    console.log('\n' + '='.repeat(60));
     console.log(`🚀 NorthStar Backend running on http://localhost:${PORT}`);
+    console.log(`📊 Environment: ${envName}`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    console.log(`🤖 AI Endpoints available at http://localhost:${PORT}/api/ai`);
+    console.log(`🤖 AI Endpoints: http://localhost:${PORT}/api/ai`);
+    console.log(`🔐 JWT Secret: ${JWT_SECRET ? '✓ Set' : '✗ Not set (using default)'}`);
+    console.log(`🗄️  MongoDB: ${MONGO_URI ? '✓ Connected' : '✗ Not configured'}`);
+    console.log(`🌐 CORS Origin: ${CLIENT_URL}`);
+    console.log('='.repeat(60) + '\n');
   });
 }
 

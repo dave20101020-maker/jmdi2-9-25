@@ -11,9 +11,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@pages': path.resolve(__dirname, './src/pages'),
+      '@components': path.resolve(__dirname, './src/components'),
+      '@utils': path.resolve(__dirname, './src/utils'),
+      '@api': path.resolve(__dirname, './src/api'),
+      '@store': path.resolve(__dirname, './src/store'),
       '@/lib/utils': path.resolve(__dirname, './src/utils/index.js'),
-      '@/utils': path.resolve(__dirname, './src/utils/index.js'),
-      '@/api/base44Client': path.resolve(__dirname, './src/api/base44Client.js'),
     },
     extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json']
   },

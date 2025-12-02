@@ -64,3 +64,18 @@ export const requirePillarAccess = (pillarParamKey = 'pillarId') => {
     }
   };
 };
+
+/**
+ * Logout handler - clears the authentication cookie
+ */
+export const logout = (req, res) => {
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    path: '/'
+  });
+  return res.status(200).json({ success: true, message: 'Logged out successfully' });
+};
+
+export default { authRequired, requirePillarAccess, logout };
