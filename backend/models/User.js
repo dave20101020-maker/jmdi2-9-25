@@ -21,6 +21,32 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Password hash is required']
   },
+  subscriptionTier: {
+    type: String,
+    enum: ['free', 'basic', 'premium', 'nhs_referred'],
+    default: 'free'
+  },
+  allowedPillars: {
+    type: [String],
+    default: function() {
+      // default for a free user: expose two pillars
+      return ['sleep', 'mental_health'];
+    }
+  }
+  ,
+  // Gamification: streaks and badges
+  current_streak: {
+    type: Number,
+    default: 0,
+  },
+  longest_streak: {
+    type: Number,
+    default: 0,
+  },
+  badges: {
+    type: [String],
+    default: []
+  }
 }, { timestamps: { createdAt: 'createdAt' } });
 
 userSchema.index({ email: 1 });

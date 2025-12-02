@@ -54,6 +54,9 @@ const pillarScoreSchema = new mongoose.Schema(
 // Compound unique index
 pillarScoreSchema.index({ userId: 1, pillar: 1 }, { unique: true });
 
+// Index to support time-based queries for recent pillar score snapshots
+pillarScoreSchema.index({ userId: 1, pillar: 1, createdAt: -1 });
+
 // Calculate trend based on recent scores
 pillarScoreSchema.methods.calculateTrend = function () {
   if (this.weeklyScores.length < 2) {

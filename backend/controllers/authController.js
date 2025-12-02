@@ -24,7 +24,7 @@ function setTokenCookie(res, token) {
 
 export const registerUser = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, subscriptionTier } = req.body;
     if (!username || !email || !password) {
       return res.status(400).json({ success: false, error: 'username, email and password are required' });
     }
@@ -43,13 +43,26 @@ export const registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    const user = new User({ username, email, passwordHash });
+    // determine default allowed pillars based on subscription tier
+    const ALL_PILLARS = ['sleep','diet','exercise','physical_health','mental_health','finances','social','spirituality'];
+    const tier = subscriptionTier && ['free','basic','premium','nhs_referred'].includes(subscriptionTier) ? subscriptionTier : 'free';
+
+    let allowedPillars = [];
+    if (tier === 'free') {
+      allowedPillars = ['sleep','mental_health'];
+    } else if (tier === 'basic') {
+      allowedPillars = ALL_PILLARS.slice(0,4); // provide up to 4 pillars
+    } else if (tier === 'premium' || tier === 'nhs_referred') {
+      allowedPillars = ALL_PILLARS.slice();
+    }
+
+    const user = new User({ username, email, passwordHash, subscriptionTier: tier, allowedPillars });
     await user.save();
 
     const token = createToken({ id: user._id, email: user.email });
     setTokenCookie(res, token);
 
-    return res.status(201).json({ success: true, data: { id: user._id, username: user.username, email: user.email } });
+    return res.status(201).json({ success: true, data: { id: user._id, username: user.username, email: user.email, subscriptionTier: user.subscriptionTier, allowedPillars: user.allowedPillars } });
   } catch (err) {
     console.error('registerUser error', err);
     return res.status(500).json({ success: false, error: 'Server error' });
