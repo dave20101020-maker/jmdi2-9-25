@@ -10,6 +10,7 @@ import {
 const router = express.Router();
 
 import { authRequired, requirePillarAccess } from '../middleware/authMiddleware.js';
+import { validate, aiSchemas } from '../middleware/validate.js';
 import asyncHandler from '../utils/asyncHandler.js';
 
 // require auth for AI endpoints
@@ -31,28 +32,28 @@ const conditionalPillarGuard = (keys) => (req, res, next) => {
  * Endpoint for coaching agent
  * Body: { prompt, userContext?, pillarFocus? }
  */
-router.post('/coach', conditionalPillarGuard(['pillar','pillarFocus']), asyncHandler(coachAgent));
+router.post('/coach', validate({ body: aiSchemas.coachRequest }), conditionalPillarGuard(['pillar','pillarFocus']), asyncHandler(coachAgent));
 
 /**
  * POST /api/ai/daily-plan
  * Endpoint for daily plan agent
  * Body: { prompt, userGoals?, timeAvailable? }
  */
-router.post('/daily-plan', asyncHandler(dailyPlanAgent));
+router.post('/daily-plan', validate({ body: aiSchemas.coachRequest }), asyncHandler(dailyPlanAgent));
 
 /**
  * POST /api/ai/pillar-analysis
  * Endpoint for pillar analysis agent
  * Body: { prompt, currentScores?, focusAreas? }
  */
-router.post('/pillar-analysis', conditionalPillarGuard(['pillar','pillarFocus']), asyncHandler(pillarAnalysisAgent));
+router.post('/pillar-analysis', validate({ body: aiSchemas.coachRequest }), conditionalPillarGuard(['pillar','pillarFocus']), asyncHandler(pillarAnalysisAgent));
 
 /**
  * POST /api/ai/weekly-reflection
  * Endpoint for weekly reflection agent
  * Body: { prompt, weeklyData?, pillarScores? }
  */
-router.post('/weekly-reflection', conditionalPillarGuard(['pillar','pillarScores']), asyncHandler(weeklyReflectionAgent));
+router.post('/weekly-reflection', validate({ body: aiSchemas.coachRequest }), conditionalPillarGuard(['pillar','pillarScores']), asyncHandler(weeklyReflectionAgent));
 router.get('/weekly-report', asyncHandler(weeklyReportAgent));
 
 export default router;

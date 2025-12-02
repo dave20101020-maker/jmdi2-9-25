@@ -8,6 +8,7 @@ import {
   getPillarStats,
 } from '../controllers/entriesController.js';
 import { authRequired, requirePillarAccess } from '../middleware/authMiddleware.js';
+import { validate, entrySchemas, idParam } from '../middleware/validate.js';
 
 const router = express.Router();
 
@@ -15,10 +16,10 @@ const router = express.Router();
 router.use(authRequired);
 
 // Create entry (body.pillar) - enforce pillar access
-router.post('/', requirePillarAccess(['pillar','pillarId']), createEntry);
+router.post('/', validate({ body: entrySchemas.create }), requirePillarAccess(['pillar','pillarId']), createEntry);
 
 // List entries - if query contains `pillar`, enforce access for that pillar
-router.get('/', (req, res, next) => {
+router.get('/', validate({ query: entrySchemas.query }), (req, res, next) => {
   if (req.query?.pillar) return requirePillarAccess(['pillar','pillarId'])(req, res, next);
   return next();
 }, getEntries);
@@ -27,8 +28,8 @@ router.get('/', (req, res, next) => {
 router.get('/stats/:userId/:pillar', requirePillarAccess('pillar'), getPillarStats);
 
 // Single entry operations (by entry id) - still require auth but entry contains pillar
-router.get('/:id', getEntry);
-router.put('/:id', updateEntry);
-router.delete('/:id', deleteEntry);
+router.get('/:id', validate({ params: idParam }), getEntry);
+router.put('/:id', validate({ params: idParam, body: entrySchemas.update }), updateEntry);
+router.delete('/:id', validate({ params: idParam }), deleteEntry);
 
 export default router;

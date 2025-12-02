@@ -1,5 +1,6 @@
 import express from 'express'
 import { authRequired } from '../middleware/authMiddleware.js'
+import { validate, pillarSchemas } from '../middleware/validate.js'
 import {
   getPillars,
   getPillar,
@@ -13,11 +14,11 @@ const router = express.Router()
 // Public routes
 router.route('/')
   .get(getPillars)
-  .post(authRequired, createPillar) // Admin only
+  .post(authRequired, validate({ body: pillarSchemas.create }), createPillar) // Admin only
 
 router.route('/:id')
-  .get(getPillar)
-  .put(authRequired, updatePillar) // Admin only
-  .delete(authRequired, deletePillar) // Admin only
+  .get(validate({ params: pillarSchemas.idParam }), getPillar)
+  .put(authRequired, validate({ params: pillarSchemas.idParam, body: pillarSchemas.update }), updatePillar) // Admin only
+  .delete(authRequired, validate({ params: pillarSchemas.idParam }), deletePillar) // Admin only
 
 export default router
