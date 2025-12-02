@@ -1,31 +1,6 @@
 import CoachPanel from '@/components/ai/CoachPanel';
-import React from 'react'
-import { PILLARS } from '@/config/pillars'
-
-export default function Dashboard(){
-  return (
-    <div>
-      <h1>Dashboard</h1>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:16,marginTop:16}}>
-        {PILLARS.map(p=> (
-          <div key={p.id} style={{background:'#fff',padding:16,borderRadius:8,boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
-            <div style={{display:'flex',alignItems:'center'}}>
-              <div className={`${p.color} w-10 h-10 rounded mr-3`} />
-              <div>
-                <div style={{fontWeight:700}}>{p.label}</div>
-                <div style={{color:'#64748b',fontSize:13}}>{p.description}</div>
-              </div>
-            </div>
-            <div style={{marginTop:12,color:'#94a3b8'}}>Coming soon: quick insights & charts</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 import { api } from "@/utils/apiClient";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { PILLARS, getPillarsArray, createPageUrl } from '@/utils';
