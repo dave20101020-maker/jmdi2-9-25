@@ -58,7 +58,7 @@ app.listen(PORT, () => {
    Response:
    {
      "ok": true,
-     "service": "NorthStar AI",
+     "service": "Project AI",
      "status": "operational",
      "timestamp": "2024-11-21T12:34:56.789Z"
    }
@@ -69,7 +69,7 @@ app.listen(PORT, () => {
    Body:
    {
      "message": "Help me sleep better tonight",
-     "pillar": "sleep" (optional - omit for auto-detect),
+     "module": "sleep" (optional - omit for auto-detect),
      "explicitMode": false (optional)
    }
    
@@ -77,10 +77,10 @@ app.listen(PORT, () => {
    {
      "ok": true,
      "agent": "sleepAgent",
-     "pillar": "sleep",
+     "module": "sleep",
      "response": "Dr. Luna's response here...",
      "memory": {
-       "pillarNames": ["sleep", "mentalHealth", ...],
+       "moduleNames": ["sleep", "mentalHealth", ...],
        "lastUpdated": "2024-11-21T12:34:56.789Z"
      },
      "rateLimit": {
@@ -143,10 +143,10 @@ curl -X POST http://localhost:5000/api/ai/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"I want to start a fitness routine"}'
 
-# Chat with specific pillar
+# Chat with specific module
 curl -X POST http://localhost:5000/api/ai/chat \
   -H "Content-Type: application/json" \
-  -d '{"message":"My knee hurts when running","pillar":"fitness"}'
+  -d '{"message":"My knee hurts when running","module":"fitness"}'
 
 # Get memory
 curl http://localhost:5000/api/ai/memory

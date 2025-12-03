@@ -1,17 +1,17 @@
 # Agent Prompt Storage
 
-This directory contains the system prompts and configuration for each pillar agent.
+This directory contains the system prompts and configuration for each module agent.
 
 ## Structure
 
 Each agent has two files:
 
-### {pillar}.prompt.txt
+### {module}.prompt.txt
 The core system prompt for the agent. Format:
 
 ```
 AGENT: {Name}
-PILLAR: {pillar}
+PILLAR: {module}
 ROLE: {Role description}
 INTRODUCTION: "{Natural greeting}"
 
@@ -28,13 +28,13 @@ SYSTEM PROMPT:
 {The full system prompt to send to LLM}
 ```
 
-### {pillar}.config.json
+### {module}.config.json
 Configuration for the agent. Format:
 
 ```json
 {
   "name": "Agent Name",
-  "pillar": "pillar-name",
+  "module": "module-name",
   "avatar": "🌙",
   "color": {
     "from": "#6B21A8",
@@ -56,7 +56,7 @@ Configuration for the agent. Format:
 3. **mental-health** - Dr. Serenity (🧘) - Mental wellbeing and anxiety
 4. **nutrition** - Chef Nourish (🥗) - Diet and nutrition
 5. **finances** - Sage Finance (💰) - Money and budgeting
-6. **physical-health** - Dr. Vital (❤️) - Physical wellness
+6. **physical-health** - Dr. Vital (❤️) - Physical internal
 7. **social** - Ambassador Nova (🤝) - Relationships and connection
 8. **spirituality** - Sage Spirit (✨) - Meaning and purpose
 

@@ -1,9 +1,9 @@
-# 🌟 NorthStar 8-Pillar Wellness OS - Complete Production Architecture
+# 🌟 Project 8-Module Internal OS - Complete Production Architecture
 
 ## 📁 Project Structure Overview
 
 ```
-NorthStar-BETA/
+Project-BETA/
 ├── 🎨 FRONTEND (/src)
 │   ├── pages/              # 30+ React page components
 │   ├── components/         # Reusable UI components
@@ -56,13 +56,13 @@ src/pages/
 │   ├── Analytics.jsx          # Data visualization
 │   └── Timeline.jsx           # Activity feed
 │
-├── 8 Pillar Pages
+├── 8 Module Pages
 │   ├── Sleep.jsx              # 😴 Sleep tracking
 │   ├── Diet.jsx               # 🥗 Nutrition
 │   ├── Exercise.jsx           # 💪 Fitness
-│   ├── PhysicalHealth.jsx     # 🏥 Physical wellness
+│   ├── PhysicalHealth.jsx     # 🏥 Physical internal
 │   ├── Mental.jsx / MentalHealth.jsx  # 🧠 Mental health
-│   ├── Finances.jsx           # 💰 Financial wellness
+│   ├── Finances.jsx           # 💰 Financial internal
 │   ├── Social.jsx             # 👥 Social connections
 │   └── Spirituality.jsx       # ✨ Purpose & meaning
 │
@@ -82,7 +82,7 @@ src/pages/
 │   └── Connections.jsx        # Network
 │
 ├── AI Coach
-│   ├── Coach.jsx              # AI coaching interface
+│   ├── Coach.jsx              # AI agenting interface
 │   ├── CoachSelect.jsx        # Coach preferences
 │   └── Meditation.jsx         # Guided sessions
 │
@@ -99,7 +99,7 @@ src/pages/
 #### Core Components (Recently Created)
 ```javascript
 src/components/
-├── PillarScoreBar.jsx        # Score visualization
+├── ModuleScoreBar.jsx        # Score visualization
 ├── SectionHeader.jsx         # Page headers
 ├── ActionButton.jsx          # Multi-variant buttons
 ├── InputCard.jsx             # Form inputs
@@ -107,7 +107,7 @@ src/components/
 ├── GamificationBar.jsx       # Level/XP/Streak display
 ├── AICoachMessage.jsx        # AI message bubbles
 ├── HabitTracker.jsx          # Habit checklist
-└── PillarCard.jsx            # Pillar overview cards
+└── ModuleCard.jsx            # Module overview cards
 ```
 
 #### Shared Components (60+)
@@ -117,7 +117,7 @@ src/components/shared/
 │   ├── Layout.jsx
 │   ├── MainLayout.jsx
 │   ├── AuthGuard.jsx
-│   └── PillarAccessGuard.jsx
+│   └── ModuleAccessGuard.jsx
 │
 ├── Progress & Metrics
 │   ├── CircularProgress.jsx
@@ -140,7 +140,7 @@ src/components/shared/
 │   ├── MedicationTracker.jsx
 │   └── SymptomLogger.jsx
 │
-├── Pillar-Specific
+├── Module-Specific
 │   ├── QuickLogDiet.jsx
 │   ├── QuickLogExercise.jsx
 │   ├── HealthCheckIn.jsx
@@ -179,7 +179,7 @@ src/components/shared/
     ├── DataCard.jsx
     ├── ActionCard.jsx
     ├── DailySummary.jsx
-    ├── PillarTip.jsx
+    ├── ModuleTip.jsx
     ├── HelpTooltip.jsx
     └── LogDetailModal.jsx
 ```
@@ -227,7 +227,7 @@ src/api/
 ### 🛠️ Utils
 ```javascript
 src/utils/
-├── scoring.js                      # ⭐ 8-Pillar Scoring Engine
+├── scoring.js                      # ⭐ 8-Module Scoring Engine
 │   ├── calculateSleepScore()
 │   ├── calculateDietScore()
 │   ├── calculateExerciseScore()
@@ -238,10 +238,10 @@ src/utils/
 │   ├── calculateSpiritualityScore()
 │   ├── calculateAllScores()
 │   ├── getOverallScore()
-│   └── getWellnessSummary()
+│   └── getInternalSummary()
 │
 ├── onboardingQuestions.js          # 📋 CBT-Based Questionnaire
-│   ├── 53 total questions (6-7 per pillar)
+│   ├── 53 total questions (6-7 per module)
 │   ├── Psychological, physiological, behavioral categories
 │   ├── COM-B model (Capability, Opportunity, Motivation)
 │   ├── Weighted scoring system
@@ -251,12 +251,12 @@ src/utils/
 │   ├── generateCoachingMessage()
 │   ├── CBT-based cognitive reframes
 │   ├── Motivational interviewing tone
-│   ├── Micro-actions by pillar & score
+│   ├── Micro-actions by module & score
 │   ├── generateQuickTip()
 │   └── generateCelebrationMessage()
 │
-├── pillars.js                      # Pillar configurations
-├── pillarTips.jsx                  # Tips & guidance
+├── modules.js                      # Module configurations
+├── moduleTips.jsx                  # Tips & guidance
 ├── habitUtils.js                   # Habit helpers
 ├── achievementBadges.jsx           # Badge system
 └── index.js / utils.js             # General utilities
@@ -274,7 +274,7 @@ src/hooks/
 ### ⚙️ Config
 ```javascript
 src/config/
-├── pillars.js                 # 8 pillar definitions
+├── modules.js                 # 8 module definitions
 └── subscriptions.js           # Tier configurations
 ```
 
@@ -289,22 +289,22 @@ backend/models/
 ├── Core Models
 │   ├── User.js                    # 👤 User accounts
 │   │   ├── name, username, email, passwordHash
-│   │   ├── subscriptionTier, allowedPillars
-│   │   ├── pillars Map (score, lastUpdated, isActive)
+│   │   ├── subscriptionTier, allowedModules
+│   │   ├── modules Map (score, lastUpdated, isActive)
 │   │   ├── settings (notifications, privacy, preferences, coaching)
 │   │   ├── gamification (current_streak, longest_streak, badges)
 │   │   ├── emailVerified, verificationToken
 │   │   ├── resetPasswordToken, isActive, lastLoginAt
 │   │   └── Indexes: email, username
 │
-├── Pillar Models
-│   ├── Pillar.js                  # 🏛️ Pillar definitions
+├── Module Models
+│   ├── Module.js                  # 🏛️ Module definitions
 │   │   ├── name, identifier, description, icon, color
 │   │   ├── category (physical/mental/lifestyle)
 │   │   ├── order, isActive, tips[], resources[]
 │   │   └── Indexes: identifier, name, isActive+order
 │   │
-│   ├── UserPillar.js              # 📊 User-specific pillar tracking
+│   ├── UserModule.js              # 📊 User-specific module tracking
 │   │   ├── userId, name, score
 │   │   ├── dailyHabits[] (name, streak, frequency, completed)
 │   │   ├── weeklyGoals[] (title, target, current, dueDate)
@@ -313,14 +313,14 @@ backend/models/
 │   │   ├── Methods: getDailyHabitsCompletionRate(), getWeeklyGoalsProgress()
 │   │   └── Indexes: userId+name (unique), userId+isActive
 │   │
-│   ├── PillarScore.js             # 📈 Score history
-│   │   ├── userId, pillar, score, trend
+│   ├── ModuleScore.js             # 📈 Score history
+│   │   ├── userId, module, score, trend
 │   │   ├── weeklyScores[], monthlyScores[]
 │   │   ├── Method: calculateTrend()
-│   │   └── Index: userId+pillar (unique)
+│   │   └── Index: userId+module (unique)
 │   │
-│   └── PillarCheckIn.js           # ✅ Check-in logs
-│       ├── userId, pillarId, checkInData, notes
+│   └── ModuleCheckIn.js           # ✅ Check-in logs
+│       ├── userId, moduleId, checkInData, notes
 │       └── timestamp
 │
 ├── Behavior Tracking
@@ -330,13 +330,13 @@ backend/models/
 │   │   └── Index: userId
 │   │
 │   ├── Entry.js                   # 📝 Journal entries
-│   │   ├── userId, content, mood, tags, pillarIds
+│   │   ├── userId, content, mood, tags, moduleIds
 │   │   └── Index: userId, createdAt
 │   │
 │   └── ActionPlan.js              # 📋 Action plans
-│       ├── userId, pillarId, title, description
+│       ├── userId, moduleId, title, description
 │       ├── actions[], status, dueDate
-│       └── Index: userId+pillarId
+│       └── Index: userId+moduleId
 │
 ├── Social Features
 │   ├── Friend.js                  # 👥 Friend connections
@@ -344,7 +344,7 @@ backend/models/
 │   │   └── Index: userId+friendId
 │   │
 │   ├── Challenge.js               # 🏆 Challenges
-│   │   ├── creatorId, title, description, pillarId
+│   │   ├── creatorId, title, description, moduleId
 │   │   ├── participants[], startDate, endDate, rewards
 │   │   └── Index: creatorId, participants
 │   │
@@ -361,7 +361,7 @@ backend/models/
 │   │
 │   └── OnboardingProfile.js       # 📋 Onboarding data
 │       ├── userId, responses{}, calculatedScores{}
-│       ├── completedAt, pillarsToFocus[]
+│       ├── completedAt, modulesToFocus[]
 │       └── Index: userId (unique)
 ```
 
@@ -388,16 +388,16 @@ backend/controllers/
 │       ├── exportUserData()         GET /api/users/export (GDPR)
 │       └── deleteAccount()          POST /api/users/delete-account
 │
-├── Pillar Management
-│   ├── pillarController.js          # Master pillar CRUD
-│   │   ├── getPillars()
-│   │   ├── getPillar()
-│   │   ├── createPillar()
-│   │   ├── updatePillar()
-│   │   └── deletePillar()
+├── Module Management
+│   ├── moduleController.js          # Master module CRUD
+│   │   ├── getModules()
+│   │   ├── getModule()
+│   │   ├── createModule()
+│   │   ├── updateModule()
+│   │   └── deleteModule()
 │   │
-│   └── pillarsController.js         # User pillar operations
-│       └── (User-specific pillar logic)
+│   └── modulesController.js         # User module operations
+│       └── (User-specific module logic)
 │
 ├── Habit & Goal Tracking
 │   ├── habitController.js           # User habits
@@ -450,12 +450,12 @@ backend/routes/
 │   ├── GET /export            # Export data
 │   └── POST /delete-account   # Delete account
 │
-├── pillarRoutes.js            # /api/pillars
-│   ├── GET /                  # List pillars
-│   ├── POST /                 # Create pillar (admin)
-│   ├── GET /:id               # Get pillar
-│   ├── PUT /:id               # Update pillar
-│   └── DELETE /:id            # Delete pillar
+├── moduleRoutes.js            # /api/modules
+│   ├── GET /                  # List modules
+│   ├── POST /                 # Create module (admin)
+│   ├── GET /:id               # Get module
+│   ├── PUT /:id               # Update module
+│   └── DELETE /:id            # Delete module
 │
 ├── habitRoutes.js             # /api/habits
 │   ├── GET /                  # User's habits
@@ -482,7 +482,7 @@ backend/routes/
 backend/middleware/
 ├── authMiddleware.js
 │   ├── authRequired()           # JWT validation
-│   ├── requirePillarAccess()    # Subscription-based access
+│   ├── requireModuleAccess()    # Subscription-based access
 │   └── logout()                 # Clear auth cookies
 │
 └── errorHandler.js              # Global error handling
@@ -506,7 +506,7 @@ backend/utils/
 ```javascript
 backend/tests/
 ├── auth.test.js                 # Auth flow tests
-└── pillars.test.js              # Pillar API tests
+└── modules.test.js              # Module API tests
 ```
 
 ---
@@ -581,20 +581,20 @@ STRIPE_SECRET_KEY=...
 - CORS configuration
 - Account deactivation & GDPR data export
 
-### ✅ 8-Pillar Wellness System
+### ✅ 8-Module Internal System
 - Sleep, Diet, Exercise, Physical Health, Mental Health, Finance, Social, Spirituality
-- Individual pillar pages with tracking
+- Individual module pages with tracking
 - Score calculation (0-100 scale)
 - Weighted scoring algorithms
 - Trend analysis (improving/stable/declining)
 - Weekly & monthly score history
 
 ### ✅ Onboarding System
-- 53 CBT-based questions (6-7 per pillar)
+- 53 CBT-based questions (6-7 per module)
 - COM-B model assessment (Capability, Opportunity, Motivation)
 - Psychological, physiological, behavioral categories
 - Baseline score calculation
-- Personalized pillar recommendations
+- Personalized module recommendations
 
 ### ✅ AI Coach
 - Context-aware message generation
@@ -605,7 +605,7 @@ STRIPE_SECRET_KEY=...
 - Celebration messages for milestones
 
 ### ✅ Habit & Goal Tracking
-- Daily habit tracking with streaks
+- Daily activity logging with streaks
 - Weekly goals with progress tracking
 - Action plans (short-term & long-term)
 - Habit frequency customization
@@ -630,7 +630,7 @@ STRIPE_SECRET_KEY=...
 
 ### ✅ Premium Features
 - Subscription tiers (Free, Basic, Premium, NHS Referred)
-- Pillar access control
+- Module access control
 - Feature gates
 - Stripe integration (placeholder)
 - Upgrade prompts
@@ -688,12 +688,12 @@ npm run build
 
 ```
 Users
-  ├── UserPillars (1:many)
+  ├── UserModules (1:many)
   │   ├── DailyHabits
   │   ├── WeeklyGoals
   │   └── ActionPlans
-  ├── PillarScores (1:many)
-  ├── PillarCheckIns (1:many)
+  ├── ModuleScores (1:many)
+  ├── ModuleCheckIns (1:many)
   ├── Habits (1:many)
   ├── Entries (1:many)
   ├── Friends (1:many)
@@ -702,8 +702,8 @@ Users
   ├── Notifications (1:many)
   └── OnboardingProfile (1:1)
 
-Pillars (8 global definitions)
-  └── Referenced by UserPillars
+Modules (8 global definitions)
+  └── Referenced by UserModules
 ```
 
 ---
@@ -734,7 +734,7 @@ Pillars (8 global definitions)
 
 ## 📈 SCORING ENGINE
 
-Each pillar uses a weighted algorithm:
+Each module uses a weighted algorithm:
 - Sleep: hours (40%), quality (40%), consistency (20%)
 - Diet: meals (20%), hydration (15%), variety (20%), mindfulness (15%)
 - Exercise: frequency (25%), duration (20%), intensity (15%)
@@ -775,6 +775,6 @@ Each pillar uses a weighted algorithm:
 
 ---
 
-**Your NorthStar app is production-ready! 🚀**
+**Your Project app is production-ready! 🚀**
 
 All major systems are implemented and working together seamlessly.

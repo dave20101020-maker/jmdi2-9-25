@@ -1,6 +1,6 @@
 # Testing Guide
 
-Complete guide to running tests in NorthStar, including unit tests, integration tests, and stress tests.
+Complete guide to running tests in Project, including unit tests, integration tests, and stress tests.
 
 ## Table of Contents
 
@@ -323,7 +323,7 @@ gh run cancel <run-id>
 
 ### Coverage Goals
 
-NorthStar aims for:
+Project aims for:
 - **Frontend**: 60% line coverage
 - **Backend**: 70% line coverage
 - **Critical paths**: 90%+ coverage
@@ -346,8 +346,8 @@ open coverage/index.html
 In README.md:
 
 ```markdown
-[![Frontend Coverage](https://img.shields.io/codecov/c/github/dave20101020-maker/NorthStar-BETA?label=frontend&flag=frontend)](https://codecov.io/gh/dave20101020-maker/NorthStar-BETA)
-[![Backend Coverage](https://img.shields.io/codecov/c/github/dave20101020-maker/NorthStar-BETA?label=backend&flag=backend)](https://codecov.io/gh/dave20101020-maker/NorthStar-BETA)
+[![Frontend Coverage](https://img.shields.io/codecov/c/github/dave20101020-maker/Project-BETA?label=frontend&flag=frontend)](https://codecov.io/gh/dave20101020-maker/Project-BETA)
+[![Backend Coverage](https://img.shields.io/codecov/c/github/dave20101020-maker/Project-BETA?label=backend&flag=backend)](https://codecov.io/gh/dave20101020-maker/Project-BETA)
 ```
 
 ---

@@ -1,6 +1,6 @@
 # Stress Testing Guide
 
-Comprehensive guide to load testing NorthStar's AI endpoints using k6.
+Comprehensive guide to load testing Project's AI endpoints using k6.
 
 ## Table of Contents
 

@@ -1,6 +1,6 @@
 {
   "common": {
-    "welcome": "Welcome to NorthStar",
+    "welcome": "Welcome to Project",
     "loading": "Loading",
     "error": "An error occurred",
     "success": "Success",
@@ -17,7 +17,7 @@
   },
   "ai": {
     "thinking": {
-      "title": "NorthStar is crafting your personalized plan",
+      "title": "Project is crafting your personalized plan",
       "subtitle": "Analyzing your goals and preferences",
       "message1": "Small steps lead to big changes",
       "message2": "Every journey begins with a single thought",
@@ -27,7 +27,7 @@
     },
     "tour": {
       "title": "Welcome Tour",
-      "step1_title": "Welcome to NorthStar",
+      "step1_title": "Welcome to Project",
       "step1_content": "Your AI-powered personal growth platform",
       "step2_title": "Track Your Progress",
       "step2_content": "Monitor your journey across 8 life pillars",

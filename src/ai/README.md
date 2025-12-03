@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains all AI-powered React components for the NorthStar wellness application. These components provide intelligent, personalized interactions powered by OpenAI's GPT-4-turbo model.
+This directory contains all AI-powered React components for the Project internal application. These components provide intelligent, personalized interactions powered by OpenAI's GPT-4-turbo model.
 
 ## What Belongs Here
 
@@ -30,7 +30,7 @@ import { useState } from 'react';
 import { api } from '@/api/client';
 import AIThinkingOverlay from './AIThinkingOverlay';
 
-export default function AIComponentName({ pillarId, userId, onComplete }) {
+export default function AIComponentName({ moduleId, userId, onComplete }) {
   const [loading, setLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState(null);
   const [error, setError] = useState(null);
@@ -41,7 +41,7 @@ export default function AIComponentName({ pillarId, userId, onComplete }) {
     
     try {
       const response = await api.post('/api/ai/endpoint', {
-        pillarId,
+        moduleId,
         userId,
         // ... other context
       });
@@ -85,7 +85,7 @@ Always show visual feedback during AI processing:
 
 AI responses should be cached when appropriate:
 - Use React Query for automatic caching (5 min default)
-- Cache insights/recommendations by pillar ID + date
+- Cache insights/recommendations by module ID + date
 - Invalidate cache when user data changes significantly
 - Consider localStorage for expensive AI computations
 
@@ -95,7 +95,7 @@ AI responses should be cached when appropriate:
 **Purpose:** Interactive buttons for triggering AI content generation  
 **Usage:** Place near content areas where users can request AI assistance  
 **Props:**
-- `pillarId` - Target pillar for AI context
+- `moduleId` - Target module for AI context
 - `onGenerate` - Callback when AI content is ready
 - `loading` - External loading state
 - `variant` - Button style ('primary', 'secondary', 'ghost')
@@ -104,17 +104,17 @@ AI responses should be cached when appropriate:
 ```jsx
 import AIContentButtons from '@/ai/AIContentButtons';
 
-function PillarPage({ pillarId }) {
+function ModulePage({ moduleId }) {
   const handleGenerate = async (type) => {
     // type: 'insights' | 'plan' | 'recommendations'
-    console.log(`Generating ${type} for ${pillarId}`);
+    console.log(`Generating ${type} for ${moduleId}`);
   };
 
   return (
     <div>
       <h1>Mental Health</h1>
       <AIContentButtons 
-        pillarId={pillarId}
+        moduleId={moduleId}
         onGenerate={handleGenerate}
       />
     </div>
@@ -124,14 +124,14 @@ function PillarPage({ pillarId }) {
 
 ### `AIInsights.jsx`
 **Purpose:** Displays AI-generated insights and recommendations  
-**Usage:** Dashboard, pillar pages, analytics views  
+**Usage:** Dashboard, module pages, analytics views  
 **Props:**
-- `pillarName` - Name of the pillar
-- `score` - Current pillar score (0-100)
+- `moduleName` - Name of the module
+- `score` - Current module score (0-100)
 - `insights` - Pre-fetched insights object
 - `loading` - Loading state
 
-**Data Source:** `GET /api/ai/insights/:pillarId`
+**Data Source:** `GET /api/ai/insights/:moduleId`
 
 **Example:**
 ```jsx
@@ -147,7 +147,7 @@ function Dashboard({ user }) {
 
   return (
     <AIInsights 
-      pillarName="Mental Health"
+      moduleName="Mental Health"
       score={75}
       insights={insights}
       loading={isLoading}
@@ -192,9 +192,9 @@ function MyComponent() {
 
 ### `GuidedJournal.jsx`
 **Purpose:** AI-powered journaling with dynamic prompts  
-**Usage:** Mental health pillar, daily check-ins  
+**Usage:** Mental health module, daily check-ins  
 **Props:**
-- `pillarId` - Context for prompt generation
+- `moduleId` - Context for prompt generation
 - `onSave` - Callback when entry is saved
 - `initialEntry` - Pre-populated entry (for editing)
 
@@ -211,7 +211,7 @@ import GuidedJournal from '@/ai/GuidedJournal';
 function JournalPage() {
   const handleSave = async (entry) => {
     await api.post('/api/entries', {
-      pillar: 'mental_health',
+      module: 'mental_health',
       content: entry.text,
       mood: entry.mood
     });
@@ -219,7 +219,7 @@ function JournalPage() {
 
   return (
     <GuidedJournal 
-      pillarId="mental_health"
+      moduleId="mental_health"
       onSave={handleSave}
     />
   );
@@ -274,7 +274,7 @@ function App() {
 import AIInsights from '@/ai/AIInsights';
 
 function MyPage() {
-  return <AIInsights pillarName="Sleep" score={80} />;
+  return <AIInsights moduleName="Sleep" score={80} />;
 }
 ```
 
@@ -285,11 +285,11 @@ For custom AI interactions, use the API client:
 ```jsx
 import { api } from '@/api/client';
 
-async function getCustomAIRecommendation(pillarId, userContext) {
+async function getCustomAIRecommendation(moduleId, userContext) {
   try {
     const response = await api.post('/api/ai/coach', {
       prompt: 'Recommend 3 specific actions for improving sleep',
-      pillarId,
+      moduleId,
       userContext: {
         score: userContext.score,
         recentEntries: userContext.recentEntries
@@ -310,10 +310,10 @@ async function getCustomAIRecommendation(pillarId, userContext) {
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 
-function useAIInsights(pillarId) {
+function useAIInsights(moduleId) {
   return useQuery({
-    queryKey: ['aiInsights', pillarId],
-    queryFn: () => api.get(`/api/ai/insights/${pillarId}`),
+    queryKey: ['aiInsights', moduleId],
+    queryFn: () => api.get(`/api/ai/insights/${moduleId}`),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
     onError: (error) => {
@@ -346,10 +346,10 @@ All AI components communicate with:
 
 ```
 POST /api/ai/coach
-POST /api/ai/insights/:pillarId
+POST /api/ai/insights/:moduleId
 POST /api/ai/journal-prompt
 POST /api/ai/action-plan
-GET  /api/ai/quick-tip/:pillarId
+GET  /api/ai/quick-tip/:moduleId
 ```
 
 ### Rate Limiting
@@ -386,7 +386,7 @@ Always pass relevant user context to AI:
 ```jsx
 const aiContext = {
   userId: user.id,
-  pillarId: 'mental_health',
+  moduleId: 'mental_health',
   currentScore: 75,
   recentEntries: entries.slice(0, 7), // Last 7 days
   timeOfDay: new Date().getHours() < 12 ? 'morning' : 'evening'
@@ -414,7 +414,7 @@ vi.mock('@/api/client', () => ({
 }));
 
 test('AIInsights renders AI response', async () => {
-  render(<AIInsights pillarId="sleep" />);
+  render(<AIInsights moduleId="sleep" />);
   await waitFor(() => {
     expect(screen.getByText(/Get 7-8 hours/)).toBeInTheDocument();
   });

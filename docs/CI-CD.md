@@ -1,6 +1,6 @@
 # CI/CD Pipeline Guide
 
-Complete guide to NorthStar's automated testing and deployment pipelines using GitHub Actions.
+Complete guide to Project's automated testing and deployment pipelines using GitHub Actions.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ Complete guide to NorthStar's automated testing and deployment pipelines using G
 
 ## Pipeline Overview
 
-NorthStar uses GitHub Actions with 3 main workflows:
+Project uses GitHub Actions with 3 main workflows:
 
 ```
 Push/PR to main/develop

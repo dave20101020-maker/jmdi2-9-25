@@ -1,4 +1,4 @@
-# NorthStar State Management
+# Project State Management
 
 This directory contains Zustand stores for global state management.
 

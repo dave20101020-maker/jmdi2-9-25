@@ -1,7 +1,7 @@
 {
-  "short_name": "NorthStar",
-  "name": "NorthStar 8-Pillar Wellness OS",
-  "description": "Holistic wellness tracking across 8 life pillars with AI coaching",
+  "short_name": "Project",
+  "name": "Project 8-Module OS",
+  "description": "Internal development workspace for testing and optimization",
   "icons": [
     {
       "src": "/logo192.png",
@@ -18,6 +18,6 @@
   "display": "standalone",
   "theme_color": "#3b82f6",
   "background_color": "#ffffff",
-  "categories": ["health", "lifestyle", "productivity"],
+  "categories": ["development", "testing", "internal"],
   "orientation": "portrait"
 }
