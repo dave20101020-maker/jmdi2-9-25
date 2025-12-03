@@ -8,19 +8,32 @@
  * - Crisis detection
  * - Error handling with fallbacks
  * - Standard response formatting
+ * - Request caching
  */
 
 import { AI_ENDPOINTS, buildUrl, getAuthHeader } from '@/config/apiConfig'
 import { parseError, getUserFriendlyMessage, getRecoverySuggestions } from '@/utils/errorHandling'
+import { getCachedResponse, setCachedResponse } from './aiCache'
 
 /**
  * Make authenticated fetch request to AI endpoint
+ * Includes caching for read-only requests
  * @param {string} endpoint - The AI endpoint (from AI_ENDPOINTS)
  * @param {object} data - Request body data
+ * @param {object} options - Additional options
+ * @param {boolean} [options.skipCache=false] - Skip caching
  * @returns {Promise<object>} - Parsed response
  */
-async function fetchAI(endpoint, data = {}) {
+async function fetchAI(endpoint, data = {}, options = {}) {
   try {
+    // Check cache for read-only requests (GET-like)
+    if (!options.skipCache) {
+      const cached = getCachedResponse(endpoint, data)
+      if (cached) {
+        return cached
+      }
+    }
+
     const url = buildUrl(endpoint)
     const response = await fetch(url, {
       method: 'POST',
@@ -38,6 +51,11 @@ async function fetchAI(endpoint, data = {}) {
       const error = parseError(result || { message: 'AI request failed' })
       error.statusCode = response.status
       throw error
+    }
+
+    // Cache successful responses
+    if (!options.skipCache) {
+      setCachedResponse(endpoint, data, result)
     }
 
     return result

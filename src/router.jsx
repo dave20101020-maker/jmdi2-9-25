@@ -5,8 +5,6 @@ import Dashboard from "@/pages/Dashboard";
 import Track from "@/pages/Track";
 import Community from "@/pages/Community";
 
-import Onboardingv2 from "@/pages/Onboardingv2";
-
 import Analytics from "@/pages/Analytics";
 
 import CoachSelect from "@/pages/CoachSelect";
@@ -88,8 +86,6 @@ const PAGES = {
     
     Community: Community,
     Track: Track,
-    
-    Onboardingv2: Onboardingv2,
     
     Analytics: Analytics,
     
@@ -180,8 +176,6 @@ function PagesContent() {
                 <Route path="/community" element={<Community />} />
                 
                 <Route path="/Track" element={<Track />} />
-                
-                <Route path="/Onboardingv2" element={<Onboardingv2 />} />
                 
                 <Route path="/Analytics" element={<Analytics />} />
                 
