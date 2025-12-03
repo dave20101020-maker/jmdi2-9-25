@@ -32,12 +32,14 @@ tmp/
 .DS_Store
 
 # AI-generated scaffolding (DO NOT COMMIT)
-**/PHASE_*
 **/QUICK_START*
 **/PART_*
 **/*_REFERENCE.js
 **/*_GUIDE.js
 **/*_SCAFFOLD*
+# Allow legitimate documentation
+!PHASE_*_SUMMARY.md
+!PHASE_*_COMPLETE.md
 
 # Coverage
 coverage/
