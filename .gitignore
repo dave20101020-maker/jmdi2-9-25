@@ -18,10 +18,9 @@ logs/
 tmp/
 *.tmp
 
-# Environment
-.env
-.env.local
-.env.*.local
+# Environment - all .env files
+.env*
+!.env.example
 
 # IDE
 .vscode/

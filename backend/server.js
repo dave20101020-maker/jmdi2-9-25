@@ -1,7 +1,9 @@
+// Load environment variables FIRST before any other imports
+import './loadEnv.js';
+
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import path from 'path';
 import mongoose from 'mongoose';
 import logger from './utils/logger.js';
@@ -21,12 +23,9 @@ import messagesRoutes from './routes/messages.js';
 import notificationsRoutes from './routes/notifications.js';
 import timelineRoutes from './routes/timeline.js';
 import userRoutes from './routes/user.js';
+import integrationsRoutes from './routes/integrations.js';
 
-// Load .env then environment-specific .env.<NODE_ENV>
-dotenv.config({ path: path.resolve(process.cwd(), './backend/.env') });
 const envName = process.env.NODE_ENV || 'development';
-const envPath = path.resolve(process.cwd(), `./backend/.env.${envName}`);
-dotenv.config({ path: envPath });
 
 // Environment Variables
 const PORT = process.env.PORT || 5000;
@@ -51,8 +50,37 @@ if (!JWT_SECRET) {
 const app = express();
 
 // Middleware
-// Configure CORS to allow client URL
-app.use(cors({ origin: CLIENT_URL, credentials: true }));
+// Configure CORS to allow client URL and GitHub Codespaces
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost and CLIENT_URL
+    const allowedOrigins = [
+      CLIENT_URL,
+      'http://localhost:5173',
+      'http://localhost:5000'
+    ];
+    
+    // Allow any GitHub Codespaces domain
+    if (origin.includes('.github.dev') || origin.includes('.githubpreview.dev')) {
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 
 // Request logging with Winston
 app.use(morgan('combined', { stream: logger.stream }));
@@ -101,6 +129,7 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/timeline', timelineRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/integrations', integrationsRoutes);
 
 // Connect to MongoDB
 if (MONGO_URI) {
