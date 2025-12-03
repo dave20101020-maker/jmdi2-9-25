@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, ChevronLeft, Check, Sparkles, TrendingUp, Trophy, Target, Zap, Users, Calendar, MessageSquare, BarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,8 @@ const TOUR_STEPS = [
 export default function GuidedTour({ onComplete, onSkip }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
+  const modalRef = useRef(null);
+  const firstButtonRef = useRef(null);
   
   const handleNext = () => {
     if (currentStep < TOUR_STEPS.length - 1) {
@@ -93,6 +95,47 @@ export default function GuidedTour({ onComplete, onSkip }) {
     setIsVisible(false);
     onComplete?.();
   };
+
+  // Handle ESC key and focus trap
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') handleSkip();
+    };
+
+    const handleKeyDown = (e) => {
+      if (!modalRef.current) return;
+      const focusableElements = modalRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.key === 'Tab') {
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleEsc);
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Focus first button on mount
+    if (firstButtonRef.current) {
+      firstButtonRef.current.focus();
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isVisible]);
   
   const step = TOUR_STEPS[currentStep];
   const Icon = step.icon;
@@ -102,12 +145,18 @@ export default function GuidedTour({ onComplete, onSkip }) {
   return (
     <AnimatePresence>
       <motion.div
+        role="presentation"
+        aria-hidden="true"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
       >
         <motion.div
+          ref={modalRef}
+          role="dialog"
+          aria-labelledby="tour-title"
+          aria-describedby="tour-description"
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -119,9 +168,11 @@ export default function GuidedTour({ onComplete, onSkip }) {
           <div className="flex items-start justify-between mb-6">
             <div className="flex-1" />
             <button
+              ref={firstButtonRef}
               onClick={handleSkip}
-              className="text-white/60 hover:text-white transition-colors"
-              aria-label="Skip tour"
+              className="text-white/60 hover:text-white transition-colors p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
+              aria-label="Skip tour (press Escape)"
+              title="Skip tour (Escape)"
             >
               <X className="w-5 h-5" />
             </button>
@@ -135,28 +186,28 @@ export default function GuidedTour({ onComplete, onSkip }) {
                 backgroundColor: `${step.color}20`,
                 boxShadow: `0 0 30px ${step.color}40` 
               }}
+              aria-hidden="true"
             >
               <Icon className="w-10 h-10" style={{ color: step.color }} />
             </div>
             
-            <div className="text-xs text-[#D4AF37] font-bold mb-3">
+            <div className="text-xs text-[#D4AF37] font-bold mb-3" id="tour-progress">
               Step {currentStep + 1} of {TOUR_STEPS.length}
             </div>
             
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">{step.title}</h2>
-            <p className="text-white/80 leading-relaxed text-base md:text-lg">{step.content}</p>
+            <h2 id="tour-title" className="text-2xl md:text-3xl font-bold text-white mb-4">{step.title}</h2>
+            <p id="tour-description" className="text-white/80 leading-relaxed text-base md:text-lg">{step.content}</p>
           </div>
           
           {/* Progress dots */}
-          <div className="flex justify-center gap-2 my-6">
+          <div className="flex justify-center gap-2 my-6" role="group" aria-labelledby="progress-label">
+            <span id="progress-label" className="sr-only">Tour progress: step {currentStep + 1} of {TOUR_STEPS.length}</span>
             {TOUR_STEPS.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentStep(idx)}
-                aria-label={`Go to step ${idx + 1}`}
-                className={`h-2 rounded-full transition-all ${
-                  idx === currentStep ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/20 hover:bg-white/40'
-                }`}
+                aria-label={`Go to step ${idx + 1}${idx === currentStep ? ' (current)' : ''}`}
+                className={`h-2 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-[#D4AF37] ${\n                  idx === currentStep ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/20 hover:bg-white/40'\n                }`}
               />
             ))}
           </div>
@@ -166,8 +217,9 @@ export default function GuidedTour({ onComplete, onSkip }) {
             <Button
               onClick={handlePrevious}
               disabled={currentStep === 0}
+              aria-label={`Go to previous step ${currentStep > 0 ? currentStep : ''}`}
               variant="ghost"
-              className="border border-white/20 text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="border border-white/20 text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-white"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
               Back
@@ -175,7 +227,8 @@ export default function GuidedTour({ onComplete, onSkip }) {
             
             <Button
               onClick={handleNext}
-              className="flex-1 bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-[#0A1628] font-bold hover:shadow-lg transition-all"
+              aria-label={currentStep === TOUR_STEPS.length - 1 ? 'Complete tour and get started' : `Go to next step ${currentStep + 2}`}
+              className="flex-1 bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-[#0A1628] font-bold hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-white"
               style={{ boxShadow: '0 0 20px rgba(212, 175, 55, 0.4)' }}
             >
               {currentStep === TOUR_STEPS.length - 1 ? (
@@ -194,7 +247,8 @@ export default function GuidedTour({ onComplete, onSkip }) {
           
           <button
             onClick={handleSkip}
-            className="w-full mt-4 text-white/60 hover:text-white text-sm transition-colors font-medium"
+            className="w-full mt-4 text-white/60 hover:text-white text-sm transition-colors font-medium p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-white"
+            aria-label="Skip tour"
           >
             Skip tour
           </button>

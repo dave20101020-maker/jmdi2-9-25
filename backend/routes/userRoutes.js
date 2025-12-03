@@ -13,7 +13,9 @@ import {
   updateCurrentUser,
   changePassword,
   exportUserData,
-  deleteAccount
+  deleteAccount,
+  updateConsent,
+  getConsent
 } from '../controllers/userController.js';
 
 const router = express.Router();
@@ -39,5 +41,9 @@ router.post('/resend-verification', authRequired, resendVerification);
 router.post('/change-password', authRequired, validate({ body: userSchemas.changePassword }), changePassword);
 router.get('/export', authRequired, exportUserData);
 router.post('/delete-account', authRequired, deleteAccount);
+
+// AI Consent routes
+router.get('/consent', authRequired, getConsent);
+router.post('/consent', authRequired, updateConsent);
 
 export default router;

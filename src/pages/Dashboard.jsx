@@ -16,6 +16,8 @@ import StreakDisplay from "@/components/shared/StreakDisplay";
 import MilestoneCelebration from "@/components/shared/MilestoneCelebration";
 import { useStreak } from "@/hooks/useStreak";
 import { Button } from "@/components/ui/button";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import AIErrorBoundary from "@/components/AIErrorBoundary";
 
 // This constant is necessary for iterating over all pillars in the UI and filtering
 const PILLARS_ARRAY = getPillarsArray();
@@ -379,14 +381,16 @@ function DashboardContent({ user }) {
           </div>
         </div>
         
-        <AIInsights 
-          entries={entries}
-          lifeScore={accessibleLifeScore}
-          pillarScores={accessiblePillarScores}
-          accessiblePillars={accessiblePillars}
-          plans={plans}
-          user={user}
-        />
+        <AIErrorBoundary showHelp={true}>
+          <AIInsights 
+            entries={entries}
+            lifeScore={accessibleLifeScore}
+            pillarScores={accessiblePillarScores}
+            accessiblePillars={accessiblePillars}
+            plans={plans}
+            user={user}
+          />
+        </AIErrorBoundary>
         
           {/* Talk to NorthStar */}
           <div className="my-8">
@@ -613,10 +617,12 @@ function DashboardContent({ user }) {
       
       {/* Guided Tour */}
       {showTour && (
-        <GuidedTour 
-          onComplete={handleTourComplete}
-          onSkip={() => setShowTour(false)}
-        />
+        <ErrorBoundary>
+          <GuidedTour 
+            onComplete={handleTourComplete}
+            onSkip={() => setShowTour(false)}
+          />
+        </ErrorBoundary>
       )}
       
       {/* Milestone Celebration */}
@@ -633,7 +639,11 @@ function DashboardContent({ user }) {
 export default function Dashboard() {
   return (
     <AuthGuard>
-      {(user) => <DashboardContent user={user} />}
+      {(user) => (
+        <ErrorBoundary>
+          <DashboardContent user={user} />
+        </ErrorBoundary>
+      )}
     </AuthGuard>
   );
 }

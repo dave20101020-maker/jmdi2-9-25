@@ -1,6 +1,6 @@
 import { api } from "@/utils/apiClient";
 import * as aiClient from "@/api/aiClient";
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, FileText, Lightbulb, X, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,8 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
   const [selectedType, setSelectedType] = useState(null);
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(false);
+  const modalRef = useRef(null);
+  const closeButtonRef = useRef(null);
 
   const loadContent = async (type) => {
     setSelectedType(type);
@@ -120,21 +122,63 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
     setContent(null);
   };
 
+  // Handle ESC key and focus trap
+  useEffect(() => {
+    if (!selectedType) return;
+
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') closeModal();
+    };
+
+    const handleKeyDown = (e) => {
+      if (!modalRef.current) return;
+      const focusableElements = modalRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.key === 'Tab') {
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleEsc);
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Focus close button on modal open
+    if (closeButtonRef.current) {
+      setTimeout(() => closeButtonRef.current?.focus(), 100);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedType]);
+
   return (
     <>
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-3 gap-3 mb-6" role="group" aria-label="Content type options">
         {Object.entries(CONTENT_TYPES).map(([type, config]) => {
           const Icon = config.icon;
           return (
             <motion.button
               key={type}
               onClick={() => loadContent(type)}
-              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all group"
+              aria-label={`Load ${config.label}`}
+              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all group focus:outline-none focus:ring-2 focus:ring-white"
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
               style={{ boxShadow: `0 0 15px ${config.color}20` }}
             >
-              <Icon className="w-6 h-6 mx-auto mb-2 group-hover:scale-110 transition-transform" style={{ color: config.color }} />
+              <Icon className="w-6 h-6 mx-auto mb-2 group-hover:scale-110 transition-transform" style={{ color: config.color }} aria-hidden="true" />
               <p className="text-white text-xs font-medium text-center">{config.label}</p>
             </motion.button>
           );
@@ -144,6 +188,8 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
       <AnimatePresence>
         {selectedType && (
           <motion.div
+            role="presentation"
+            aria-hidden="true"
             className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -151,6 +197,10 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
             onClick={closeModal}
           >
             <motion.div
+              ref={modalRef}
+              role="dialog"
+              aria-labelledby="content-title"
+              aria-modal="true"
               className="bg-[#1a1f35] border border-white/20 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden"
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
@@ -162,9 +212,10 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
                 <div className="flex items-center gap-3">
                   {React.createElement(CONTENT_TYPES[selectedType].icon, {
                     className: "w-6 h-6",
-                    style: { color: CONTENT_TYPES[selectedType].color }
+                    style: { color: CONTENT_TYPES[selectedType].color },
+                    "aria-hidden": "true"
                   })}
-                  <h2 className="text-xl font-bold text-white">{CONTENT_TYPES[selectedType].label}</h2>
+                  <h2 id="content-title" className="text-xl font-bold text-white">{CONTENT_TYPES[selectedType].label}</h2>
                 </div>
                 <div className="flex items-center gap-2">
                   {content && !loading && (
@@ -172,15 +223,19 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
                       onClick={() => generateNewContent(selectedType)}
                       variant="ghost"
                       size="sm"
-                      className="text-white/60 hover:text-white"
+                      aria-label="Generate new content"
+                      className="text-white/60 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
                     >
                       <RefreshCw className="w-4 h-4 mr-2" />
                       Refresh
                     </Button>
                   )}
                   <button
+                    ref={closeButtonRef}
                     onClick={closeModal}
-                    className="text-white/60 hover:text-white transition-colors rounded-lg p-2"
+                    className="text-white/60 hover:text-white transition-colors rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-white"
+                    aria-label="Close dialog (press Escape)"
+                    title="Close (Escape)"
                   >
                     <X className="w-6 h-6" />
                   </button>

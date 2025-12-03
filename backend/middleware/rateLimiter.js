@@ -1,205 +1,142 @@
 /**
- * Rate Limiting Middleware for AI Routes
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Rate Limiting Middleware
+ * ═══════════════════════════════════════════════════════════════════════════
  * 
- * Prevents:
+ * Protects against:
  * - API abuse
- * - Cost explosions from excessive API calls
+ * - Cost explosions from excessive AI API calls
  * - Brute force attacks
  * - Resource exhaustion
- */
-
-/**
- * In-memory rate limiter (for development)
- * Use Redis in production for distributed rate limiting
- */
-class RateLimiter {
-  constructor() {
-    this.store = new Map(); // userId -> { count, resetTime }
-  }
-
-  /**
-   * Check if request is allowed
-   * 
-   * @param {string} userId - User ID
-   * @param {number} limit - Max requests per window
-   * @param {number} windowMs - Time window in milliseconds
-   * @returns {Object} - { allowed: boolean, remaining: number, resetTime: Date }
-   */
-  check(userId, limit = 30, windowMs = 60000) {
-    const now = Date.now();
-    const entry = this.store.get(userId);
-
-    // New entry or window expired
-    if (!entry || now > entry.resetTime) {
-      this.store.set(userId, {
-        count: 1,
-        resetTime: now + windowMs
-      });
-
-      return {
-        allowed: true,
-        remaining: limit - 1,
-        resetTime: new Date(now + windowMs),
-        retryAfter: null
-      };
-    }
-
-    // Within window
-    if (entry.count < limit) {
-      entry.count++;
-      return {
-        allowed: true,
-        remaining: limit - entry.count,
-        resetTime: new Date(entry.resetTime),
-        retryAfter: null
-      };
-    }
-
-    // Limit exceeded
-    const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
-    return {
-      allowed: false,
-      remaining: 0,
-      resetTime: new Date(entry.resetTime),
-      retryAfter
-    };
-  }
-
-  /**
-   * Reset a user's rate limit (for testing)
-   */
-  reset(userId) {
-    this.store.delete(userId);
-  }
-
-  /**
-   * Clear all entries
-   */
-  clear() {
-    this.store.clear();
-  }
-
-  /**
-   * Get stats (for monitoring)
-   */
-  getStats() {
-    return {
-      totalUsers: this.store.size,
-      entries: Array.from(this.store.entries()).map(([userId, data]) => ({
-        userId,
-        count: data.count,
-        resetTime: new Date(data.resetTime)
-      }))
-    };
-  }
-}
-
-// Global rate limiter instance
-const rateLimiter = new RateLimiter();
-
-/**
- * Express middleware for AI route rate limiting
- * 30 requests per minute per user
  * 
- * Usage:
- * app.post('/api/ai/chat', aiRateLimitMiddleware, aiChatHandler);
+ * Uses express-rate-limit for robust rate limiting with configurable stores
  */
-export function aiRateLimitMiddleware(req, res, next) {
-  const userId = req.user?.id || req.ip || 'anonymous';
-  
-  // AI routes are more expensive - stricter limits
-  const result = rateLimiter.check(userId, 30, 60000); // 30 req/min
 
-  // Set rate limit headers
-  res.set('X-RateLimit-Limit', '30');
-  res.set('X-RateLimit-Remaining', result.remaining.toString());
-  res.set('X-RateLimit-Reset', result.resetTime.toISOString());
-
-  if (!result.allowed) {
-    res.set('Retry-After', result.retryAfter.toString());
-    
-    return res.status(429).json({
-      ok: false,
-      error: 'Too many requests',
-      message: `Rate limit exceeded. Please try again in ${result.retryAfter} seconds.`,
-      retryAfter: result.retryAfter,
-      resetTime: result.resetTime
-    });
-  }
-
-  // Attach rate limit info to request
-  req.rateLimit = {
-    limit: 30,
-    remaining: result.remaining,
-    reset: result.resetTime
-  };
-
-  next();
-}
+import rateLimit from 'express-rate-limit';
+import logger from '../utils/logger.js';
 
 /**
- * General API rate limiting (less strict)
- * 100 requests per minute per user
+ * AI Route Rate Limiter
+ * 10 requests per minute per user
+ * Much stricter than general API due to cost
  */
-export function apiRateLimitMiddleware(req, res, next) {
-  const userId = req.user?.id || req.ip || 'anonymous';
+export const aiRateLimiter = rateLimit({
+  // Identify users by their userId from JWT or IP address
+  keyGenerator: (req, res) => {
+    return req.user?.id || req.ip || 'anonymous';
+  },
   
-  const result = rateLimiter.check(userId, 100, 60000); // 100 req/min
-
-  res.set('X-RateLimit-Limit', '100');
-  res.set('X-RateLimit-Remaining', result.remaining.toString());
-  res.set('X-RateLimit-Reset', result.resetTime.toISOString());
-
-  if (!result.allowed) {
-    res.set('Retry-After', result.retryAfter.toString());
+  // 1 minute window
+  windowMs: 1 * 60 * 1000,
+  
+  // 10 requests per window
+  max: 10,
+  
+  // Don't rate limit successful requests under a certain threshold
+  skipSuccessfulRequests: false,
+  
+  // Don't count certain request types
+  skip: (req, res) => {
+    // Skip rate limiting for health checks
+    if (req.path === '/health') return true;
+    return false;
+  },
+  
+  // Standard response when rate limited
+  handler: (req, res, options) => {
+    const retryAfter = Math.ceil(options.windowMs / 1000);
     
-    return res.status(429).json({
-      ok: false,
-      error: 'Too many requests',
-      message: `Rate limit exceeded. Please try again in ${result.retryAfter} seconds.`,
-      retryAfter: result.retryAfter
+    // Log the rate limit incident
+    logger.warn('AI Rate limit exceeded', {
+      userId: req.user?.id,
+      ip: req.ip,
+      path: req.path,
+      method: req.method,
+      retryAfter,
     });
-  }
 
-  req.rateLimit = {
-    limit: 100,
-    remaining: result.remaining,
-    reset: result.resetTime
-  };
-
-  next();
-}
+    res.status(options.statusCode).json({
+      error: true,
+      message: `Too many AI requests. Please slow down. Try again in ${retryAfter} seconds.`,
+      code: 'RATE_LIMIT_EXCEEDED',
+      retryAfter,
+      resetTime: new Date(Date.now() + options.windowMs).toISOString(),
+    });
+  },
+  
+  // Custom header names
+  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+});
 
 /**
- * Strict rate limiting for authentication endpoints
+ * General API Rate Limiter
+ * 30 requests per minute per user
+ */
+export const apiRateLimiter = rateLimit({
+  keyGenerator: (req, res) => {
+    return req.user?.id || req.ip || 'anonymous';
+  },
+  
+  windowMs: 1 * 60 * 1000,
+  max: 30,
+  skipSuccessfulRequests: false,
+  
+  handler: (req, res, options) => {
+    const retryAfter = Math.ceil(options.windowMs / 1000);
+    
+    logger.warn('API Rate limit exceeded', {
+      userId: req.user?.id,
+      ip: req.ip,
+      path: req.path,
+      retryAfter,
+    });
+
+    res.status(options.statusCode).json({
+      error: true,
+      message: `Too many requests. Please slow down. Try again in ${retryAfter} seconds.`,
+      code: 'RATE_LIMIT_EXCEEDED',
+      retryAfter,
+    });
+  },
+  
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Auth Rate Limiter
  * 5 requests per minute per IP
+ * Very strict to prevent brute force
  */
-export function authRateLimitMiddleware(req, res, next) {
-  const ip = req.ip || 'anonymous';
+export const authRateLimiter = rateLimit({
+  keyGenerator: (req, res) => {
+    return req.ip || 'anonymous';
+  },
   
-  const result = rateLimiter.check(ip, 5, 60000); // 5 req/min
-
-  res.set('X-RateLimit-Limit', '5');
-  res.set('X-RateLimit-Remaining', result.remaining.toString());
-  res.set('X-RateLimit-Reset', result.resetTime.toISOString());
-
-  if (!result.allowed) {
-    res.set('Retry-After', result.retryAfter.toString());
+  windowMs: 1 * 60 * 1000,
+  max: 5,
+  skipSuccessfulRequests: false,
+  
+  handler: (req, res, options) => {
+    const retryAfter = Math.ceil(options.windowMs / 1000);
     
-    return res.status(429).json({
-      ok: false,
-      error: 'Too many authentication attempts',
-      message: `Too many login attempts. Please try again in ${result.retryAfter} seconds.`,
-      retryAfter: result.retryAfter
+    logger.warn('Auth Rate limit exceeded', {
+      ip: req.ip,
+      path: req.path,
+      retryAfter,
     });
-  }
 
-  next();
-}
+    res.status(options.statusCode).json({
+      error: true,
+      message: `Too many login attempts. Please try again in ${retryAfter} seconds.`,
+      code: 'AUTH_RATE_LIMIT_EXCEEDED',
+      retryAfter,
+    });
+  },
+  
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-/**
- * Export the rate limiter instance for testing/monitoring
- */
-export { rateLimiter };
-
-export default aiRateLimitMiddleware;
+export default aiRateLimiter;

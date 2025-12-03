@@ -110,6 +110,20 @@ const userSchema = new mongoose.Schema({
   },
   lastLoginAt: {
     type: Date
+  },
+  // AI Data Usage Consent
+  aiConsent: {
+    type: Boolean,
+    default: false,
+    required: true
+  },
+  consentTimestamp: {
+    type: Date,
+    default: null
+  },
+  consentVersion: {
+    type: String,
+    default: null
   }
 }, { timestamps: true });
 

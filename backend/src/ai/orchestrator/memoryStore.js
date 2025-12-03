@@ -373,3 +373,18 @@ export async function clearMemory(userId) {
     }
   }
 }
+
+/**
+ * Memory Store object - aggregate of all memory functions
+ */
+export const memoryStore = {
+  loadMemory,
+  saveMemory,
+  updateConversationHistory,
+  addItemToMemory,
+  markTopicCovered,
+  isTopicCovered,
+  getConversationHistory,
+  updatePillarData,
+  clearMemory
+};

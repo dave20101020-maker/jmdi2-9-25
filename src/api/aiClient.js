@@ -1,429 +1,356 @@
 /**
- * AI Client for Frontend
+ * AI Client
  * 
- * Centralized HTTP client for communicating with the orchestrator backend.
+ * Centralized client for all AI-related API calls.
  * Handles:
- * - JWT token management
- * - Message routing to appropriate pillar agents
- * - Crisis detection and responses
- * - Saving AI-generated items (plans, habits, goals, etc.)
- * - Error handling and fallback responses
+ * - Message sending to orchestrator
+ * - Pillar-specific agent requests
+ * - Crisis detection
+ * - Error handling with fallbacks
+ * - Standard response formatting
  */
 
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import { AI_ENDPOINTS, buildUrl, getAuthHeader } from '@/config/apiConfig'
+import { parseError, getUserFriendlyMessage, getRecoverySuggestions } from '@/utils/errorHandling'
 
 /**
- * Create axios instance with auth headers
+ * Make authenticated fetch request to AI endpoint
+ * @param {string} endpoint - The AI endpoint (from AI_ENDPOINTS)
+ * @param {object} data - Request body data
+ * @returns {Promise<object>} - Parsed response
  */
-const createClient = () => {
-  const client = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    withCredentials: true
-  });
+async function fetchAI(endpoint, data = {}) {
+  try {
+    const url = buildUrl(endpoint)
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader(),
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
 
-  // Add JWT token to requests if available
-  client.interceptors.request.use(
-    (config) => {
-      const token = localStorage.getItem('token') || localStorage.getItem('jwt');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    },
-    (error) => Promise.reject(error)
-  );
+    const result = await response.json()
 
-  // Handle response errors globally
-  client.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      const status = error.response?.status;
-      
-      // Handle 401 - redirect to login
-      if (status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('jwt');
-        window.location.href = '/login';
-      }
-      
-      return Promise.reject(error);
+    if (!response.ok) {
+      const error = parseError(result || { message: 'AI request failed' })
+      error.statusCode = response.status
+      throw error
     }
-  );
 
-  return client;
-};
-
-const client = createClient();
+    return result
+  } catch (error) {
+    throw error
+  }
+}
 
 /**
- * Send a message to the orchestrator for AI processing
+ * Send message to orchestrator for AI processing
  * 
- * @param {Object} params
- * @param {string} params.message - User's message
- * @param {string} [params.pillar] - Explicit pillar (optional, will be auto-detected)
- * @param {Array} [params.lastMessages] - Recent conversation history (optional)
- * @returns {Promise<Object>} - AI response or crisis info
+ * @param {string} message - The user's message
+ * @param {object} options - Additional options
+ * @param {string} [options.pillar] - Specific pillar to focus on
+ * @param {object} [options.context] - Additional context data
+ * @param {array} [options.lastMessages] - Recent conversation history
+ * @returns {Promise<object>} - Response with { ok, text, agent, pillar } or { ok, isCrisis, resources }
  * 
  * @example
- * const response = await aiClient.sendMessage({
- *   message: "I've been feeling anxious lately",
- *   pillar: "mental-health"
- * });
- *
+ * const response = await aiClient.sendToOrchestrator('I feel anxious', {
+ *   pillar: 'mental-health',
+ *   context: { recentEvents: [] }
+ * })
+ * 
  * if (response.isCrisis) {
- *   displayCrisisResources(response.resources);
+ *   displayCrisisResources(response.resources)
  * } else {
- *   displayAgentResponse(response.agent, response.text);
+ *   displayMessage(response.text)
  * }
  */
-export async function sendMessage({ message, pillar = null, lastMessages = [] }) {
+export async function sendToOrchestrator(message, options = {}) {
   try {
     if (!message || !message.trim()) {
-      throw new Error('Message cannot be empty');
-    }
-
-    const response = await client.post('/api/orchestrator/chat', {
-      message: message.trim(),
-      pillar,
-      lastMessages
-    });
-
-    // Check if response indicates a crisis
-    if (response.data.isCrisis) {
-      return {
-        ok: true,
-        isCrisis: true,
-        severity: response.data.severity,
-        type: response.data.type,
-        message: response.data.message,
-        resources: response.data.resources,
-        timestamp: response.data.timestamp
-      };
-    }
-
-    // Check if AI service is unavailable
-    if (response.data.error || !response.data.ok) {
       return {
         ok: false,
         error: true,
-        message: response.data.message || 'AI service temporarily unavailable',
-        fallback: true,
-        suggestion: getFallbackSuggestion(pillar)
-      };
+        message: 'Message cannot be empty',
+        type: 'validation',
+      }
     }
 
-    // Normal successful response
+    const data = {
+      message: message.trim(),
+      pillar: options.pillar || null,
+      context: options.context || {},
+      lastMessages: options.lastMessages || [],
+    }
+
+    const result = await fetchAI(AI_ENDPOINTS.ORCHESTRATOR, data)
+
+    // Crisis detection
+    if (result.isCrisis) {
+      return {
+        ok: true,
+        isCrisis: true,
+        severity: result.severity,
+        type: result.type,
+        message: result.message,
+        resources: result.resources || [],
+        timestamp: result.timestamp || new Date().toISOString(),
+      }
+    }
+
+    // Successful response
     return {
       ok: true,
-      text: response.data.text,
-      agent: response.data.agent,
-      pillar: response.data.pillar,
-      model: response.data.model,
-      meta: response.data.meta || {}
-    };
+      text: result.text || '',
+      agent: result.agent || 'coach',
+      pillar: result.pillar || options.pillar || 'general',
+      model: result.model || 'unknown',
+      meta: result.meta || {},
+    }
   } catch (error) {
-    console.error('Message send error:', error);
-
-    // Network or server error - return fallback
+    const parsedError = parseError(error)
     return {
       ok: false,
       error: true,
-      message: error.response?.data?.message || 'Unable to reach AI service',
+      message: getUserFriendlyMessage(parsedError),
       fallback: true,
-      suggestion: getFallbackSuggestion(pillar),
-      statusCode: error.response?.status
-    };
+      suggestions: getRecoverySuggestions(parsedError),
+      statusCode: error.statusCode || 500,
+    }
   }
 }
 
 /**
- * Save a life plan
+ * Send request to a specific pillar agent
  * 
- * @param {Object} params
- * @param {string} params.title - Plan title
- * @param {string} params.content - Plan content
- * @param {string} params.pillar - Associated pillar
- * @param {Array} [params.pillars] - Multiple pillars
- * @param {string} [params.timeframe] - Time frame (e.g., '1 year')
- * @returns {Promise<Object>} - Saved plan
+ * @param {string} pillar - The pillar ID (e.g., 'mental-health', 'fitness')
+ * @param {string} message - The user's message
+ * @param {object} options - Additional options
+ * @param {object} [options.context] - Additional context data
+ * @param {array} [options.lastMessages] - Recent conversation history
+ * @returns {Promise<object>} - Response with { ok, text, agent, pillar }
+ * 
+ * @example
+ * const response = await aiClient.sendToPillarAgent('fitness', 'Create a workout plan', {
+ *   context: { fitnessLevel: 'intermediate' }
+ * })
  */
-export async function savePlan({ title, content, pillar, pillars = [], timeframe = '1 year' }) {
+export async function sendToPillarAgent(pillar, message, options = {}) {
+  // Use orchestrator but specify the pillar
+  return sendToOrchestrator(message, {
+    ...options,
+    pillar,
+  })
+}
+
+/**
+ * Check if message indicates a crisis
+ * 
+ * @param {string} message - The user's message
+ * @returns {Promise<object>} - Response with { isCrisis, severity, resources }
+ * 
+ * @example
+ * const result = await aiClient.checkCrisis(userMessage)
+ * if (result.isCrisis) {
+ *   showCrisisResources(result.resources)
+ * }
+ */
+export async function checkCrisis(message) {
   try {
-    const response = await client.post('/api/orchestrator/items/plan', {
-      title,
-      content,
-      pillar,
-      pillars: pillars.length > 0 ? pillars : [pillar],
-      timeframe
-    });
+    const result = await fetchAI(AI_ENDPOINTS.CRISIS_CHECK, {
+      message: message.trim(),
+    })
 
     return {
       ok: true,
-      item: response.data.item,
-      itemId: response.data.itemId
-    };
+      isCrisis: result.isCrisis || false,
+      severity: result.severity || 'none',
+      type: result.type || 'unknown',
+      message: result.message || '',
+      resources: result.resources || [],
+    }
   } catch (error) {
-    console.error('Save plan error:', error);
+    // Crisis check shouldn't fail - return safe default
+    console.error('Crisis check failed:', error)
     return {
       ok: false,
-      error: error.message,
-      message: 'Failed to save plan'
-    };
+      isCrisis: false,
+      message: 'Unable to check for crisis',
+    }
   }
 }
 
 /**
- * Save a goal
+ * Get daily plan from AI
  * 
- * @param {Object} params
- * @param {string} params.title - Goal title
- * @param {string} params.description - Goal description
- * @param {string} params.pillar - Associated pillar
- * @param {Array} [params.criteria] - Success criteria
- * @param {Date} [params.deadline] - Target deadline
- * @param {string} [params.priority] - 'high', 'medium', 'low'
- * @returns {Promise<Object>} - Saved goal
+ * @param {string} message - User's request for plan
+ * @param {object} options - Additional options
+ * @param {array} [options.goals] - User's goals
+ * @param {number} [options.timeAvailable] - Available hours in day
+ * @returns {Promise<object>} - Daily plan response
  */
-export async function saveGoal({ title, description, pillar, criteria = [], deadline = null, priority = 'medium' }) {
+export async function getDailyPlan(message, options = {}) {
   try {
-    const response = await client.post('/api/orchestrator/items/goal', {
-      title,
-      description,
-      pillar,
-      criteria,
-      deadline,
-      priority
-    });
+    const result = await fetchAI(AI_ENDPOINTS.DAILY_PLAN, {
+      message: message.trim(),
+      goals: options.goals || [],
+      timeAvailable: options.timeAvailable || 16,
+    })
 
     return {
       ok: true,
-      item: response.data.item,
-      itemId: response.data.itemId
-    };
+      plan: result.plan || result,
+      suggestions: result.suggestions || [],
+    }
   } catch (error) {
-    console.error('Save goal error:', error);
+    const parsedError = parseError(error)
     return {
       ok: false,
-      error: error.message,
-      message: 'Failed to save goal'
-    };
+      error: true,
+      message: getUserFriendlyMessage(parsedError),
+      suggestions: getRecoverySuggestions(parsedError),
+    }
   }
 }
 
 /**
- * Save a habit
+ * Get pillar analysis from AI
  * 
- * @param {Object} params
- * @param {string} params.title - Habit title
- * @param {string} params.description - Habit description
- * @param {string} params.pillar - Associated pillar
- * @param {string} params.frequency - 'daily', 'weekly', 'monthly'
- * @param {number} [params.targetCount] - Target repetitions
- * @param {string} [params.timeOfDay] - Preferred time
- * @returns {Promise<Object>} - Saved habit
+ * @param {string} message - User's request
+ * @param {object} options - Additional options
+ * @param {object} [options.scores] - Current pillar scores
+ * @param {array} [options.focusAreas] - Areas to focus on
+ * @returns {Promise<object>} - Analysis response
  */
-export async function saveHabit({ title, description = '', pillar, frequency = 'daily', targetCount = 1, timeOfDay = null }) {
+export async function getPillarAnalysis(message, options = {}) {
   try {
-    const response = await client.post('/api/orchestrator/items/habit', {
-      title,
-      description,
-      pillar,
-      frequency,
-      targetCount,
-      timeOfDay
-    });
+    const result = await fetchAI(AI_ENDPOINTS.PILLAR_ANALYSIS, {
+      message: message.trim(),
+      scores: options.scores || {},
+      focusAreas: options.focusAreas || [],
+    })
 
     return {
       ok: true,
-      item: response.data.item,
-      itemId: response.data.itemId
-    };
+      analysis: result.analysis || result,
+    }
   } catch (error) {
-    console.error('Save habit error:', error);
+    const parsedError = parseError(error)
     return {
       ok: false,
-      error: error.message,
-      message: 'Failed to save habit'
-    };
+      error: true,
+      message: getUserFriendlyMessage(parsedError),
+    }
   }
 }
 
 /**
- * Save a journal entry or log
+ * Get weekly reflection from AI
  * 
- * @param {Object} params
- * @param {string} params.title - Entry title
- * @param {string} params.content - Entry content
- * @param {string} params.pillar - Associated pillar
- * @param {string} [params.type] - Entry type (journal, reflection, note, etc.)
- * @param {Object} [params.metrics] - Optional metrics
- * @returns {Promise<Object>} - Saved entry
+ * @param {string} message - User's request
+ * @param {object} options - Additional options
+ * @param {object} [options.weeklyData] - Data from the week
+ * @param {object} [options.pillarScores] - Pillar scores for the week
+ * @returns {Promise<object>} - Reflection response
  */
-export async function saveEntry({ title, content, pillar, type = 'journal', metrics = null }) {
+export async function getWeeklyReflection(message, options = {}) {
   try {
-    const response = await client.post('/api/orchestrator/items/entry', {
-      title,
-      content,
-      pillar,
-      type,
-      metrics
-    });
+    const result = await fetchAI(AI_ENDPOINTS.WEEKLY_REFLECTION, {
+      message: message.trim(),
+      weeklyData: options.weeklyData || {},
+      pillarScores: options.pillarScores || {},
+    })
 
     return {
       ok: true,
-      item: response.data.item,
-      itemId: response.data.itemId
-    };
+      reflection: result.reflection || result,
+    }
   } catch (error) {
-    console.error('Save entry error:', error);
+    const parsedError = parseError(error)
     return {
       ok: false,
-      error: error.message,
-      message: 'Failed to save entry'
-    };
+      error: true,
+      message: getUserFriendlyMessage(parsedError),
+    }
   }
 }
 
 /**
- * Reset user memory for a pillar
+ * Analyze sentiment of a message
  * 
- * @param {string} pillar - Pillar to reset (null = all)
- * @returns {Promise<Object>} - Reset result
+ * @param {string} text - The text to analyze
+ * @returns {Promise<object>} - Sentiment analysis result
  */
-export async function resetMemory(pillar = null) {
+export async function analyzeSentiment(text) {
   try {
-    const response = await client.post('/api/orchestrator/memory/reset', {
-      pillar
-    });
+    const result = await fetchAI(AI_ENDPOINTS.SENTIMENT, {
+      text: text.trim(),
+    })
 
     return {
       ok: true,
-      message: response.data.message
-    };
+      sentiment: result.sentiment || 'neutral',
+      score: result.score || 0,
+    }
   } catch (error) {
-    console.error('Reset memory error:', error);
     return {
       ok: false,
-      error: error.message
-    };
+      error: true,
+      sentiment: 'unknown',
+    }
   }
 }
 
 /**
- * Get user's memory/context for a pillar
+ * Transcribe audio
  * 
- * @param {string} pillar - Pillar to retrieve memory for
- * @returns {Promise<Object>} - Memory data
+ * @param {Blob} audioBlob - Audio file blob
+ * @returns {Promise<object>} - Transcription result
  */
-export async function getMemory(pillar) {
+export async function transcribeAudio(audioBlob) {
   try {
-    const response = await client.get(`/api/orchestrator/memory/${pillar}`);
+    const formData = new FormData()
+    formData.append('audio', audioBlob)
+
+    const url = buildUrl(AI_ENDPOINTS.TRANSCRIBE)
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeader(),
+      },
+      credentials: 'include',
+      body: formData,
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Transcription failed')
+    }
 
     return {
       ok: true,
-      memory: response.data
-    };
+      text: result.text || '',
+    }
   } catch (error) {
-    console.error('Get memory error:', error);
     return {
       ok: false,
-      error: error.message
-    };
+      error: true,
+      message: 'Failed to transcribe audio',
+    }
   }
-}
-
-/**
- * Get fallback suggestion when AI is unavailable
- * Used to provide helpful guidance when service is down
- * 
- * @param {string} pillar - Optional pillar context
- * @returns {string} - Fallback suggestion
- */
-function getFallbackSuggestion(pillar = null) {
-  const suggestions = {
-    'mental-health': 'Consider journaling your thoughts or reaching out to a trusted friend or mental health professional.',
-    'fitness': 'Try a quick 10-minute workout video or take a walk to boost your energy.',
-    'sleep': 'Focus on good sleep hygiene: no screens 30 minutes before bed, cool dark room, consistent schedule.',
-    'nutrition': 'Drink water, eat a balanced meal with protein and vegetables, and practice mindful eating.',
-    'finances': 'Review your budget, track your expenses this week, and identify one area to optimize.',
-    'physical-health': 'Consider a check-up with your doctor or healthcare provider for personalized advice.',
-    'social': 'Reach out to a friend or family member you care about to strengthen your connections.',
-    'spirituality': 'Take time for reflection, meditation, or engage in a practice that brings you meaning.'
-  };
-
-  return suggestions[pillar] || suggestions['mental-health'];
-}
-
-/**
- * Handle crisis response from API
- * Used to properly display crisis resources to user
- * 
- * @param {Object} crisisResponse - Response from sendMessage with isCrisis flag
- * @returns {Object} - Formatted crisis data
- */
-export function handleCrisisResponse(crisisResponse) {
-  if (!crisisResponse.isCrisis) {
-    return null;
-  }
-
-  return {
-    message: crisisResponse.message,
-    severity: crisisResponse.severity,
-    resources: (crisisResponse.resources || []).map(resource => ({
-      name: resource.name,
-      number: resource.number,
-      url: resource.url,
-      description: resource.description
-    }))
-  };
-}
-
-/**
- * Format AI response for display
- * 
- * @param {Object} response - Response from sendMessage
- * @returns {Object} - Formatted response
- */
-export function formatResponse(response) {
-  if (response.isCrisis) {
-    return {
-      type: 'crisis',
-      message: response.message,
-      resources: response.resources,
-      severity: response.severity
-    };
-  }
-
-  if (response.error) {
-    return {
-      type: 'error',
-      message: response.message,
-      fallback: response.suggestion,
-      retry: true
-    };
-  }
-
-  return {
-    type: 'success',
-    message: response.text,
-    agent: response.agent,
-    pillar: response.pillar
-  };
 }
 
 export default {
-  sendMessage,
-  savePlan,
-  saveGoal,
-  saveHabit,
-  saveEntry,
-  resetMemory,
-  getMemory,
-  handleCrisisResponse,
-  formatResponse
-};
+  sendToOrchestrator,
+  sendToPillarAgent,
+  checkCrisis,
+  getDailyPlan,
+  getPillarAnalysis,
+  getWeeklyReflection,
+  analyzeSentiment,
+  transcribeAudio,
+}

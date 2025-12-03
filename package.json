@@ -13,7 +13,10 @@
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:frontend": "jest --testMatch='**/src/tests/**/*.test.js' --env=jsdom",
+    "test:backend": "cd backend && jest --testMatch='**/tests/**/*.test.js'",
+    "test:all": "npm run test:frontend && npm run test:backend"
   },
   "dependencies": {
     "@base44/sdk": "^0.1.2",
@@ -95,8 +98,10 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.18",
     "globals": "^15.14.0",
+    "jest": "^30.2.0",
     "jsdom": "^23.0.1",
     "postcss": "^8.5.3",
+    "supertest": "^7.1.4",
     "tailwindcss": "^3.4.17",
     "vite": "^6.1.0",
     "vitest": "^1.1.0"

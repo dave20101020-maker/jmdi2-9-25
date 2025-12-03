@@ -502,6 +502,64 @@ export const deleteAccount = async (req, res) => {
   }
 };
 
+// POST /api/user/consent
+export const updateConsent = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { aiConsent, consentTimestamp, consentVersion } = req.body;
+
+    if (aiConsent === undefined) {
+      return res.status(400).json({ error: 'aiConsent field is required' });
+    }
+
+    // Update consent fields
+    user.aiConsent = Boolean(aiConsent);
+    user.consentTimestamp = consentTimestamp ? new Date(consentTimestamp) : new Date();
+    user.consentVersion = consentVersion || '1.0';
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Consent updated successfully',
+      data: {
+        aiConsent: user.aiConsent,
+        consentTimestamp: user.consentTimestamp,
+        consentVersion: user.consentVersion
+      }
+    });
+  } catch (err) {
+    console.error('updateConsent error', err);
+    return res.status(500).json({ error: 'Server error while updating consent' });
+  }
+};
+
+// GET /api/user/consent
+export const getConsent = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        aiConsent: user.aiConsent,
+        consentTimestamp: user.consentTimestamp,
+        consentVersion: user.consentVersion
+      }
+    });
+  } catch (err) {
+    console.error('getConsent error', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};
+
 export default {
   register,
   login,
@@ -513,5 +571,7 @@ export default {
   updateCurrentUser,
   changePassword,
   exportUserData,
-  deleteAccount
+  deleteAccount,
+  updateConsent,
+  getConsent
 };

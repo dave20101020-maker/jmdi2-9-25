@@ -16,9 +16,9 @@
  * - Voice tone analysis for sentiment
  */
 
-import { openaiClient } from "../config/openai.js";
-import User from "../models/User.js";
-import Entry from "../models/Entry.js";
+// ⚠️ SECURITY: All AI API calls routed through backend only
+// Frontend never imports AI SDKs or has access to API keys
+import { apiClient } from "../api/client.js";
 
 // Voice input configuration
 const voiceConfig = {
@@ -128,25 +128,22 @@ export const VoiceInput = ({
     try {
       setTranscript("Transcribing...");
 
-      // Use OpenAI Whisper API for accurate transcription
+      // ⚠️ SECURITY: Route through backend /api/ai/transcribe (never direct to OpenAI)
       const formData = new FormData();
       formData.append("file", audioBlob, "audio.webm");
-      formData.append("model", "whisper-1");
       formData.append("language", language.split("-")[0]);
 
-      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-        method: "POST",
+      const response = await apiClient.post("/api/ai/transcribe", formData, {
         headers: {
-          Authorization: `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`,
+          "Content-Type": "multipart/form-data",
         },
-        body: formData,
       });
 
-      const result = await response.json();
-      const transcribedText = result.text;
+      const result = response.data;
+      const transcribedText = result.text || result.message || "";
 
-      // Calculate confidence based on audio quality
-      const confidence = Math.round(Math.random() * 20 + 80); // Placeholder: 80-100
+      // Calculate confidence based on result
+      const confidence = result.confidence || 85;
       setConfidenceScore(confidence);
       setTranscript(transcribedText);
       setIsFinal(true);
@@ -248,6 +245,7 @@ export const VoiceInput = ({
 
 /**
  * Backend: Process voice entry for habit/checkin
+ * ⚠️ SECURITY: This should be called from backend, not frontend
  * @param {string} userId - User ID
  * @param {string} pillar - Pillar name
  * @param {Object} voiceData - {text, confidence, duration}
@@ -257,33 +255,17 @@ export async function createVoiceEntry(userId, pillar, voiceData) {
   try {
     const { text, confidence, duration } = voiceData;
 
-    // Analyze sentiment of voice input
-    const sentiment = await analyzeVoiceSentiment(text);
-
-    // Create entry
-    const entry = await Entry.create({
+    // Call backend to analyze sentiment and create entry
+    // Backend will use aiController to handle this securely
+    const response = await apiClient.post("/api/voice/entries", {
       userId,
       pillar,
-      type: "voice-entry",
-      content: text,
-      score: Math.round(confidence / 10), // Convert to 0-10 scale
-      data: {
-        confidence,
-        duration,
-        sentiment,
-        transcribedAt: new Date(),
-      },
+      text,
+      confidence,
+      duration,
     });
 
-    // Update habit if checkin
-    if (pillar && text.toLowerCase().includes("done")) {
-      // Mark as completed via voice
-      await User.findByIdAndUpdate(userId, {
-        $addToSet: { "habits.$[].completedDates": new Date() },
-      });
-    }
-
-    return entry;
+    return response.data;
   } catch (error) {
     console.error("Error creating voice entry:", error);
     throw error;
@@ -292,28 +274,14 @@ export async function createVoiceEntry(userId, pillar, voiceData) {
 
 /**
  * Analyze sentiment of transcribed voice
+ * ⚠️ SECURITY: Routed through backend /api/ai/sentiment (never direct LLM access)
  * @param {string} text - Transcribed text
  * @returns {Promise<string>} Sentiment: positive, neutral, negative
  */
 async function analyzeVoiceSentiment(text) {
   try {
-    const response = await openaiClient.chat.completions.create({
-      model: "gpt-4-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "Analyze the sentiment of the user's voice input. Reply with ONLY: positive, neutral, or negative.",
-        },
-        {
-          role: "user",
-          content: text,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 10,
-    });
-
-    const sentiment = response.choices[0].message.content.toLowerCase().trim();
+    const response = await apiClient.post("/api/ai/sentiment", { text });
+    const sentiment = response.data.sentiment || "neutral";
     return ["positive", "neutral", "negative"].includes(sentiment)
       ? sentiment
       : "neutral";

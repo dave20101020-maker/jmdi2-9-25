@@ -31,6 +31,16 @@ import Social from "@/pages/Social";
 
 import Spirituality from "@/pages/Spirituality";
 
+// New Pillar Dashboards
+import SleepDashboard from "@/pages/pillars/SleepDashboard";
+import DietDashboard from "@/pages/pillars/DietDashboard";
+import ExerciseDashboard from "@/pages/pillars/ExerciseDashboard";
+import PhysicalHealthDashboard from "@/pages/pillars/PhysicalHealthDashboard";
+import MentalHealthDashboard from "@/pages/pillars/MentalHealthDashboard";
+import FinancesDashboard from "@/pages/pillars/FinancesDashboard";
+import SocialDashboard from "@/pages/pillars/SocialDashboard";
+import SpiritualityDashboard from "@/pages/pillars/SpiritualityDashboard";
+
 import Onboarding from "@/pages/Onboarding";
 
 import MyPlans from "@/pages/MyPlans";
@@ -67,6 +77,8 @@ import Achievements from "@/pages/Achievements";
 import Messages from "@/pages/Messages";
 import Notifications from "@/pages/Notifications";
 import Timeline from "@/pages/Timeline";
+
+import AdminDashboard from "@/pages/AdminDashboard";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
@@ -195,6 +207,16 @@ function PagesContent() {
                 
                 <Route path="/Spirituality" element={<Spirituality />} />
                 
+                {/* Pillar Dashboards */}
+                <Route path="/pillar/sleep" element={<SleepDashboard />} />
+                <Route path="/pillar/diet" element={<DietDashboard />} />
+                <Route path="/pillar/exercise" element={<ExerciseDashboard />} />
+                <Route path="/pillar/physical-health" element={<PhysicalHealthDashboard />} />
+                <Route path="/pillar/mental-health" element={<MentalHealthDashboard />} />
+                <Route path="/pillar/finances" element={<FinancesDashboard />} />
+                <Route path="/pillar/social" element={<SocialDashboard />} />
+                <Route path="/pillar/spirituality" element={<SpiritualityDashboard />} />
+                
                 <Route path="/Onboarding" element={<Onboarding />} />
                 
                 <Route path="/MyPlans" element={<MyPlans />} />
@@ -236,6 +258,9 @@ function PagesContent() {
                 <Route path="/Meditation" element={<Meditation />} />
                 
                 <Route path="/Achievements" element={<Achievements />} />
+                
+                {/* Admin */}
+                <Route path="/admin" element={<AdminDashboard />} />
                 
             </Routes>
         </Layout>

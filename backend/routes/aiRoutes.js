@@ -14,7 +14,7 @@ import { aiRateLimitMiddleware } from '../middleware/rateLimiter.js';
 import { sanitizationMiddleware } from '../middleware/sanitization.js';
 import { jwtAuthMiddleware } from '../middleware/jwtAuthMiddleware.js';
 import { memoryStore } from '../src/ai/orchestrator/memoryStore.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 const router = express.Router();
 

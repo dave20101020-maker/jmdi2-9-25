@@ -7,6 +7,8 @@ import { Brain, BookOpen, Wind, Lightbulb, Heart, TrendingUp, Sparkles, Plus, Qu
 import { Button } from "@/components/ui/button";
 import { format, differenceInDays, differenceInHours, subDays } from "date-fns"; // Added subDays
 import GuidedJournal from "@/ai/GuidedJournal";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import AIErrorBoundary from "@/components/AIErrorBoundary";
 import BreathingExercise from "@/components/shared/BreathingExercise";
 import ThoughtRecorder from "@/components/shared/ThoughtRecorder";
 import PillarPage from "@/components/shared/PillarPage";
@@ -776,10 +778,12 @@ export default function MentalHealth() {
       )}
 
       {showJournal && (
-        <GuidedJournal
-          onClose={() => setShowJournal(false)}
-          onSave={(data) => saveJournalMutation.mutateAsync(data)}
-        />
+        <AIErrorBoundary showHelp={true}>
+          <GuidedJournal
+            onClose={() => setShowJournal(false)}
+            onSave={(data) => saveJournalMutation.mutateAsync(data)}
+          />
+        </AIErrorBoundary>
       )}
 
       {showBreathing && (
