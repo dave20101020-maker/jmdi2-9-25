@@ -3,8 +3,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { X, Save, BookOpen, Sparkles, RefreshCw, Smile } from "lucide-react";
+import { X, Save, BookOpen, Sparkles, RefreshCw, Smile, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 const PROMPT_CATEGORIES = [
   { value: "gratitude", label: "Gratitude", emoji: "🙏", color: "#52B788" },
@@ -27,10 +28,20 @@ export default function GuidedJournal({ onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const modalRef = useRef(null);
   const textareaRef = useRef(null);
+  
+  // Voice input hook
+  const { isListening, isSupported: voiceSupported, transcript, startListening, stopListening } = useVoiceInput();
 
   useEffect(() => {
     generatePrompt(selectedCategory);
   }, []);
+
+  // Update entry with voice transcript
+  useEffect(() => {
+    if (transcript) {
+      setEntry(prev => ({ ...prev, response: transcript }));
+    }
+  }, [transcript]);
 
   // Handle ESC key and focus trap
   useEffect(() => {
@@ -213,13 +224,48 @@ Return ONLY a single thoughtful, open-ended question (1-2 sentences max) that in
 
           {/* Journal Entry */}
           <div>
-            <Label htmlFor="journal-input" className="text-white mb-2 block">Your Response <span aria-label="required">*</span></Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label htmlFor="journal-input" className="text-white block">Your Response <span aria-label="required">*</span></Label>
+              {voiceSupported && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isListening ? 'destructive' : 'outline'}
+                  onClick={isListening ? stopListening : startListening}
+                  className={`flex items-center gap-2 ${isListening ? 'bg-red-500 hover:bg-red-600' : ''}`}
+                  aria-label={isListening ? 'Stop recording' : 'Start voice input'}
+                  aria-pressed={isListening}
+                >
+                  {isListening ? (
+                    <>
+                      <MicOff className="w-4 h-4" />
+                      <span>Stop Recording</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-4 h-4" />
+                      <span>Voice Input</span>
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+            
+            {isListening && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded p-3 mb-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  <span className="text-sm text-white/80">Recording...</span>
+                </div>
+              </div>
+            )}
+            
             <Textarea
               ref={textareaRef}
               id="journal-input"
               value={entry.response}
               onChange={(e) => setEntry({ ...entry, response: e.target.value })}
-              placeholder="Take your time... there's no wrong answer. Write whatever comes to mind."
+              placeholder="Take your time... there's no wrong answer. Write whatever comes to mind. You can also use the Voice Input button to dictate."
               className="bg-white/10 border-white/20 text-white placeholder:text-white/40 min-h-[200px] focus:outline-none focus:ring-2 focus:ring-[#4CC9F0]"
               rows={8}
               aria-label="Journal response text"
