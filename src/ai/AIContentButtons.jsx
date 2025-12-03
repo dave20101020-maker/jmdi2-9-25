@@ -1,10 +1,12 @@
 import { api } from "@/utils/apiClient";
+import * as aiClient from "@/api/aiClient";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, FileText, Lightbulb, X, Loader2, RefreshCw } from "lucide-react";
+import { BookOpen, FileText, Lightbulb, X, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const CONTENT_TYPES = {
   quick_read: {
@@ -63,34 +65,51 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
     try {
       const prompt = CONTENT_TYPES[type].prompt(pillarName);
       
-      const result = await api.aiCoach({
-        prompt,
-        add_context_from_internet: false
+      // Use aiClient to send message to orchestrator
+      const result = await aiClient.sendMessage({
+        message: prompt,
+        pillar: pillar
       });
 
+      // Check for crisis response
+      if (result.isCrisis) {
+        toast.error('Crisis detected. Please reach out for support.');
+        return;
+      }
+
+      // Check for error
+      if (result.error) {
+        toast.error(result.message || 'Failed to generate content');
+        return;
+      }
+
       let title, mainContent;
+      const responseText = result.text;
+      
       if (type === 'fact') {
         title = "Did You Know?";
-        mainContent = result;
+        mainContent = responseText;
       } else {
         // Extract title from markdown (first # heading)
-        const lines = result.split('\n');
+        const lines = responseText.split('\n');
         const titleLine = lines.find(line => line.startsWith('#'));
         title = titleLine ? titleLine.replace(/^#+\s*/, '') : `${pillarName} Insight`;
         mainContent = lines.filter(line => !line.startsWith('#')).join('\n').trim();
       }
 
-      const newContent = await api.createPillarContent({
-        pillar,
-        contentType: type,
+      const newContent = {
         title,
         content: mainContent,
+        pillar,
+        contentType: type,
         generatedDate: format(new Date(), 'yyyy-MM-dd')
-      });
+      };
 
       setContent(newContent);
+      toast.success('Content generated successfully!');
     } catch (error) {
       console.error("Error generating content:", error);
+      toast.error('Failed to generate content');
     } finally {
       setLoading(false);
     }

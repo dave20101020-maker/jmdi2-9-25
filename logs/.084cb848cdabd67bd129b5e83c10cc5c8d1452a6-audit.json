@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "/workspaces/NorthStar-BETA/logs/.084cb848cdabd67bd129b5e83c10cc5c8d1452a6-audit.json",
+    "files": [
+        {
+            "date": 1764717470295,
+            "name": "/workspaces/NorthStar-BETA/logs/error-2025-12-02.log",
+            "hash": "f5298f70f2370abef9e5cca5ca6b6854a42fc676fd3b711b5d3101516d588c5d"
+        }
+    ],
+    "hashType": "sha256"
+}

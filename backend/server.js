@@ -6,6 +6,8 @@ import path from 'path';
 import mongoose from 'mongoose';
 import logger from './utils/logger.js';
 import aiRoutes from './routes/ai.js';
+import orchestratorRoutes from './routes/aiRoutes.js';
+import { aiRateLimitMiddleware } from './middleware/rateLimiter.js';
 import habitsRoutes from './routes/habits.js';
 import entriesRoutes from './routes/entries.js';
 import pillarsRoutes from './routes/pillars.js';
@@ -79,8 +81,11 @@ app.get('/health', (req, res) => {
   });
 });
 
-// AI Routes
+// AI Routes (legacy)
 app.use('/api/ai', aiRoutes);
+
+// NorthStar Orchestrator Routes (new)
+app.use('/api/orchestrator', orchestratorRoutes);
 
 // Feature Routes
 app.use('/api/habits', habitsRoutes);

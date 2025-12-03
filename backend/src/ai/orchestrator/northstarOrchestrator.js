@@ -89,18 +89,36 @@ export async function runNorthStarAI({
       appItems: appItems || null
     };
 
-    // Route to the appropriate agent
-    const agentResult = await routeToSpecificAgent(pillar, {
-      context,
-      userMessage: message,
-      lastMessages: conversationHistory
-    });
+    // Route to the appropriate agent (wrapped in try/catch for API failures)
+    let agentResult;
+    try {
+      agentResult = await routeToSpecificAgent(pillar, {
+        context,
+        userMessage: message,
+        lastMessages: conversationHistory
+      });
+    } catch (agentError) {
+      // AI service temporarily unavailable - return fallback response
+      console.error(`Agent error for pillar ${pillar}:`, agentError.message);
+      return {
+        ok: false,
+        error: true,
+        message: 'AI temporarily unavailable',
+        agent: null,
+        pillar
+      };
+    }
 
     // Update memory with new conversation
     updateConversationHistory(memory, pillar, message, agentResult.text);
     
-    // Save updated memory
-    await saveMemory(userId, memory);
+    // Save updated memory (wrap in try/catch to not block response)
+    try {
+      await saveMemory(userId, memory);
+    } catch (memoryError) {
+      console.error('Failed to save memory:', memoryError.message);
+      // Don't fail the request if memory save fails
+    }
 
     // Wrap and return the result
     return {
@@ -108,13 +126,17 @@ export async function runNorthStarAI({
       text: agentResult.text,
       model: agentResult.model,
       pillar,
+      agent: pillar,
       meta: agentResult.meta || {}
     };
   } catch (error) {
-    // Format and return error
+    // Input validation or general errors
+    console.error('Orchestrator error:', error.message);
     return {
       ok: false,
-      error: error.message
+      error: true,
+      message: 'AI temporarily unavailable',
+      agent: null
     };
   }
 }
@@ -127,33 +149,38 @@ export async function runNorthStarAI({
  * @returns {Promise<{text: string, model: string, meta: Object}>}
  */
 export async function routeToSpecificAgent(pillar, args) {
-  switch (pillar) {
-    case 'sleep':
-      return runSleepAgent(args);
-    
-    case 'mental_health':
-      return runMentalHealthAgent(args);
-    
-    case 'nutrition':
-      return runNutritionAgent(args);
-    
-    case 'fitness':
-      return runFitnessAgent(args);
-    
-    case 'physical_health':
-      return runPhysicalHealthAgent(args);
-    
-    case 'finances':
-      return runFinancesAgent(args);
-    
-    case 'social':
-      return runSocialAgent(args);
-    
-    case 'spirituality':
-      return runSpiritualityAgent(args);
-    
-    default:
-      throw new Error(`Unknown pillar: ${pillar}. Valid pillars: sleep, mental_health, nutrition, fitness, physical_health, finances, social, spirituality`);
+  try {
+    switch (pillar) {
+      case 'sleep':
+        return await runSleepAgent(args);
+      
+      case 'mental_health':
+        return await runMentalHealthAgent(args);
+      
+      case 'nutrition':
+        return await runNutritionAgent(args);
+      
+      case 'fitness':
+        return await runFitnessAgent(args);
+      
+      case 'physical_health':
+        return await runPhysicalHealthAgent(args);
+      
+      case 'finances':
+        return await runFinancesAgent(args);
+      
+      case 'social':
+        return await runSocialAgent(args);
+      
+      case 'spirituality':
+        return await runSpiritualityAgent(args);
+      
+      default:
+        throw new Error(`Unknown pillar: ${pillar}. Valid pillars: sleep, mental_health, nutrition, fitness, physical_health, finances, social, spirituality`);
+    }
+  } catch (error) {
+    // Re-throw to be caught by orchestrator
+    throw new Error(`Agent execution failed for ${pillar}: ${error.message}`);
   }
 }
 

@@ -7,6 +7,8 @@ export default defineConfig({
   plugins: [react()],
   publicDir: 'public',
   server: {
+    host: true,
+    strictPort: false,
     allowedHosts: true
   },
   resolve: {

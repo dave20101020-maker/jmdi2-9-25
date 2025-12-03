@@ -1,7 +1,8 @@
 import { api } from "@/utils/apiClient";
+import * as aiClient from "@/api/aiClient";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, TrendingUp, Target, Lightbulb, Zap, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { Sparkles, TrendingUp, Target, Lightbulb, Zap, AlertCircle, RefreshCw, Loader2, Save } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -39,6 +40,9 @@ export default function AIInsights({ entries, lifeScore, pillarScores, accessibl
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [savingGoal, setSavingGoal] = useState(false);
+  const [savingHabit, setSavingHabit] = useState(false);
   const navigate = useNavigate();
   
   const MAX_RETRIES = 2;
@@ -168,6 +172,84 @@ Be positive, specific, and actionable. Return valid JSON only.`;
       navigate(createPageUrl("MyPlans"), {
         state: { suggestedPlan: insights.suggested_plan }
       });
+    }
+  };
+
+  const handleSavePlan = async () => {
+    if (!insights?.suggested_plan) return;
+    
+    setSavingPlan(true);
+    try {
+      const result = await aiClient.savePlan({
+        title: insights.suggested_plan.title,
+        content: insights.suggested_plan.description,
+        pillar: insights.focus_area || 'mental-health',
+        timeframe: '1 month'
+      });
+
+      if (result.ok) {
+        toast.success('Plan saved! You can view it in My Plans.');
+      } else {
+        toast.error(result.message || 'Failed to save plan');
+      }
+    } catch (error) {
+      console.error('Error saving plan:', error);
+      toast.error('Failed to save plan');
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const handleSaveGoal = async () => {
+    if (!insights?.focus_area) return;
+
+    setSavingGoal(true);
+    try {
+      const result = await aiClient.saveGoal({
+        title: `Improve ${insights.focus_area}`,
+        description: insights.recommendations?.[0] || 'Focus on this area for growth',
+        pillar: insights.focus_area,
+        priority: 'high',
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+      });
+
+      if (result.ok) {
+        toast.success('Goal saved! You can track progress in your dashboard.');
+      } else {
+        toast.error(result.message || 'Failed to save goal');
+      }
+    } catch (error) {
+      console.error('Error saving goal:', error);
+      toast.error('Failed to save goal');
+    } finally {
+      setSavingGoal(false);
+    }
+  };
+
+  const handleSaveHabit = async () => {
+    if (!insights?.focus_area) return;
+
+    setSavingHabit(true);
+    try {
+      const result = await aiClient.saveHabit({
+        title: `Daily check-in: ${insights.focus_area}`,
+        description: insights.recommendations?.[0] || 'Reflect on this area daily',
+        pillar: insights.focus_area,
+        frequency: 'daily',
+        targetCount: 1,
+        timeOfDay: '09:00'
+      });
+
+      if (result.ok) {
+        toast.success('Habit created! Start tracking to build momentum.');
+      } else {
+        toast.error(result.message || 'Failed to save habit');
+      }
+    } catch (error) {
+      console.error('Error saving habit:', error);
+      toast.error('Failed to save habit');
+    } finally {
+      setSavingHabit(false);
     }
   };
   
@@ -404,6 +486,90 @@ Be positive, specific, and actionable. Return valid JSON only.`;
                 Create This Plan
               </Button>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {insights.focus_area && (
+          <motion.div 
+            className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ type: "spring", stiffness: 300 }}
+          >
+            <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+              <Save className="w-5 h-5 text-blue-400" />
+              Save to Your Dashboard
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  onClick={handleSavePlan}
+                  disabled={savingPlan}
+                  size="sm"
+                  className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/40"
+                >
+                  {savingPlan ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Plan
+                    </>
+                  )}
+                </Button>
+              </motion.div>
+
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  onClick={handleSaveGoal}
+                  disabled={savingGoal}
+                  size="sm"
+                  className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/40"
+                >
+                  {savingGoal ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Target className="w-4 h-4 mr-2" />
+                      Save Goal
+                    </>
+                  )}
+                </Button>
+              </motion.div>
+
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  onClick={handleSaveHabit}
+                  disabled={savingHabit}
+                  size="sm"
+                  className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 border border-purple-500/40"
+                >
+                  {savingHabit ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Save Habit
+                    </>
+                  )}
+                </Button>
+              </motion.div>
+            </div>
+            <p className="text-white/50 text-xs mt-3">
+              Save these AI-generated recommendations to track progress and build momentum
+            </p>
           </motion.div>
         )}
       </AnimatePresence>

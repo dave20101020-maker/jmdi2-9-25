@@ -12,6 +12,7 @@
 import { runWithBestModel } from '../modelRouter.js';
 import { buildMessageHistory } from './agentBase.js';
 import { createAIItem } from '../data/createItem.js';
+import { formatAgentResponse, extractActionsFromText, RESPONSE_TYPES } from '../responseFormatter.js';
 
 /**
  * Dr. Luna System Prompt
@@ -173,16 +174,19 @@ export async function runSleepAgent({ context, userMessage, lastMessages = [] })
     conversationHistory,
   });
 
-  // Return formatted response
-  return {
-    text: modelResult.text,
-    model: modelResult.model,
-    meta: {
-      pillar: 'sleep',
-      agentName: 'Dr. Luna',
-      taskType,
-    },
-  };
+  // Extract actions and determine response type
+  const actions = extractActionsFromText(modelResult.text);
+  const responseType = determineResponseType(userMessage);
+
+  // Return formatted response in unified structure
+  return formatAgentResponse({
+    agentName: 'Dr. Luna',
+    pillar: 'sleep',
+    responseText: modelResult.text,
+    type: responseType,
+    actions: actions,
+    itemsToCreate: [] // Agents can add items as needed
+  });
 }
 
 /**
@@ -252,10 +256,30 @@ function determineTaskType(userMessage) {
 }
 
 /**
+ * Determine the response type based on message content
+ * 
+ * @param {string} userMessage - User's message
+ * @returns {string} - Response type: 'coaching', 'screening', 'plan', 'assessment', 'strategy'
+ */
+function determineResponseType(userMessage) {
+  const messageLower = userMessage.toLowerCase();
+
+  const screeningKeywords = ['screen', 'test', 'assess', 'diagnose', 'severity', 'risk'];
+  const planKeywords = ['plan', 'routine', 'schedule', 'program', 'protocol'];
+  const strategyKeywords = ['improve', 'optimize', 'technique', 'method', 'approach'];
+
+  if (screeningKeywords.some(k => messageLower.includes(k))) return RESPONSE_TYPES.SCREENING;
+  if (planKeywords.some(k => messageLower.includes(k))) return RESPONSE_TYPES.PLAN;
+  if (strategyKeywords.some(k => messageLower.includes(k))) return RESPONSE_TYPES.STRATEGY;
+
+  return RESPONSE_TYPES.COACHING;
+}
+
+/**
  * Helper: Create a quick sleep assessment
  * 
  * @param {import('./agentBase.js').AgentContext} context - User context
- * @returns {Promise<{text: string, model: string, meta: object}>}
+ * @returns {Promise<Object>} - Formatted agent response
  */
 export async function quickSleepAssessment(context) {
   const assessmentMessage = `Based on my sleep data and habits, provide a brief assessment of my sleep health. 
