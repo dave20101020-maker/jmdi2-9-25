@@ -1,7 +1,7 @@
-# NorthStar AI System - Complete Implementation
+# Project AI System - Complete Implementation
 
 ## Overview
-Complete multi-agent AI coaching system with 8 specialized wellness pillar agents, intelligent routing, and automated data persistence.
+Complete multi-agent AI agenting system with 8 specialized internal module agents, intelligent routing, and automated data persistence.
 
 ## Architecture
 
@@ -21,13 +21,13 @@ Complete multi-agent AI coaching system with 8 specialized wellness pillar agent
   ```javascript
   {
     userId: string,
-    pillar: string,  // 8 wellness pillars
+    module: string,  // 8 internal modules
     memory?: any,    // user preferences/data
     appItems?: any   // existing habits, goals, etc.
   }
   ```
 
-### 3. Pillar Agents (8 Total)
+### 3. Module Agents (8 Total)
 
 #### Sleep Agent - Dr. Luna
 - **File**: `src/ai/agents/sleepAgent.js` (377 lines)
@@ -85,10 +85,10 @@ Complete multi-agent AI coaching system with 8 specialized wellness pillar agent
 - **Features**: Purpose exploration, values, mindfulness, existential questions
 - **Helpers**: `saveLifePlan()`, `saveSmartGoal()`, `saveHabit()`
 
-### 4. NorthStar Orchestrator (`src/ai/orchestrator/northstarOrchestrator.js`)
+### 4. Project Orchestrator (`src/ai/orchestrator/northstarOrchestrator.js`)
 - **Purpose**: Central routing hub for all AI interactions
-- **Main Function**: `runNorthStarAI({ userId, message, lastMessages, explicitPillar, memory, appItems })`
-- **Pillar Detection**: Keyword-based with priority ordering
+- **Main Function**: `runProjectAI({ userId, message, lastMessages, explicitModule, memory, appItems })`
+- **Module Detection**: Keyword-based with priority ordering
   1. Mental Health (crisis/anxiety)
   2. Sleep (insomnia/fatigue)
   3. Finances (money/debt)
@@ -97,11 +97,11 @@ Complete multi-agent AI coaching system with 8 specialized wellness pillar agent
   6. Fitness (workout/exercise)
   7. Social (friends/lonely)
   8. Spirituality (meaning/purpose)
-- **Features**: Explicit pillar override, automatic detection, error handling
+- **Features**: Explicit module override, automatic detection, error handling
 
 ### 5. Data Persistence (`src/ai/data/createItem.js`)
 - **Purpose**: Universal item creation for all agents
-- **Main Function**: `createAIItem({ userId, pillar, type, title, content, data })`
+- **Main Function**: `createAIItem({ userId, module, type, title, content, data })`
 - **Supported Types**:
   - `habit` → Habit model
   - `log` / `entry` → Entry model (log type)
@@ -111,7 +111,7 @@ Complete multi-agent AI coaching system with 8 specialized wellness pillar agent
   - `reflection` → Entry model (reflection type)
   - `milestone` → Entry model (milestone type)
   - `challenge` → Entry model (challenge type)
-- **Database Models**: Habit, Entry, PillarScore
+- **Database Models**: Habit, Entry, ModuleScore
 - **Features**: Automatic AI metadata, structured data support, error handling
 
 ## Data Flow
@@ -119,9 +119,9 @@ Complete multi-agent AI coaching system with 8 specialized wellness pillar agent
 ```
 User Message
     ↓
-NorthStar Orchestrator
-    ↓ (pillar detection)
-Specific Pillar Agent (e.g., Sleep Agent)
+Project Orchestrator
+    ↓ (module detection)
+Specific Module Agent (e.g., Sleep Agent)
     ↓ (context building)
 Agent Base (buildMessageHistory)
     ↓ (task type detection)
@@ -140,24 +140,24 @@ MongoDB (Habit/Entry models)
 
 ### Basic Usage
 ```javascript
-import { runNorthStarAI } from './src/ai/orchestrator/northstarOrchestrator.js';
+import { runProjectAI } from './src/ai/orchestrator/northstarOrchestrator.js';
 
-const result = await runNorthStarAI({
+const result = await runProjectAI({
   userId: 'user123',
   message: "I can't sleep at night",
   lastMessages: []
 });
 
-console.log(result.pillar);  // 'sleep'
+console.log(result.module);  // 'sleep'
 console.log(result.text);    // AI response from Dr. Luna
 ```
 
-### Explicit Pillar Override
+### Explicit Module Override
 ```javascript
-const result = await runNorthStarAI({
+const result = await runProjectAI({
   userId: 'user123',
   message: "I'm stressed about work",
-  explicitPillar: 'mental_health',  // Force mental health instead of auto-detect
+  explicitModule: 'mental_health',  // Force mental health instead of auto-detect
   lastMessages: []
 });
 ```
@@ -179,7 +179,7 @@ const habit = await saveHabit(
 import { routeToSpecificAgent } from './src/ai/orchestrator/northstarOrchestrator.js';
 
 const result = await routeToSpecificAgent('fitness', {
-  context: { userId: 'user123', pillar: 'fitness' },
+  context: { userId: 'user123', module: 'fitness' },
   userMessage: "Design a workout plan",
   lastMessages: []
 });
@@ -215,17 +215,17 @@ Optional (system runs validation tests without them).
 
 ### Express Route Example
 ```javascript
-import { runNorthStarAI } from './src/ai/orchestrator/northstarOrchestrator.js';
+import { runProjectAI } from './src/ai/orchestrator/northstarOrchestrator.js';
 
 router.post('/api/ai/chat', async (req, res) => {
   try {
-    const { message, pillar } = req.body;
+    const { message, module } = req.body;
     const userId = req.user.id;
     
-    const result = await runNorthStarAI({
+    const result = await runProjectAI({
       userId,
       message,
-      explicitPillar: pillar,
+      explicitModule: module,
       lastMessages: req.body.history || []
     });
     
@@ -273,9 +273,9 @@ backend/src/ai/
 ## Status
 
 ✅ **Complete and Production-Ready**
-- All 8 pillar agents implemented with full structure
+- All 8.module agents implemented with full structure
 - Model router with intelligent routing and fallback
-- Central orchestrator with pillar detection
+- Central orchestrator with module detection
 - Data persistence for all agent-generated items
 - Comprehensive test coverage (15 test files)
 - All tests passing (100% validation)

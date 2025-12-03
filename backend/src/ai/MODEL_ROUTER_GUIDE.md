@@ -49,7 +49,7 @@ import { runWithBestModel } from './modelRouter.js';
 
 const result = await runWithBestModel({
   taskType: 'emotional_coaching',
-  systemPrompt: 'You are an empathetic wellness coach.',
+  systemPrompt: 'You are an empathetic internal coach.',
   userMessage: 'I feel stressed about work.',
 });
 
@@ -253,7 +253,7 @@ await exampleDeepReasoning();
 | GPT-4 Turbo | $10/1M tokens | $30/1M tokens |
 | Claude 3.5 Sonnet | $3/1M tokens | $15/1M tokens |
 
-Typical wellness coaching interaction:
+Typical internal coaching interaction:
 - System prompt: ~100 tokens
 - User message: ~50 tokens
 - AI response: ~200 tokens

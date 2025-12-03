@@ -1,5 +1,5 @@
 // Global Express error handler
-export default function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-vars
+export default function errorHandler(err, req, res, next) {  
   // Default to 500
   let status = err.status || err.statusCode || 500;
 

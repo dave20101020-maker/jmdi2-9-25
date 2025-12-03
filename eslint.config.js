@@ -5,9 +5,10 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'node_modules', 'backend/node_modules', 'logs', '.git'] },
+  // Frontend files (React/Browser)
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['src/**/*.{js,jsx}', 'index.js'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -33,6 +34,45 @@ export default [
         'warn',
         { allowConstantExport: true },
       ],
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'no-undef': 'error',
+    },
+  },
+  // Config files (Node.js)
+  {
+    files: ['*.js', '*.config.js', 'vite.config.js', 'tailwind.config.js', 'postcss.config.js'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'no-undef': ['error', { typeof: true }],
+    },
+  },
+  // Backend files (Node.js/Express)
+  {
+    files: ['backend/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.node,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_|^next$' }],
+      'no-undef': 'error',
     },
   },
 ]

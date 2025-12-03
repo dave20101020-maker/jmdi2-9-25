@@ -1,13 +1,13 @@
-# NorthStar AI Memory System
+# Project AI Memory System
 
 ## Overview
 
-The Memory System provides persistent, per-user conversation context and data tracking across all 8 wellness pillars. It enables:
+The Memory System provides persistent, per-user conversation context and data tracking across all 8 internal modules. It enables:
 
 - **Anti-repetition**: Agents remember what topics they've covered
 - **Context preservation**: Conversations build on previous interactions
 - **Item tracking**: Created habits, goals, and screenings are remembered
-- **Pillar isolation**: Each pillar maintains separate conversation history
+- **Module isolation**: Each module maintains separate conversation history
 - **Automatic persistence**: All data is saved after each interaction
 
 ## Architecture
@@ -23,11 +23,11 @@ The Memory System provides persistent, per-user conversation context and data tr
 {
   userId: "user123",
   lastUpdated: "2025-12-02T23:00:00.000Z",
-  pillars: {
+  modules: {
     sleep: {
       lastMessages: [],        // Last 20 messages (10 turns)
       lastScreening: {},        // Most recent screening result
-      preferences: {},          // User preferences for this pillar
+      preferences: {},          // User preferences for this module
       items: [],                // Created habits, goals, plans
       coveredTopics: []         // Anti-repetition tracking
     },
@@ -40,7 +40,7 @@ The Memory System provides persistent, per-user conversation context and data tr
     spirituality: { /* same structure */ }
   },
   preferences: {},              // Global user preferences
-  antiRepetition: {}            // Cross-pillar topic tracking
+  antiRepetition: {}            // Cross-module topic tracking
 }
 ```
 
@@ -76,7 +76,7 @@ await saveMemory('user123', memory);
 
 ---
 
-#### `updateConversationHistory(memory, pillar, userMessage, assistantMessage)`
+#### `updateConversationHistory(memory, module, userMessage, assistantMessage)`
 Add conversation turn to memory.
 
 ```javascript
@@ -94,8 +94,8 @@ memory = updateConversationHistory(
 
 ---
 
-#### `getConversationHistory(memory, pillar, limit)`
-Retrieve conversation history for a pillar.
+#### `getConversationHistory(memory, module, limit)`
+Retrieve conversation history for a module.
 
 ```javascript
 import { getConversationHistory } from './orchestrator/memoryStore.js';
@@ -106,7 +106,7 @@ const history = getConversationHistory(memory, 'sleep', 10);
 
 ---
 
-#### `addItemToMemory(memory, pillar, item)`
+#### `addItemToMemory(memory, module, item)`
 Track created items (habits, goals, plans).
 
 ```javascript
@@ -121,7 +121,7 @@ memory = addItemToMemory(memory, 'sleep', {
 
 ---
 
-#### `markTopicCovered(memory, pillar, topic)`
+#### `markTopicCovered(memory, module, topic)`
 Mark a topic as covered (anti-repetition).
 
 ```javascript
@@ -132,7 +132,7 @@ memory = markTopicCovered(memory, 'sleep', 'sleep_hygiene_basics');
 
 ---
 
-#### `isTopicCovered(memory, pillar, topic)`
+#### `isTopicCovered(memory, module, topic)`
 Check if topic was covered in last 30 days.
 
 ```javascript
@@ -145,13 +145,13 @@ if (isTopicCovered(memory, 'sleep', 'sleep_hygiene_basics')) {
 
 ---
 
-#### `updatePillarData(memory, pillar, key, value)`
-Update pillar-specific data fields.
+#### `updateModuleData(memory, module, key, value)`
+Update module-specific data fields.
 
 ```javascript
-import { updatePillarData } from './orchestrator/memoryStore.js';
+import { updateModuleData } from './orchestrator/memoryStore.js';
 
-memory = updatePillarData(memory, 'sleep', 'lastScreening', {
+memory = updateModuleData(memory, 'sleep', 'lastScreening', {
   name: 'Insomnia Severity Index',
   score: 15,
   date: new Date().toISOString()
@@ -174,10 +174,10 @@ await clearMemory('user123');
 The orchestrator automatically handles memory:
 
 ```javascript
-import { runNorthStarAI } from './orchestrator/northstarOrchestrator.js';
+import { runProjectAI } from './orchestrator/northstarOrchestrator.js';
 
 // Memory is loaded, used, and saved automatically
-const result = await runNorthStarAI({
+const result = await runProjectAI({
   userId: 'user123',
   message: 'I can\'t sleep'
 });
@@ -186,7 +186,7 @@ const result = await runNorthStarAI({
 ### Internal Flow
 
 1. **Load Memory**: `loadMemory(userId)` called at start
-2. **Get Context**: Conversation history retrieved for detected pillar
+2. **Get Context**: Conversation history retrieved for detected module
 3. **Pass to Agent**: Memory included in agent context
 4. **Update Memory**: New conversation turn added
 5. **Save Memory**: `saveMemory(userId, memory)` called after response
@@ -197,7 +197,7 @@ const result = await runNorthStarAI({
 
 1. **Topic Tracking**: When agent explains a concept, mark it covered
 2. **Time Window**: Topics expire after 30 days
-3. **Pillar Isolation**: Each pillar tracks separately
+3. **Module Isolation**: Each module tracks separately
 4. **Agent Awareness**: Agents check `isTopicCovered()` before explaining
 
 ### Example in Agent
@@ -221,11 +221,11 @@ export async function runSleepAgent({ context, userMessage, lastMessages }) {
 }
 ```
 
-## Pillar-Specific Data Examples
+## Module-Specific Data Examples
 
-### Sleep Pillar
+### Sleep Module
 ```javascript
-memory.pillars.sleep.lastScreening = {
+memory.modules.sleep.lastScreening = {
   name: 'Insomnia Severity Index',
   score: 15,
   interpretation: 'Moderate insomnia',
@@ -233,9 +233,9 @@ memory.pillars.sleep.lastScreening = {
 };
 ```
 
-### Mental Health Pillar
+### Mental Health Module
 ```javascript
-memory.pillars.mental_health.lastProtocol = {
+memory.modules.mental_health.lastProtocol = {
   name: 'GAD-7 Screening + CBT Protocol',
   score: 12,
   riskLevel: 'moderate',
@@ -243,9 +243,9 @@ memory.pillars.mental_health.lastProtocol = {
 };
 ```
 
-### Nutrition Pillar
+### Nutrition Module
 ```javascript
-memory.pillars.nutrition.lastMacroTarget = {
+memory.modules.nutrition.lastMacroTarget = {
   protein: 140,
   carbs: 200,
   fats: 60,
@@ -254,9 +254,9 @@ memory.pillars.nutrition.lastMacroTarget = {
 };
 ```
 
-### Fitness Pillar
+### Fitness Module
 ```javascript
-memory.pillars.fitness.lastProgram = {
+memory.modules.fitness.lastProgram = {
   name: '12-Week Powerbuilding',
   phase: 'Week 4 - Hypertrophy Block',
   frequency: 4,
@@ -273,10 +273,10 @@ memory.pillars.fitness.lastProgram = {
 const UserMemory = new Schema({
   userId: { type: String, required: true, unique: true },
   lastUpdated: Date,
-  pillars: {
+  modules: {
     sleep: { type: Object, default: {} },
     mental_health: { type: Object, default: {} },
-    // ... other pillars
+    // ... other modules
   },
   preferences: Object,
   antiRepetition: Object
@@ -295,7 +295,7 @@ export async function saveMemory(userId, memory) {
 ### Performance Optimization
 
 1. **Lazy Loading**: Only load memory when needed
-2. **Partial Updates**: Update only changed pillars
+2. **Partial Updates**: Update only changed modules
 3. **Compression**: Compress old messages (>30 days)
 4. **Archiving**: Move old conversations to cold storage
 5. **Caching**: Redis cache for frequently accessed users
@@ -305,7 +305,7 @@ export async function saveMemory(userId, memory) {
 - **Retention**: Configurable data retention periods
 - **Deletion**: `clearMemory()` for right-to-be-forgotten
 - **Export**: Add `exportMemory(userId)` for data portability
-- **Encryption**: Encrypt sensitive pillar data at rest
+- **Encryption**: Encrypt sensitive module data at rest
 
 ## Testing
 
@@ -320,7 +320,7 @@ All tests include:
 - Conversation history management
 - Item tracking
 - Topic coverage
-- Pillar isolation
+- Module isolation
 - Persistence verification
 
 ## File Locations
@@ -342,10 +342,10 @@ backend/
 ## Quick Start
 
 ```javascript
-import { runNorthStarAI } from './orchestrator/northstarOrchestrator.js';
+import { runProjectAI } from './orchestrator/northstarOrchestrator.js';
 
 // That's it! Memory is automatic.
-const result = await runNorthStarAI({
+const result = await runProjectAI({
   userId: 'user123',
   message: 'Help me sleep better'
 });

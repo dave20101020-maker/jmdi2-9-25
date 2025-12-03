@@ -1,4 +1,4 @@
-# 🎉 NorthStar AI System - PRODUCTION READY
+# 🎉 Project AI System - PRODUCTION READY
 
 ## System Status: ✅ COMPLETE
 
@@ -11,15 +11,15 @@ All components are implemented, tested, and ready for deployment.
 ```
 User Request
     ↓
-NorthStar Orchestrator
+Project Orchestrator
     ↓
 [Load Memory] → User's conversation history
     ↓
-Pillar Detection (auto or explicit)
+Module Detection (auto or explicit)
     ↓
 Route to Specific Agent (1 of 8)
     ↓
-Agent Context (userId, pillar, memory, appItems)
+Agent Context (userId, module, memory, appItems)
     ↓
 Model Router (OpenAI or Anthropic)
     ↓
@@ -55,12 +55,12 @@ Return to User
 ### ✅ Implemented
 - [x] Per-user persistent storage (JSON files)
 - [x] Automatic load/save on every interaction
-- [x] Pillar-isolated conversation histories (last 10 turns each)
+- [x] Module-isolated conversation histories (last 10 turns each)
 - [x] Anti-repetition tracking (30-day topic memory)
 - [x] Item tracking (habits, goals, screenings, plans)
-- [x] Pillar-specific data storage (lastScreening, lastProtocol, etc.)
+- [x] Module-specific data storage (lastScreening, lastProtocol, etc.)
 - [x] Automatic conversation context building
-- [x] Cross-pillar memory management
+- [x] Cross-module memory management
 
 ### 📁 Storage Location
 `backend/data/memory/{userId}.json`
@@ -82,39 +82,39 @@ Return to User
 - **Features**:
   - `buildMessageHistory()` - Combines context, system prompts, conversation history
   - AgentContext type validation
-  - Pillar display name helpers
+  - Module display name helpers
 
 ### 3. Individual Agents (8 files) - 312-432 lines each
-- **Purpose**: Specialized coaching for each wellness pillar
+- **Purpose**: Specialized coaching for each internal module
 - **Features**:
   - Unique personality and expertise
-  - Pillar-specific routing logic (task type → model)
+  - Module-specific routing logic (task type → model)
   - Helper functions (7-10 per agent)
   - Data persistence helpers (saveLifePlan, saveSmartGoal, saveHabit)
   - Crisis detection and redirection
   - Anti-repetition awareness
 
-### 4. NorthStar Orchestrator (`northstarOrchestrator.js`) - 310 lines
+### 4. Project Orchestrator (`northstarOrchestrator.js`) - 310 lines
 - **Purpose**: Master router for entire system
 - **Features**:
-  - Automatic pillar detection (keyword-based with priority)
-  - Explicit pillar override
+  - Automatic module detection (keyword-based with priority)
+  - Explicit module override
   - Memory integration (auto load/save)
   - Error handling with `ok` status
-  - 8 pillar support with validation
+  - 8.module support with validation
 
 ### 5. Memory Store (`memoryStore.js`) - 370 lines
 - **Purpose**: Persistent user context and anti-repetition
 - **Features**:
   - JSON file storage (MongoDB-ready architecture)
-  - Conversation history (20 messages per pillar)
+  - Conversation history (20 messages per module)
   - Item tracking (habits, goals, plans, screenings)
   - Topic coverage tracking (anti-repetition)
-  - Pillar-specific data storage
+  - Module-specific data storage
   - Automatic cleanup (old messages, expired topics)
 
 ### 6. Data Persistence (`createItem.js`) - 259 lines
-- **Purpose**: Universal AI item creation across all pillars
+- **Purpose**: Universal AI item creation across all modules
 - **Features**:
   - 8 item types (habit, log, screening, lifeplan, smartgoal, reflection, milestone, challenge)
   - MongoDB integration (Habit and Entry models)
@@ -160,14 +160,14 @@ Return to User
 
 ### Basic Usage
 ```javascript
-import { runNorthStarAI } from './src/ai/orchestrator/northstarOrchestrator.js';
+import { runProjectAI } from './src/ai/orchestrator/northstarOrchestrator.js';
 
-const result = await runNorthStarAI({
+const result = await runProjectAI({
   userId: 'user123',
   message: 'I can\'t sleep at night'
 });
 
-console.log(result.pillar);  // 'sleep'
+console.log(result.module);  // 'sleep'
 console.log(result.text);    // AI response
 console.log(result.model);   // 'openai' or 'anthropic'
 ```
@@ -175,19 +175,19 @@ console.log(result.model);   // 'openai' or 'anthropic'
 ### Express API Integration
 ```javascript
 import express from 'express';
-import { runNorthStarAI } from './src/ai/orchestrator/northstarOrchestrator.js';
+import { runProjectAI } from './src/ai/orchestrator/northstarOrchestrator.js';
 
 const app = express();
 app.use(express.json());
 
 app.post('/api/ai/chat', async (req, res) => {
-  const { message, pillar } = req.body;
+  const { message, module } = req.body;
   const userId = req.user.id;
   
-  const result = await runNorthStarAI({
+  const result = await runProjectAI({
     userId,
     message,
-    explicitPillar: pillar
+    explicitModule: module
   });
   
   res.json(result);
@@ -223,9 +223,9 @@ System runs validation tests without API keys.
 
 ---
 
-## 🎯 Pillar Detection Keywords
+## 🎯 Module Detection Keywords
 
-| Pillar | Keywords |
+| Module | Keywords |
 |--------|----------|
 | **Mental Health** | anxiety, depression, ADHD, autism, panic, trauma, PTSD, mood, stress, therapy |
 | **Sleep** | insomnia, tired, sleep, dreams, apnea, CPAP, nightmares, circadian, melatonin |
@@ -289,7 +289,7 @@ backend/src/ai/
 ### Core System
 - [x] All 8 agents implemented with full system prompts
 - [x] Model router with intelligent task-based selection
-- [x] Central orchestrator with auto pillar detection
+- [x] Central orchestrator with auto module detection
 - [x] Memory system with persistence
 - [x] Data creation system for all item types
 - [x] Error handling throughout
@@ -417,7 +417,7 @@ backend/src/ai/
 
 ## 🎉 Conclusion
 
-**The NorthStar AI System is production-ready!**
+**The Project AI System is production-ready!**
 
 All 8 agents are implemented with comprehensive system prompts, intelligent routing, persistent memory, and full data persistence. The system is tested, documented, and ready for deployment.
 
@@ -426,4 +426,4 @@ To activate:
 2. Create Express routes
 3. Deploy!
 
-**Built with ❤️ for comprehensive wellness coaching** 🌟
+**Built with ❤️ for comprehensive internal coaching** 🌟

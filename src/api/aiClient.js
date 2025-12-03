@@ -344,6 +344,114 @@ export async function transcribeAudio(audioBlob) {
   }
 }
 
+/**
+ * Save a daily plan to backend
+ * @param {object} planData - Plan data to save
+ * @returns {Promise<object>} - Save result
+ */
+export async function savePlan(planData) {
+  try {
+    const response = await fetch(buildUrl('/api/action-plans'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader(),
+      },
+      credentials: 'include',
+      body: JSON.stringify(planData),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to save plan')
+    }
+
+    return {
+      ok: true,
+      data: result,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: true,
+      message: 'Failed to save plan',
+    }
+  }
+}
+
+/**
+ * Save a goal to backend
+ * @param {object} goalData - Goal data to save
+ * @returns {Promise<object>} - Save result
+ */
+export async function saveGoal(goalData) {
+  try {
+    const response = await fetch(buildUrl('/api/goals'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader(),
+      },
+      credentials: 'include',
+      body: JSON.stringify(goalData),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to save goal')
+    }
+
+    return {
+      ok: true,
+      data: result,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: true,
+      message: 'Failed to save goal',
+    }
+  }
+}
+
+/**
+ * Save a habit to backend
+ * @param {object} habitData - Habit data to save
+ * @returns {Promise<object>} - Save result
+ */
+export async function saveHabit(habitData) {
+  try {
+    const response = await fetch(buildUrl('/api/habits'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader(),
+      },
+      credentials: 'include',
+      body: JSON.stringify(habitData),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to save habit')
+    }
+
+    return {
+      ok: true,
+      data: result,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: true,
+      message: 'Failed to save habit',
+    }
+  }
+}
+
 export default {
   sendToOrchestrator,
   sendToPillarAgent,
@@ -353,4 +461,7 @@ export default {
   getWeeklyReflection,
   analyzeSentiment,
   transcribeAudio,
+  savePlan,
+  saveGoal,
+  saveHabit,
 }

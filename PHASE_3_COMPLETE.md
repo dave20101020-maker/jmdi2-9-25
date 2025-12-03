@@ -14,7 +14,7 @@ Successfully implemented 6 major features across analytics, internationalization
 **Features**:
 - 4 critical user flow tests
   1. Signup → Login → Dashboard
-  2. Pillar access → AI Coach interaction
+  2. Module access → AI Coach interaction
   3. Habit creation and dashboard verification
   4. UI accessibility validation
 - Auto-starts dev server on test run
@@ -56,7 +56,7 @@ analytics.trackEvent('user_action', { key: 'value' });
 // Pre-built trackers
 analytics.onboarding.onboardingCompleted({ duration_ms: 240000 });
 analytics.ai.aiInteractionCompleted({ 
-  pillar: 'sleep', 
+  module: 'sleep', 
   duration_ms: 3000 
 });
 analytics.habits.habitCreated({ name: 'Morning yoga' });
@@ -107,7 +107,7 @@ Users can click dropdown → select language → all content updates automatical
 
 - 2 Chart Visualizations (Recharts):
   - Daily Activity (line chart): requests, completions, errors
-  - Goals by Pillar (pie chart): distribution across pillars
+  - Goals by Module (pie chart): distribution across modules
 
 - 3 Detail Cards:
   - AI Performance: requests, response time, success rate
@@ -190,7 +190,7 @@ const {
 ### Admin Capabilities
 - **Real-time dashboard**: Monitor user engagement and system health
 - **Data export**: Generate reports for stakeholder meetings
-- **Pillar insights**: Track which areas users focus on most
+- **Module insights**: Track which areas users focus on most
 
 ### Developer Experience
 - **E2E tests**: Confidence in critical user flows before deployment
@@ -290,7 +290,7 @@ playwright.config.ts               [NEW] Test configuration
 
 ### Analytics Events Now Trackable
 - User onboarding completion
-- AI coach interactions (by pillar)
+- AI agent interactions (by module)
 - Habit/goal CRUD operations
 - Login/logout flows
 - Premium upgrades
@@ -302,7 +302,7 @@ playwright.config.ts               [NEW] Test configuration
 - Daily AI request volume
 - Goal creation trends
 - System health (uptime, error rate)
-- Pillar distribution (where users focus)
+- Module distribution (where users focus)
 
 ---
 

@@ -1,6 +1,6 @@
 # Multi-Agent AI Coaching System
 
-A sophisticated AI coaching system for NorthStar wellness app, featuring multiple specialized agents powered by OpenAI and Anthropic models.
+A sophisticated AI agenting system for Project internal app, featuring multiple specialized agents powered by OpenAI and Anthropic models.
 
 ## Architecture
 
@@ -26,7 +26,7 @@ backend/src/ai/
 - Support for both completion and streaming responses
 
 ### 👥 Specialized Agents
-- **General Coach**: Cross-pillar wellness advice and initial interactions
+- **General Coach**: Cross-module internal advice and initial interactions
 - **Sleep Coach**: Sleep optimization, circadian rhythm, rest strategies
 - **Mental Health Coach**: Stress management, CBT techniques, emotional support
 - *More agents can be added easily*
@@ -42,7 +42,7 @@ backend/src/ai/
 - Recent activity tracking
 - Conversation history
 - Mood trend analysis
-- Pillar-specific insights
+- Module-specific insights
 
 ## Setup
 
@@ -148,9 +148,9 @@ import { executeWorkflow } from './src/ai/orchestrator/agentOrchestrator.js';
 // Execute a coordinated workflow
 const workflow = [
   {
-    name: 'Assess Overall Wellness',
+    name: 'Assess Overall Internal',
     agentType: 'general',
-    task: 'Analyze my current wellness state',
+    task: 'Analyze my current internal state',
   },
   {
     name: 'Sleep Optimization',
@@ -191,7 +191,7 @@ const context = await buildUserContext(userId, {
 // - userProfile: { name, email, goals, preferences }
 // - currentScores: { sleep: 75, diet: 60, ... }
 // - recentEntries: [{ date, content, mood }]
-// - activeHabits: [{ name, pillar, streak }]
+// - activeHabits: [{ name, module, streak }]
 ```
 
 ### Direct Model Usage
@@ -234,7 +234,7 @@ router.get('/agents', authMiddleware, async (req, res) => {
   res.json({ agents });
 });
 
-// Send message to AI coach
+// Send message to AI agent
 router.post('/coach', authMiddleware, async (req, res) => {
   try {
     const { message, agentType } = req.body;
@@ -275,8 +275,8 @@ export default router;
 ## Agent Capabilities
 
 ### General Coach
-- Overall wellness assessment
-- Cross-pillar advice
+- Overall internal assessment
+- Cross-module advice
 - Daily check-ins
 - Goal setting support
 - Progress celebration
@@ -371,7 +371,7 @@ const response = await executeAgentRequest({
 import { BaseAgent } from './BaseAgent.js';
 import { MODELS } from '../modelRouter.js';
 
-const SYSTEM_PROMPT = `You are NorthStar's Nutrition Coach...`;
+const SYSTEM_PROMPT = `You are Project's Nutrition Coach...`;
 
 export class NutritionCoachAgent extends BaseAgent {
   constructor() {
@@ -512,4 +512,4 @@ For issues or questions:
 
 ## License
 
-This AI system is part of the NorthStar wellness application.
+This AI system is part of the Project internal application.

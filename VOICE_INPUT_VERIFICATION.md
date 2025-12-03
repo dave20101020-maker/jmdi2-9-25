@@ -96,7 +96,7 @@ Voice input feature fully implemented, integrated into GuidedJournal, tested for
 ## 🎯 How to Use Voice Input
 
 ### For Users
-1. Navigate to GuidedJournal (Pillar → Ask AI → Journal)
+1. Navigate to GuidedJournal (Module → Ask AI → Journal)
 2. Click "Voice Input" button next to journal response
 3. Grant microphone permission (browser popup)
 4. Start speaking - see real-time transcript appear
