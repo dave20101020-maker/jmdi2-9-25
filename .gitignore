@@ -1,20 +1,44 @@
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
-node_modules
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+tmp/
+*.tmp
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# AI-generated scaffolding (DO NOT COMMIT)
+**/PHASE_*
+**/QUICK_START*
+**/PART_*
+**/*_REFERENCE.js
+**/*_GUIDE.js
+**/*_SCAFFOLD*
+
+# Coverage
+coverage/
+.nyc_output/
