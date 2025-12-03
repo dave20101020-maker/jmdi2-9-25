@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from '@/utils';
 import { toast } from 'sonner';
+import { insightPrompts } from '@/ai/prompts';
 
 // Animation variants optimized for performance
 const containerVariants = {
@@ -85,29 +86,15 @@ export default function AIInsights({ entries, lifeScore, pillarScores, accessibl
       
       const needsAttention = pillarPerformance.filter(p => p.avgScore < 60);
       
-      const prompt = `You are a personal growth coach analyzing user progress. Generate personalized insights.
-
-Current Life Score: ${lifeScore}/100
-Active Pillars: ${accessiblePillars.map(p => p.name).join(', ')}
-Total Logs (7 days): ${recentEntries.length}
-Active Plans: ${plans.length}
-
-Performance:
-${pillarPerformance.map(p => `- ${p.name}: ${p.avgScore}/100 (${p.logCount} logs)`).join('\n')}
-
-Strongest: ${strongest?.name || 'N/A'} (${strongest?.avgScore || 0})
-Needs Attention: ${needsAttention.map(p => p.name).join(', ') || 'All areas doing well'}
-
-Generate concise, actionable insights:
-1. greeting: Warm, personalized greeting (1 sentence)
-2. celebration: Celebrate their strongest area (1 sentence, if applicable)
-3. focus_area: What needs attention (1 pillar name only)
-4. top_insights: Array of 3 specific observations (each 1 sentence, actionable)
-5. recommendations: Array of 3 concrete actions (each 1 sentence, specific)
-6. suggested_plan: If needed, suggest a simple plan (title: max 50 chars, description: max 100 chars)
-7. encouragement: Brief motivational message (1 sentence)
-
-Be positive, specific, and actionable. Return valid JSON only.`;
+      const prompt = insightPrompts.forPillar(strongest?.name || 'General', {
+        lifeScore,
+        pillarPerformance,
+        recentEntries,
+        plans,
+        accessiblePillars,
+        strongest,
+        needsAttention
+      });
 
       const result = await api.aiCoach({
         prompt: prompt,

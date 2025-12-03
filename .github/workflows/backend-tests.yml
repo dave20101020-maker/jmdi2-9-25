@@ -1,0 +1,221 @@
+name: Backend Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    services:
+      mongodb:
+        image: mongo:7
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")' 2>/dev/null"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: cd backend && npm ci
+        env:
+          CI: true
+      
+      - name: Run linter
+        run: cd backend && npm run lint
+        continue-on-error: true
+      
+      - name: Run unit tests
+        run: cd backend && npm test -- --coverage --testTimeout=10000
+        env:
+          CI: true
+          MONGODB_URI: mongodb://localhost:27017/northstar-test
+          NODE_ENV: test
+          JWT_SECRET: test-secret-key
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage/coverage-final.json
+          flags: backend
+          name: backend-coverage-${{ matrix.node-version }}
+          fail_ci_if_error: false
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:7
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")' 2>/dev/null"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install frontend dependencies
+        run: npm ci
+        env:
+          CI: true
+      
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+        env:
+          CI: true
+      
+      - name: Start backend server
+        run: cd backend && npm run dev &
+        env:
+          CI: true
+          MONGODB_URI: mongodb://localhost:27017/northstar-test
+          NODE_ENV: test
+          JWT_SECRET: test-secret-key
+          PORT: 5000
+      
+      - name: Wait for server to start
+        run: sleep 5 && curl -f http://localhost:5000/health || exit 1
+        continue-on-error: true
+      
+      - name: Run integration tests
+        run: cd backend && npm run test:integration
+        env:
+          CI: true
+          MONGODB_URI: mongodb://localhost:27017/northstar-test
+          NODE_ENV: test
+          JWT_SECRET: test-secret-key
+        continue-on-error: true
+
+  ai-endpoint-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:7
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")' 2>/dev/null"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+        env:
+          CI: true
+      
+      - name: Run AI endpoint tests
+        run: cd backend && npm run test:ai
+        env:
+          CI: true
+          MONGODB_URI: mongodb://localhost:27017/northstar-test
+          NODE_ENV: test
+          JWT_SECRET: test-secret-key
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        continue-on-error: true
+
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=moderate --production || true
+          cd backend && npm audit --audit-level=moderate --production || true
+        continue-on-error: true
+      
+      - name: Run security vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        continue-on-error: true
+      
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+
+  stress-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup k6
+        run: |
+          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3232A
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+      
+      - name: Run basic stress tests
+        run: cd backend && k6 run tests/load/ai-endpoints.js --vus 5 --duration 30s
+        env:
+          API_URL: http://localhost:5000/api
+        continue-on-error: true

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PILLARS } from '@/utils';
 import { toast } from 'sonner';
 import HelpTooltip from '@/components/shared/HelpTooltip';
+import { goalPrompts } from '@/ai/prompts';
 
 export default function GoalCreator({ onClose, onSuccess, initialGoal, user }) {
   const [step, setStep] = useState(initialGoal ? 2 : 0);
@@ -107,21 +108,7 @@ export default function GoalCreator({ onClose, onSuccess, initialGoal, user }) {
     const loadingToast = toast.loading('AI is crafting your SMART goal...');
     
     try {
-      const pillar = PILLARS[selectedPillar];
-      const prompt = `You are a goal-setting expert. Help transform this goal into a SMART goal framework.
-
-User's Goal: "${goalStatement}"
-Life Pillar: ${pillar.name}
-
-Create a SMART goal breakdown with these components:
-1. Specific: What exactly will be accomplished? (1-2 sentences, max 300 chars)
-2. Measurable: How will progress be measured? Include metrics. (1-2 sentences, max 300 chars)
-3. Achievable: Why is this realistic and attainable? (1-2 sentences, max 300 chars, optional but helpful)
-4. Relevant: Why does this goal matter? Connection to ${pillar.name}. (1-2 sentences, max 300 chars, optional but helpful)
-5. Time-bound: Target completion date or timeframe. (1 sentence, max 150 chars)
-
-Return ONLY valid JSON with these exact keys: specific, measurable, achievable, relevant, timeBound
-Be concise, actionable, and motivating. Make it personal and achievable.`;
+      const prompt = goalPrompts.smartGoal(goalStatement, selectedPillar, PILLARS[selectedPillar].name);
 
       const result = await api.aiCoach({
         prompt: prompt,

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { X, Save, BookOpen, Sparkles, RefreshCw, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { reflectionPrompts } from '@/ai/prompts';
 
 const REFLECTION_TYPES = [
   { value: "daily", label: "Daily", emoji: "☀️", color: "#FFD700" },
@@ -39,17 +40,8 @@ export default function ReflectionPrompt({ onClose, onSave, reflectionType = "da
   const generatePrompt = async (type) => {
     setGenerating(true);
     try {
-      const typePrompts = {
-        daily: "Create a thoughtful daily reflection prompt that helps someone review their day with gratitude, awareness, and intention for tomorrow.",
-        weekly: "Create a weekly reflection prompt that encourages someone to review the past week's experiences, growth, and lessons learned.",
-        monthly: "Create a monthly reflection prompt that invites deep contemplation of progress, patterns, and alignment with values over the past month.",
-        custom: "Create a spiritual reflection prompt that explores meaning, purpose, and connection to something greater."
-      };
-
       const result = await api.aiCoach({
-        prompt: `${typePrompts[type]}
-
-Return ONLY a single open-ended, contemplative question that invites deep reflection. Make it warm, spiritual, and thought-provoking. Do not include any prefix.`,
+        prompt: reflectionPrompts.generate(type),
         response_json_schema: {
           type: "object",
           properties: {
@@ -64,14 +56,10 @@ Return ONLY a single open-ended, contemplative question that invites deep reflec
       console.error('Error generating prompt:', error);
       setGenerating(false);
       
-      const fallbacks = {
-        daily: "As you reflect on today, what moment made you feel most alive and connected?",
-        weekly: "What lesson did this week teach you about yourself?",
-        monthly: "How have you grown in alignment with your deepest values this month?",
-        custom: "What brings you a sense of meaning and purpose in your life right now?"
-      };
-      
-      setEntry({ ...entry, prompt: fallbacks[type], reflectionType: type });
+      // Fallback prompts from module
+      const fallbacks = reflectionPrompts;
+      const fallbackText = fallbacks[type] || fallbacks.daily;
+      setEntry({ ...entry, prompt: fallbackText, reflectionType: type });
     }
   };
 
