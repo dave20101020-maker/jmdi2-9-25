@@ -139,4 +139,5 @@ export const authRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+export const aiRateLimitMiddleware = aiRateLimiter;
 export default aiRateLimiter;

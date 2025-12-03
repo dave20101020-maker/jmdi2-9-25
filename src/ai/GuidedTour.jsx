@@ -207,7 +207,7 @@ export default function GuidedTour({ onComplete, onSkip }) {
                 key={idx}
                 onClick={() => setCurrentStep(idx)}
                 aria-label={`Go to step ${idx + 1}${idx === currentStep ? ' (current)' : ''}`}
-                className={`h-2 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-[#D4AF37] ${\n                  idx === currentStep ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/20 hover:bg-white/40'\n                }`}
+                className={`h-2 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-[#D4AF37] ${idx === currentStep ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/20 hover:bg-white/40'}`}
               />
             ))}
           </div>
