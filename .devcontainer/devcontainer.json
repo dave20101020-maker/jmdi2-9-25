@@ -7,8 +7,7 @@
   "portsAttributes": {
     "5173": {
       "label": "Frontend (Vite)",
-      "onAutoForward": "notify",
-      "protocol": "https"
+      "onAutoForward": "openPreview"
     },
     "5000": {
       "label": "Backend API",

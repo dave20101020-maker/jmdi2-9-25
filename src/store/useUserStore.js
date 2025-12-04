@@ -1,12 +1,12 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 /**
  * User Store
- * 
+ *
  * Manages authenticated user state, profile data, subscription info,
  * and authentication flow.
- * 
+ *
  * Uses Zustand with localStorage persistence for maintaining
  * user session across page refreshes.
  */
@@ -111,9 +111,9 @@ const useUserStore = create(
         set((state) => {
           if (!state.user) return state;
 
-          const pathParts = settingPath.split('.');
+          const pathParts = settingPath.split(".");
           const newSettings = { ...state.user.settings };
-          
+
           let current = newSettings;
           for (let i = 0; i < pathParts.length - 1; i++) {
             current[pathParts[i]] = { ...current[pathParts[i]] };
@@ -135,19 +135,19 @@ const useUserStore = create(
 
         try {
           // Call your API here
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(credentials),
-            credentials: 'include', // Include cookies
+            credentials: "include", // Include cookies
           });
 
           if (!response.ok) {
-            throw new Error('Login failed');
+            throw new Error("Login failed");
           }
 
           const data = await response.json();
-          
+
           set({
             user: data.user,
             isAuthenticated: true,
@@ -171,19 +171,19 @@ const useUserStore = create(
         set({ isLoading: true, error: null });
 
         try {
-          const response = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const response = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(userData),
-            credentials: 'include',
+            credentials: "include",
           });
 
           if (!response.ok) {
-            throw new Error('Registration failed');
+            throw new Error("Registration failed");
           }
 
           const data = await response.json();
-          
+
           set({
             user: data.user,
             isAuthenticated: true,
@@ -206,9 +206,9 @@ const useUserStore = create(
         set({ isLoading: true });
 
         try {
-          await fetch('/api/auth/logout', {
-            method: 'POST',
-            credentials: 'include',
+          await fetch("/api/auth/logout", {
+            method: "POST",
+            credentials: "include",
           });
 
           set({
@@ -233,16 +233,16 @@ const useUserStore = create(
         set({ isLoading: true });
 
         try {
-          const response = await fetch('/api/users/me', {
-            credentials: 'include',
+          const response = await fetch("/api/users/me", {
+            credentials: "include",
           });
 
           if (!response.ok) {
-            throw new Error('Failed to fetch user');
+            throw new Error("Failed to fetch user");
           }
 
           const data = await response.json();
-          
+
           set({
             user: data.user || data,
             isAuthenticated: true,
@@ -277,23 +277,29 @@ const useUserStore = create(
       // Check if user has premium access
       isPremium: () => {
         const user = get().user;
-        return user?.subscriptionTier === 'premium' && user?.subscriptionStatus === 'active';
+        return (
+          user?.subscriptionTier === "premium" &&
+          user?.subscriptionStatus === "active"
+        );
       },
 
       // Check if user is on trial
       isTrial: () => {
         const user = get().user;
-        return user?.subscriptionTier === 'trial' && user?.subscriptionStatus === 'trial';
+        return (
+          user?.subscriptionTier === "trial" &&
+          user?.subscriptionStatus === "trial"
+        );
       },
 
       // Check if user has access to a specific pillar
       hasAccessToPillar: (pillarId) => {
         const user = get().user;
         if (!user) return false;
-        
+
         // Premium/trial users have access to all pillars
         if (get().isPremium() || get().isTrial()) return true;
-        
+
         // Otherwise check allowedPillars array
         return user.allowedPillars?.includes(pillarId) || false;
       },
@@ -302,11 +308,20 @@ const useUserStore = create(
       getAccessiblePillars: () => {
         const user = get().user;
         if (!user) return [];
-        
+
         if (get().isPremium() || get().isTrial()) {
-          return ['sleep', 'diet', 'exercise', 'physical_health', 'mental_health', 'finances', 'social', 'spirituality'];
+          return [
+            "sleep",
+            "diet",
+            "exercise",
+            "physical_health",
+            "mental_health",
+            "finances",
+            "social",
+            "spirituality",
+          ];
         }
-        
+
         return user.allowedPillars || user.selected_pillars || [];
       },
 
@@ -327,10 +342,10 @@ const useUserStore = create(
       addBadge: (badgeId) =>
         set((state) => {
           if (!state.user) return state;
-          
+
           const currentBadges = state.user.badges || [];
           if (currentBadges.includes(badgeId)) return state;
-          
+
           return {
             user: {
               ...state.user,
@@ -368,16 +383,16 @@ const useUserStore = create(
       isSessionExpired: () => {
         const user = get().user;
         if (!user?.lastLoginAt) return false;
-        
+
         const lastLogin = new Date(user.lastLoginAt);
         const now = new Date();
         const daysSinceLogin = (now - lastLogin) / (1000 * 60 * 60 * 24);
-        
+
         return daysSinceLogin > 30; // 30-day session expiry
       },
     }),
     {
-      name: 'northstar-user-storage', // localStorage key
+      name: "northstar-user-storage", // localStorage key
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist these parts
@@ -395,24 +410,24 @@ export default useUserStore;
 
 /**
  * Example 1: Login flow
- * 
+ *
  * import useUserStore from '@/store/useUserStore';
- * 
+ *
  * function LoginForm() {
  *   const { login, isLoading, error } = useUserStore();
- * 
+ *
  *   const handleSubmit = async (e) => {
  *     e.preventDefault();
  *     const result = await login({
  *       email: e.target.email.value,
  *       password: e.target.password.value
  *     });
- * 
+ *
  *     if (result.success) {
  *       navigate('/dashboard');
  *     }
  *   };
- * 
+ *
  *   return (
  *     <form onSubmit={handleSubmit}>
  *       <input name="email" type="email" />
@@ -428,32 +443,32 @@ export default useUserStore;
 
 /**
  * Example 2: Protected route
- * 
+ *
  * import useUserStore from '@/store/useUserStore';
  * import { Navigate } from 'react-router-dom';
- * 
+ *
  * function ProtectedRoute({ children }) {
  *   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
- * 
+ *
  *   if (!isAuthenticated) {
- *     return <Navigate to="/login" />;
+ *     return <Navigate to="/sign-in" />;
  *   }
- * 
+ *
  *   return children;
  * }
  */
 
 /**
  * Example 3: User profile display
- * 
+ *
  * import useUserStore from '@/store/useUserStore';
- * 
+ *
  * function UserProfile() {
  *   const user = useUserStore((state) => state.user);
  *   const updateUser = useUserStore((state) => state.updateUser);
- * 
+ *
  *   if (!user) return null;
- * 
+ *
  *   return (
  *     <div>
  *       <h2>{user.name}</h2>
@@ -472,13 +487,13 @@ export default useUserStore;
 
 /**
  * Example 4: Subscription check
- * 
+ *
  * import useUserStore from '@/store/useUserStore';
- * 
+ *
  * function PillarCard({ pillarId }) {
  *   const hasAccess = useUserStore((state) => state.hasAccessToPillar(pillarId));
  *   const isPremium = useUserStore((state) => state.isPremium());
- * 
+ *
  *   if (!hasAccess) {
  *     return (
  *       <div className="locked">
@@ -487,24 +502,24 @@ export default useUserStore;
  *       </div>
  *     );
  *   }
- * 
+ *
  *   return <div>Access granted!</div>;
  * }
  */
 
 /**
  * Example 5: User settings
- * 
+ *
  * import useUserStore from '@/store/useUserStore';
- * 
+ *
  * function SettingsPage() {
  *   const user = useUserStore((state) => state.user);
  *   const updateUserSettings = useUserStore((state) => state.updateUserSettings);
- * 
+ *
  *   const handleToggleNotifications = () => {
  *     updateUserSettings('notifications.email', !user.settings.notifications.email);
  *   };
- * 
+ *
  *   return (
  *     <div>
  *       <label>
@@ -522,45 +537,45 @@ export default useUserStore;
 
 /**
  * Example 6: Gamification
- * 
+ *
  * import useUserStore from '@/store/useUserStore';
- * 
+ *
  * function CompleteTaskButton() {
  *   const addPoints = useUserStore((state) => state.addPoints);
  *   const addBadge = useUserStore((state) => state.addBadge);
  *   const incrementCheckIns = useUserStore((state) => state.incrementCheckIns);
- * 
+ *
  *   const handleComplete = () => {
  *     addPoints(50);
  *     incrementCheckIns();
- *     
+ *
  *     // Award badge if milestone reached
  *     const user = useUserStore.getState().user;
  *     if (user.total_check_ins === 7) {
  *       addBadge('7_day_streak');
  *     }
  *   };
- * 
+ *
  *   return <button onClick={handleComplete}>Complete Check-in</button>;
  * }
  */
 
 /**
  * Example 7: Combining stores
- * 
+ *
  * import useUserStore from '@/store/useUserStore';
  * import useAppStore from '@/store/useAppStore';
- * 
+ *
  * function Dashboard() {
  *   const user = useUserStore((state) => state.user);
  *   const accessiblePillars = useUserStore((state) => state.getAccessiblePillars());
  *   const pillarScores = useAppStore((state) => state.pillarScores);
- * 
+ *
  *   const accessibleScores = accessiblePillars.reduce((acc, pillarId) => {
  *     acc[pillarId] = pillarScores[pillarId];
  *     return acc;
  *   }, {});
- * 
+ *
  *   return (
  *     <div>
  *       <h1>Welcome, {user?.name}!</h1>

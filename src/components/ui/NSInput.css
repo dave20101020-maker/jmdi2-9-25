@@ -1,0 +1,62 @@
+.ns-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ns-input-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.ns-input-shell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--ns-radius-md, 16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 14, 40, 0.7);
+  padding: 0.85rem 1.1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ns-input-shell:focus-within {
+  border-color: var(--ns-color-gold, #f4d06f);
+  box-shadow: 0 0 0 2px rgba(244, 208, 111, 0.15);
+}
+
+.ns-input-shell--error {
+  border-color: var(--ns-color-danger, #ff6b6b);
+}
+
+.ns-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--ns-color-text, #f7f8ff);
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.ns-input:focus {
+  outline: none;
+}
+
+.ns-input-icon {
+  color: rgba(255, 255, 255, 0.5);
+  display: inline-flex;
+}
+
+.ns-input-hint {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.ns-input-error {
+  font-size: 0.85rem;
+  color: var(--ns-color-danger, #ff6b6b);
+  margin: 0;
+}

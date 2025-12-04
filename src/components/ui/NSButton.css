@@ -1,0 +1,105 @@
+.ns-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: var(--ns-radius-pill, 999px);
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  color: var(--ns-color-text, #f7f8ff);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  isolation: isolate;
+}
+
+.ns-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  box-shadow: 0 20px 45px rgba(3, 7, 23, 0.45);
+  z-index: -1;
+}
+
+.ns-button:hover::after {
+  opacity: 1;
+}
+
+.ns-button:hover,
+.ns-button:focus-visible {
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.ns-button--full {
+  width: 100%;
+}
+
+.ns-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  opacity: 0.85;
+}
+
+.ns-button__label {
+  white-space: nowrap;
+}
+
+/* Variants */
+.ns-button--primary {
+  background: var(--ns-gradient-cta, linear-gradient(135deg, #f8e27e, #d6a33a));
+  color: #0a0f1f;
+  box-shadow: 0 20px 45px rgba(244, 208, 111, 0.35);
+}
+
+.ns-button--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--ns-color-text, #f7f8ff);
+}
+
+.ns-button--ghost {
+  background: transparent;
+  color: var(--ns-color-text, #f7f8ff);
+}
+
+.ns-button--ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ns-button--outline {
+  background: rgba(10, 15, 35, 0.45);
+  border: 1px solid rgba(244, 208, 111, 0.5);
+  color: var(--ns-color-gold, #f4d06f);
+}
+
+/* Sizes */
+.ns-button--sm {
+  padding: 0.4rem 1.1rem;
+  font-size: 0.85rem;
+}
+
+.ns-button--md {
+  padding: 0.7rem 1.6rem;
+  font-size: 0.95rem;
+}
+
+.ns-button--lg {
+  padding: 0.95rem 2.4rem;
+  font-size: 1rem;
+}
+
+.ns-button--pill {
+  padding: 1rem 2.6rem;
+  font-size: 1.05rem;
+  border-radius: 999px;
+}

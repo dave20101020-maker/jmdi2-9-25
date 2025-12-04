@@ -3,11 +3,13 @@
  * Replaces Base44 SDK with custom backend endpoints
  */
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_FULL_URL = API_BASE_URL.endsWith("/api")
+  ? API_BASE_URL
+  : `${API_BASE_URL}/api`;
 
 class APIClient {
-  constructor(baseUrl = API_BASE_URL) {
+  constructor(baseUrl = API_FULL_URL) {
     this.baseUrl = baseUrl;
   }
 
