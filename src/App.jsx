@@ -15,6 +15,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import ConsentBanner from "./components/ConsentBanner";
 import { useConsent } from "@/hooks/useConsent";
 import "./App.css";
+import StarfieldBackground from "@/components/visuals/StarfieldBackground";
 
 function AppContent() {
   const { hasConsent, isLoading: consentLoading } = useConsent();
@@ -88,6 +89,7 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
+          <StarfieldBackground />
           <AppContent />
         </AuthProvider>
       </BrowserRouter>

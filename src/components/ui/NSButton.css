@@ -5,41 +5,64 @@
   justify-content: center;
   gap: 0.5rem;
   border: none;
-  border-radius: var(--ns-radius-pill, 999px);
+  border-radius: 12px;
   font-family: inherit;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   cursor: pointer;
   padding: 0;
   background: transparent;
-  color: var(--ns-color-text, #f7f8ff);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  color: var(--ns-text-strong, #f8fafc);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
   isolation: isolate;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
 }
 
-.ns-button::after {
+.ns-button::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.35) 45%,
+    rgba(255, 255, 255, 0) 90%
+  );
   opacity: 0;
-  transition: opacity 0.3s ease;
-  box-shadow: 0 20px 45px rgba(3, 7, 23, 0.45);
-  z-index: -1;
-}
-
-.ns-button:hover::after {
-  opacity: 1;
+  transform: translateX(-80%);
+  transition: opacity 0.35s ease;
+  z-index: 2;
+  pointer-events: none;
+  mix-blend-mode: screen;
 }
 
 .ns-button:hover,
 .ns-button:focus-visible {
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.01);
   outline: none;
+}
+
+.ns-button:hover::before,
+.ns-button:focus-visible::before {
+  opacity: 1;
+  animation: ns-button-shimmer 1.2s forwards;
 }
 
 .ns-button--full {
   width: 100%;
+}
+
+.ns-button__content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 2.75rem;
+  position: relative;
+  z-index: 3;
 }
 
 .ns-button__icon {
@@ -47,7 +70,7 @@
   align-items: center;
   justify-content: center;
   font-size: 1rem;
-  opacity: 0.85;
+  color: currentColor;
 }
 
 .ns-button__label {
@@ -56,20 +79,26 @@
 
 /* Variants */
 .ns-button--primary {
-  background: var(--ns-gradient-cta, linear-gradient(135deg, #f8e27e, #d6a33a));
-  color: #0a0f1f;
-  box-shadow: 0 20px 45px rgba(244, 208, 111, 0.35);
+  padding: 0.9rem 2.35rem;
+  background: linear-gradient(135deg, #f5c542, #f59f42);
+  color: #050c1a;
+  box-shadow: 0 30px 55px rgba(245, 197, 66, 0.35),
+    0 5px 15px rgba(0, 0, 0, 0.35);
 }
 
 .ns-button--secondary {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--ns-color-text, #f7f8ff);
+  padding: 0.85rem 2rem;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(248, 250, 252, 0.18);
+  color: rgba(248, 250, 252, 0.9);
+  box-shadow: 0 22px 40px rgba(2, 6, 23, 0.55);
 }
 
 .ns-button--ghost {
-  background: transparent;
-  color: var(--ns-color-text, #f7f8ff);
+  padding: 0.85rem 2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--ns-text-strong, #f8fafc);
 }
 
 .ns-button--ghost:hover {
@@ -77,29 +106,44 @@
 }
 
 .ns-button--outline {
-  background: rgba(10, 15, 35, 0.45);
-  border: 1px solid rgba(244, 208, 111, 0.5);
-  color: var(--ns-color-gold, #f4d06f);
+  padding: 0.85rem 2rem;
+  background: rgba(5, 12, 30, 0.65);
+  border: 1px solid rgba(245, 197, 66, 0.65);
+  color: var(--ns-gold, #f5c542);
+  box-shadow: 0 18px 35px rgba(245, 197, 66, 0.25);
+}
+
+.ns-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Sizes */
 .ns-button--sm {
-  padding: 0.4rem 1.1rem;
+  padding: 0.5rem 1.4rem;
   font-size: 0.85rem;
 }
 
 .ns-button--md {
-  padding: 0.7rem 1.6rem;
+  padding: 0.9rem 2.2rem;
   font-size: 0.95rem;
 }
 
 .ns-button--lg {
-  padding: 0.95rem 2.4rem;
+  padding: 1rem 2.6rem;
   font-size: 1rem;
 }
 
 .ns-button--pill {
-  padding: 1rem 2.6rem;
+  padding: 1.05rem 2.8rem;
   font-size: 1.05rem;
   border-radius: 999px;
+}
+
+@keyframes ns-button-shimmer {
+  to {
+    transform: translateX(120%);
+  }
 }

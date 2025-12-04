@@ -33,6 +33,17 @@ const NSButton = React.forwardRef(function NSButton(
 ) {
   const Comp = asChild ? Slot : "button";
 
+  const content = (
+    <span className="ns-button__content">
+      {icon && (
+        <span className="ns-button__icon" aria-hidden="true">
+          {icon}
+        </span>
+      )}
+      <span className="ns-button__label">{children}</span>
+    </span>
+  );
+
   return (
     <Comp
       ref={ref}
@@ -45,12 +56,7 @@ const NSButton = React.forwardRef(function NSButton(
       )}
       {...props}
     >
-      {icon && (
-        <span className="ns-button__icon" aria-hidden="true">
-          {icon}
-        </span>
-      )}
-      <span className="ns-button__label">{children}</span>
+      {content}
     </Comp>
   );
 });

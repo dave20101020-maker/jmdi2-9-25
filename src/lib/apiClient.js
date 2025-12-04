@@ -1,25 +1,71 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const IS_DEV = import.meta.env.DEV;
+const rawBase = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
+
+const maskSensitive = (body) => {
+  if (!body || typeof body !== "object") return body;
+  const clone = { ...body };
+  if (typeof clone.password !== "undefined") {
+    clone.password = "***";
+  }
+  if (typeof clone.passphrase !== "undefined") {
+    clone.passphrase = "***";
+  }
+  return clone;
+};
+
+const safeParse = (text) => {
+  if (!text || !text.length) return null;
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    return text;
+  }
+};
 
 async function request(path, opts = {}) {
   const url = `${API_BASE}${path}`;
+  const method = opts.method || "GET";
+  const headers = {
+    "Content-Type": "application/json",
+    ...(opts.headers || {}),
+  };
+  const parsedBody =
+    typeof opts.body === "string" ? safeParse(opts.body) : opts.body;
+  const requestLog = maskSensitive(parsedBody);
+  const shouldLog =
+    IS_DEV && (path.startsWith("/api/auth/login") || opts.debug);
+
+  if (shouldLog) {
+    console.log(`[apiClient] ${method} ${url} request`, {
+      body: requestLog,
+    });
+  }
+
   const res = await fetch(url, {
     credentials: "include", // send cookies
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+    headers,
     ...opts,
   });
+
+  const text = await res.text().catch(() => null);
+  const data = safeParse(text);
+
+  if (shouldLog) {
+    console.log(`[apiClient] ${method} ${url} response`, {
+      status: res.status,
+      json: data,
+    });
+  }
+
   if (!res.ok) {
-    const text = await res.text().catch(() => null);
-    let err = text || res.statusText;
-    try {
-      err = JSON.parse(text);
-    } catch (e) {}
-    // normalize message
+    const errPayload = data || res.statusText;
     const message =
-      err && err.message
-        ? err.message
-        : typeof err === "string"
-        ? err
-        : JSON.stringify(err);
+      errPayload && errPayload.message
+        ? errPayload.message
+        : typeof errPayload === "string"
+        ? errPayload
+        : JSON.stringify(errPayload);
     try {
       if (typeof window !== "undefined" && window.dispatchEvent) {
         window.dispatchEvent(new CustomEvent("api-error", { detail: message }));
@@ -27,9 +73,14 @@ async function request(path, opts = {}) {
     } catch (e) {
       /* no-op */
     }
-    throw err;
+    const error =
+      errPayload instanceof Error
+        ? errPayload
+        : { message, status: res.status, body: errPayload };
+    throw error;
   }
-  return res.json().catch(() => null);
+
+  return data;
 }
 
 export const api = {

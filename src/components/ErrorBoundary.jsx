@@ -1,11 +1,13 @@
-import { Component } from 'react';
+import { Component } from "react";
+
+const IS_DEV = import.meta.env.DEV;
 
 /**
  * ErrorBoundary Component
- * 
+ *
  * Catches JavaScript errors anywhere in the child component tree,
  * logs those errors, and displays a fallback UI instead of crashing.
- * 
+ *
  * Usage:
  * <ErrorBoundary>
  *   <YourApp />
@@ -29,7 +31,7 @@ class ErrorBoundary extends Component {
 
   componentDidCatch(error, errorInfo) {
     // Log error to console for debugging
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
 
     // Update state with error details
     this.setState((prevState) => ({
@@ -39,7 +41,7 @@ class ErrorBoundary extends Component {
     }));
 
     // Send to error reporting service (e.g., Sentry)
-    if (typeof window !== 'undefined' && window.Sentry) {
+    if (typeof window !== "undefined" && window.Sentry) {
       window.Sentry.captureException(error, {
         contexts: {
           react: {
@@ -50,8 +52,8 @@ class ErrorBoundary extends Component {
     }
 
     // Log to analytics
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'exception', {
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", "exception", {
         description: error.toString(),
         fatal: false,
       });
@@ -111,12 +113,13 @@ class ErrorBoundary extends Component {
 
             {/* Error Message */}
             <p className="text-white/70 mb-8">
-              We encountered an unexpected error. Don't worry, your data is safe.
-              Try refreshing the page or contact support if the problem persists.
+              We encountered an unexpected error. Don't worry, your data is
+              safe. Try refreshing the page or contact support if the problem
+              persists.
             </p>
 
             {/* Error Details (Development Only) */}
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {IS_DEV && this.state.error && (
               <div className="mb-8 text-left bg-black/30 rounded-lg p-4 overflow-auto max-h-64">
                 <p className="text-red-400 font-mono text-sm mb-2">
                   <strong>Error:</strong> {this.state.error.toString()}
@@ -138,7 +141,8 @@ class ErrorBoundary extends Component {
             {this.state.errorCount > 2 && (
               <div className="mb-6 p-4 bg-orange-500/20 border border-orange-500/40 rounded-lg">
                 <p className="text-orange-400 text-sm">
-                  ⚠️ Multiple errors detected ({this.state.errorCount}). Consider reloading the page.
+                  ⚠️ Multiple errors detected ({this.state.errorCount}).
+                  Consider reloading the page.
                 </p>
               </div>
             )}
@@ -168,7 +172,7 @@ class ErrorBoundary extends Component {
             {/* Support Link */}
             <div className="mt-8 pt-6 border-t border-white/10">
               <p className="text-white/50 text-sm">
-                Need help?{' '}
+                Need help?{" "}
                 <a
                   href="/support"
                   className="text-[#D4AF37] hover:text-[#F4D03F] underline"
@@ -190,11 +194,11 @@ export default ErrorBoundary;
 
 /**
  * Usage Examples:
- * 
+ *
  * 1. Basic usage:
- * 
+ *
  * import ErrorBoundary from '@/components/ErrorBoundary';
- * 
+ *
  * function App() {
  *   return (
  *     <ErrorBoundary>
@@ -202,10 +206,10 @@ export default ErrorBoundary;
  *     </ErrorBoundary>
  *   );
  * }
- * 
- * 
+ *
+ *
  * 2. With custom fallback:
- * 
+ *
  * <ErrorBoundary
  *   fallback={({ error, resetError }) => (
  *     <div>
@@ -217,10 +221,10 @@ export default ErrorBoundary;
  * >
  *   <YourApp />
  * </ErrorBoundary>
- * 
- * 
+ *
+ *
  * 3. Multiple boundaries for different sections:
- * 
+ *
  * function App() {
  *   return (
  *     <ErrorBoundary>
@@ -234,10 +238,10 @@ export default ErrorBoundary;
  *     </ErrorBoundary>
  *   );
  * }
- * 
- * 
+ *
+ *
  * 4. With error reporting service (Sentry):
- * 
+ *
  * // In your index.html or main entry point:
  * <script src="https://browser.sentry-cdn.com/..."></script>
  * <script>
@@ -246,6 +250,6 @@ export default ErrorBoundary;
  *     environment: "production"
  *   });
  * </script>
- * 
+ *
  * // ErrorBoundary automatically sends errors to Sentry
  */

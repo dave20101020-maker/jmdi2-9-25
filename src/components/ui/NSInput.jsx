@@ -4,28 +4,55 @@ import { cn } from "@/utils";
 import "./NSInput.css";
 
 const NSInput = React.forwardRef(function NSInput(
-  { label, hint, error, icon, className, id, ...props },
+  { label, hint, error, icon, className, id, placeholder, ...props },
   ref
 ) {
-  const inputId =
-    id || props.name || `ns-input-${Math.random().toString(36).slice(2, 9)}`;
+  const generatedId = React.useId();
+  const inputId = id || props.name || generatedId;
+
+  const hasControlledValue =
+    props.value !== undefined &&
+    props.value !== null &&
+    `${props.value}` !== "";
+  const hasDefaultValue =
+    props.defaultValue !== undefined &&
+    props.defaultValue !== null &&
+    `${props.defaultValue}` !== "";
+  const hasValue = hasControlledValue || hasDefaultValue;
+
+  const computedPlaceholder = label ? " " : placeholder;
+  const helperText = hint || (label && placeholder ? placeholder : null);
 
   return (
-    <div className={cn("ns-input-group", className)}>
-      {label && (
-        <label className="ns-input-label" htmlFor={inputId}>
-          {label}
-        </label>
-      )}
-      <div className={cn("ns-input-shell", error && "ns-input-shell--error")}>
+    <div className={cn("ns-input-group", className)} data-error={!!error}>
+      <div
+        className={cn(
+          "ns-input-shell",
+          error && "ns-input-shell--error",
+          icon && "ns-input-shell--icon",
+          label && "ns-input-shell--floating"
+        )}
+        data-filled={hasValue}
+      >
         {icon && (
           <span className="ns-input-icon" aria-hidden="true">
             {icon}
           </span>
         )}
-        <input id={inputId} ref={ref} className="ns-input" {...props} />
+        <input
+          id={inputId}
+          ref={ref}
+          className="ns-input"
+          placeholder={computedPlaceholder || " "}
+          {...props}
+        />
+        {label && (
+          <label className="ns-input-floating-label" htmlFor={inputId}>
+            {label}
+          </label>
+        )}
       </div>
-      {hint && <p className="ns-input-hint">{hint}</p>}
+      {helperText && <p className="ns-input-hint">{helperText}</p>}
       {error && <p className="ns-input-error">{error}</p>}
     </div>
   );

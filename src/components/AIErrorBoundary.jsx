@@ -1,13 +1,15 @@
-import { Component } from 'react';
-import { AlertCircle, RefreshCw, Home } from 'lucide-react';
+import { Component } from "react";
+import { AlertCircle, RefreshCw, Home } from "lucide-react";
+
+const IS_DEV = import.meta.env.DEV;
 
 /**
  * AIErrorBoundary Component
- * 
+ *
  * Specialized error boundary for AI-related components.
  * Catches errors from AI API calls, provides recovery suggestions,
  * and offers fallback content for AI-powered features.
- * 
+ *
  * Usage:
  * <AIErrorBoundary>
  *   <AIInsights />
@@ -19,7 +21,7 @@ class AIErrorBoundary extends Component {
     this.state = {
       hasError: false,
       error: null,
-      errorType: 'unknown', // 'api', 'network', 'timeout', 'validation', 'unknown'
+      errorType: "unknown", // 'api', 'network', 'timeout', 'validation', 'unknown'
       errorCount: 0,
       isRecoverable: true,
     };
@@ -27,20 +29,23 @@ class AIErrorBoundary extends Component {
 
   static getDerivedStateFromError(error) {
     // Determine error type
-    let errorType = 'unknown';
+    let errorType = "unknown";
     let isRecoverable = true;
 
-    if (error.message?.includes('API')) {
-      errorType = 'api';
+    if (error.message?.includes("API")) {
+      errorType = "api";
       isRecoverable = true;
-    } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-      errorType = 'network';
+    } else if (
+      error.message?.includes("network") ||
+      error.message?.includes("fetch")
+    ) {
+      errorType = "network";
       isRecoverable = true;
-    } else if (error.message?.includes('timeout')) {
-      errorType = 'timeout';
+    } else if (error.message?.includes("timeout")) {
+      errorType = "timeout";
       isRecoverable = true;
-    } else if (error.message?.includes('validation')) {
-      errorType = 'validation';
+    } else if (error.message?.includes("validation")) {
+      errorType = "validation";
       isRecoverable = true;
     }
 
@@ -54,7 +59,7 @@ class AIErrorBoundary extends Component {
 
   componentDidCatch(error, errorInfo) {
     // Log to console
-    console.error('AIErrorBoundary caught:', error, errorInfo);
+    console.error("AIErrorBoundary caught:", error, errorInfo);
 
     // Update error count
     this.setState((prevState) => ({
@@ -62,8 +67,8 @@ class AIErrorBoundary extends Component {
     }));
 
     // Send to analytics
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'ai_error', {
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", "ai_error", {
         error_type: this.state.errorType,
         error_message: error.toString(),
         component: errorInfo.componentStack,
@@ -76,7 +81,7 @@ class AIErrorBoundary extends Component {
     this.setState({
       hasError: false,
       error: null,
-      errorType: 'unknown',
+      errorType: "unknown",
     });
   };
 
@@ -122,7 +127,7 @@ class AIErrorBoundary extends Component {
               </p>
 
               {/* Development Error Details */}
-              {process.env.NODE_ENV === 'development' && error && (
+              {IS_DEV && error && (
                 <details className="text-xs text-orange-600 dark:text-orange-400 mb-3">
                   <summary className="cursor-pointer font-mono hover:text-orange-700">
                     Technical Details
@@ -136,7 +141,8 @@ class AIErrorBoundary extends Component {
               {/* Multiple Errors Warning */}
               {errorCount > 2 && (
                 <div className="mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded text-red-600 dark:text-red-400 text-xs">
-                  ⚠️ Multiple errors detected ({errorCount}). Please refresh the page if issues persist.
+                  ⚠️ Multiple errors detected ({errorCount}). Please refresh the
+                  page if issues persist.
                 </div>
               )}
 
@@ -176,28 +182,28 @@ class AIErrorBoundary extends Component {
             <div className="mt-4 pt-4 border-t border-orange-500/20 text-xs text-orange-600 dark:text-orange-400">
               <p className="font-medium mb-1">💡 Troubleshooting Tips:</p>
               <ul className="list-disc list-inside space-y-1 ml-1">
-                {errorType === 'network' && (
+                {errorType === "network" && (
                   <>
                     <li>Check your internet connection</li>
                     <li>Try refreshing the page</li>
                     <li>Wait a moment and try again</li>
                   </>
                 )}
-                {errorType === 'timeout' && (
+                {errorType === "timeout" && (
                   <>
                     <li>The AI service is taking longer than usual</li>
                     <li>Please try again in a moment</li>
                     <li>Consider simplifying your request</li>
                   </>
                 )}
-                {errorType === 'api' && (
+                {errorType === "api" && (
                   <>
                     <li>The AI service is temporarily unavailable</li>
                     <li>Please try again later</li>
                     <li>Contact support if the problem persists</li>
                   </>
                 )}
-                {errorType === 'unknown' && (
+                {errorType === "unknown" && (
                   <>
                     <li>Try refreshing the page</li>
                     <li>Clear your browser cache</li>
@@ -216,22 +222,26 @@ class AIErrorBoundary extends Component {
 
   getErrorTitle(errorType) {
     const titles = {
-      api: '🤖 AI Service Unavailable',
-      network: '🌐 Connection Error',
-      timeout: '⏱️ Request Timeout',
-      validation: '⚠️ Invalid Input',
-      unknown: '⚠️ Something Went Wrong',
+      api: "🤖 AI Service Unavailable",
+      network: "🌐 Connection Error",
+      timeout: "⏱️ Request Timeout",
+      validation: "⚠️ Invalid Input",
+      unknown: "⚠️ Something Went Wrong",
     };
     return titles[errorType] || titles.unknown;
   }
 
   getErrorMessage(errorType) {
     const messages = {
-      api: 'The AI service is temporarily unavailable. This might be a temporary issue. Please try again in a moment.',
-      network: 'Unable to connect to the server. Please check your internet connection and try again.',
-      timeout: 'The request took too long to complete. Please try again, or try a simpler request.',
-      validation: 'Your input could not be processed. Please check the format and try again.',
-      unknown: 'An unexpected error occurred. Please try again or contact support if the problem persists.',
+      api: "The AI service is temporarily unavailable. This might be a temporary issue. Please try again in a moment.",
+      network:
+        "Unable to connect to the server. Please check your internet connection and try again.",
+      timeout:
+        "The request took too long to complete. Please try again, or try a simpler request.",
+      validation:
+        "Your input could not be processed. Please check the format and try again.",
+      unknown:
+        "An unexpected error occurred. Please try again or contact support if the problem persists.",
     };
     return messages[errorType] || messages.unknown;
   }

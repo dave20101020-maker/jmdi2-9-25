@@ -38,7 +38,7 @@ const spacing = {
 
 const typography = {
   fontFamily:
-    '"Space Grotesk", "General Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    '"InterVariable", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   display: {
     size: "clamp(2rem, 4vw, 3.5rem)",
     weight: 600,

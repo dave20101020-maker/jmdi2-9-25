@@ -1,26 +1,36 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=General+Sans:wght@400;500;600&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: var(
-    --ns-font-family,
-    "Space Grotesk",
-    "General Sans",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif
-  );
-  line-height: 1.5;
+  font-family: "InterVariable", "Inter", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 400;
-  color: var(--ns-color-text, #f7f8ff);
-  background: var(--ns-color-bg, #020617);
+  font-optical-sizing: auto;
+  font-variation-settings: "wght" 400;
+  line-height: 1.5;
+  color: #f8fafc;
+  background-color: #020617;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  --ns-bg-start: #020617;
+  --ns-bg-end: #0a0f2b;
+  --ns-bg-star: rgba(255, 255, 255, 0.6);
+  --ns-bg-star-dim: rgba(255, 255, 255, 0.18);
+  --ns-card-bg: rgba(5, 12, 30, 0.65);
+  --ns-card-border: rgba(245, 197, 66, 0.35);
+  --ns-card-shadow: 0 35px 80px rgba(2, 6, 23, 0.65);
+  --ns-gold: #f5c542;
+  --ns-gold-strong: #d49c1b;
+  --ns-blue: #1e40af;
+  --ns-text-strong: #f8fafc;
+  --ns-text-soft: #d1d5db;
+  --ns-radius-sm: 12px;
+  --ns-radius-md: 20px;
+  --ns-radius-lg: 32px;
+  --ns-radius-pill: 999px;
+  --ns-spacing-gutter: clamp(1.25rem, 2vw, 2.75rem);
+  --ns-spacing-section: clamp(2.5rem, 6vw, 5rem);
 }
 
 * {
@@ -34,18 +44,61 @@ body,
 }
 
 body {
+  position: relative;
   background: radial-gradient(
-      circle at 20% 20%,
-      rgba(76, 201, 240, 0.09),
+      circle at 15% 20%,
+      rgba(76, 201, 240, 0.12),
       transparent 55%
     ),
     radial-gradient(
       circle at 80% 0%,
-      rgba(199, 125, 255, 0.08),
+      rgba(199, 125, 255, 0.14),
       transparent 45%
     ),
-    var(--ns-color-bg, #020617);
-  color: var(--ns-color-text, #f7f8ff);
+    linear-gradient(145deg, var(--ns-bg-start), var(--ns-bg-end));
+  color: var(--ns-text-strong);
+  overflow-x: hidden;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+body::before {
+  background-image: radial-gradient(
+      1px 1px at 20% 30%,
+      var(--ns-bg-star),
+      transparent 45%
+    ),
+    radial-gradient(1px 1px at 80% 40%, var(--ns-bg-star-dim), transparent 45%),
+    radial-gradient(
+      1px 1px at 40% 70%,
+      rgba(255, 255, 255, 0.35),
+      transparent 45%
+    ),
+    radial-gradient(
+      2px 2px at 60% 10%,
+      rgba(255, 255, 255, 0.2),
+      transparent 55%
+    );
+  opacity: 0.45;
+  animation: twinkle 14s ease-in-out infinite;
+}
+
+body::after {
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.08) 0%,
+    transparent 65%
+  );
+  mix-blend-mode: screen;
+  opacity: 0.25;
+  animation: drift 24s linear infinite;
 }
 
 a {
@@ -56,89 +109,54 @@ a {
 .ns-shell {
   min-height: 100vh;
   display: flex;
-  background: radial-gradient(
-      circle at 30% 10%,
-      rgba(76, 201, 240, 0.08),
-      transparent 45%
-    ),
-    radial-gradient(
-      circle at 80% 40%,
-      rgba(199, 125, 255, 0.06),
-      transparent 55%
-    ),
-    var(--ns-color-bg, #020617);
+  background: transparent;
 }
 
 .ns-sidebar {
   width: clamp(240px, 22vw, 320px);
-  background: rgba(3, 6, 24, 0.9);
+  padding: var(--ns-spacing-gutter);
+  background: rgba(2, 6, 23, 0.85);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  padding: var(--ns-spacing-gutter, 2rem);
-  backdrop-filter: blur(32px);
+  backdrop-filter: blur(28px);
 }
 
 .ns-sidebar__logo {
-  font-size: 1.1rem;
-  letter-spacing: 0.35em;
+  font-size: 0.95rem;
+  letter-spacing: 0.4em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.72);
 }
 
 .ns-sidebar__list {
   list-style: none;
-  padding: 0;
   margin: 1.5rem 0 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
 .ns-sidebar__link {
-  border-radius: var(--ns-radius-pill, 999px);
+  border-radius: var(--ns-radius-pill);
   padding: 0.65rem 1rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.7);
   transition: all 0.25s ease;
 }
 
 .ns-sidebar__link.active {
   background: rgba(255, 255, 255, 0.08);
-  color: var(--ns-color-text);
+  color: var(--ns-text-strong);
   box-shadow: 0 10px 30px rgba(4, 9, 35, 0.45);
-}
-
-.ns-pill-list {
-  margin-top: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.ns-pill {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.6rem 0.85rem;
-  border-radius: var(--ns-radius-md, 16px);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.ns-pill__chip {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  margin-right: 0.5rem;
 }
 
 .ns-content {
   flex: 1;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--ns-color-bg);
+  background: transparent;
 }
 
 .ns-topbar {
@@ -148,81 +166,178 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem var(--ns-spacing-gutter, 2rem);
+  padding: 1.25rem var(--ns-spacing-gutter);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(2, 6, 23, 0.8);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(18px);
 }
 
 .ns-main-panel {
   flex: 1;
-  padding: var(--ns-spacing-section, 3rem) var(--ns-spacing-gutter, 2rem);
+  padding: var(--ns-spacing-section) var(--ns-spacing-gutter);
 }
 
 .ns-card {
-  border-radius: var(--ns-radius-lg, 24px);
-  background: var(--ns-gradient-card, rgba(15, 27, 61, 0.95));
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 20px 55px rgba(1, 3, 21, 0.6);
-  padding: 1.5rem;
+  border-radius: var(--ns-radius-lg);
+  background: var(--ns-card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--ns-card-shadow);
+  padding: 1.75rem;
+  backdrop-filter: blur(24px);
 }
 
 .ns-auth-shell {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(1.5rem, 4vw, 4rem);
+  padding: clamp(1.5rem, 5vw, 5rem);
+}
+
+.ns-auth-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
   background: radial-gradient(
       circle at 20% 20%,
-      rgba(76, 201, 240, 0.15),
+      rgba(245, 215, 110, 0.08),
       transparent 55%
     ),
-    radial-gradient(
-      circle at 80% 0%,
-      rgba(199, 125, 255, 0.18),
-      transparent 45%
-    ),
-    var(--ns-color-bg);
+    radial-gradient(circle at 80% 0%, rgba(30, 64, 175, 0.2), transparent 45%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .ns-auth-card {
-  width: min(480px, 100%);
-  padding: clamp(1.75rem, 5vw, 3.5rem);
-  border-radius: var(--ns-radius-lg, 24px);
-  background: rgba(6, 10, 32, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 35px 60px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(18px);
+  width: min(380px, 100%);
+  padding: clamp(2rem, 4vw, 3.25rem);
+  border-radius: var(--ns-radius-lg);
+  background: rgba(5, 9, 30, 0.8);
+  border: 1px solid rgba(245, 215, 110, 0.3);
+  box-shadow: 0 45px 80px rgba(1, 3, 12, 0.7);
+  backdrop-filter: blur(24px);
+  position: relative;
+  z-index: 1;
+}
+
+.ns-google-button {
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: #f8fafc !important;
+}
+
+.ns-google-button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.ns-button__label .ns-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.35rem;
+}
+
+.ns-button__label .ns-dots span {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: ns-dot-pulse 0.9s infinite ease-in-out;
+}
+
+.ns-button__label .ns-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.ns-button__label .ns-dots span:nth-child(3) {
+  animation-delay: 0.3s;
 }
 
 .ns-eyebrow {
-  font-size: 0.85rem;
-  letter-spacing: 0.3em;
+  font-size: 0.8rem;
+  letter-spacing: 0.4em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.55);
 }
 
 .ns-auth-title {
-  font-size: clamp(1.8rem, 3vw, 2.5rem);
-  margin: 0.6rem 0 1.5rem;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  margin: 0.75rem 0 1rem;
   font-weight: 600;
+  color: var(--ns-text-strong);
+  text-shadow: 0 0 35px rgba(255, 255, 255, 0.25);
+}
+
+.ns-auth-subtitle {
+  color: var(--ns-text-soft);
+  margin-bottom: 2rem;
 }
 
 .ns-auth-footer {
   margin-top: 1.75rem;
   font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .ns-auth-footer a {
-  color: var(--ns-color-gold);
+  color: var(--ns-gold);
   font-weight: 600;
 }
 
 .ns-grid {
   display: grid;
   gap: 1.25rem;
+}
+
+.ns-auth-divider {
+  position: relative;
+  margin: 2rem 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.ns-auth-divider span {
+  position: relative;
+  padding: 0 0.9rem;
+  background: rgba(2, 6, 23, 0.8);
+  border-radius: 999px;
+}
+
+.ns-auth-divider::before,
+.ns-auth-divider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.ns-auth-divider::before {
+  left: 0;
+}
+
+.ns-auth-divider::after {
+  right: 0;
+}
+
+.ns-alert {
+  border-radius: var(--ns-radius-md);
+  padding: 0.85rem 1rem;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: rgba(254, 226, 226, 0.95);
+  font-size: 0.95rem;
+}
+
+.ns-alert--success {
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.4);
+  color: rgba(187, 247, 208, 0.95);
 }
 
 @media (max-width: 1024px) {
@@ -233,44 +348,83 @@ a {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    flex-direction: column;
   }
 }
 
-@keyframes nsGlowPulse {
+@keyframes twinkle {
   0% {
-    box-shadow: 0 0 20px rgba(244, 208, 111, 0.15);
+    opacity: 0.25;
+    transform: translateY(0px);
   }
   50% {
-    box-shadow: 0 0 40px rgba(244, 208, 111, 0.35);
+    opacity: 0.45;
+    transform: translateY(-8px);
   }
   100% {
-    box-shadow: 0 0 20px rgba(244, 208, 111, 0.15);
+    opacity: 0.3;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes drift {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-30px);
+  }
+}
+
+@keyframes ns-dot-pulse {
+  0% {
+    transform: translateY(0);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translateY(-2px);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0.2;
   }
 }
 
 @layer base {
   :root {
-    --background: 226 61% 3%;
+    --background: 226 60% 3%;
     --foreground: 210 40% 96%;
-    --card: 229 58% 16%;
+    --card: 225 45% 12%;
     --card-foreground: 210 40% 96%;
-    --popover: 229 58% 16%;
+    --popover: 225 45% 12%;
     --popover-foreground: 210 40% 96%;
     --primary: 44 89% 68%;
     --primary-foreground: 240 33% 8%;
-    --secondary: 215 44% 19%;
+    --secondary: 219 48% 18%;
     --secondary-foreground: 210 40% 96%;
-    --muted: 228 34% 35%;
-    --muted-foreground: 223 21% 71%;
-    --accent: 214 43% 23%;
+    --muted: 228 30% 40%;
+    --muted-foreground: 216 19% 76%;
+    --accent: 215 60% 30%;
     --accent-foreground: 210 40% 96%;
-    --destructive: 0 68% 55%;
+    --destructive: 358 79% 62%;
     --destructive-foreground: 210 40% 96%;
-    --border: 223 26% 27%;
-    --input: 223 26% 27%;
+    --border: 224 26% 28%;
+    --input: 224 26% 28%;
     --ring: 44 89% 68%;
-    --radius: 1.5rem;
+    --radius: 1.75rem;
+    --chart-1: 44 90% 68%;
+    --chart-2: 220 70% 55%;
+    --chart-3: 280 65% 60%;
+    --chart-4: 160 70% 45%;
+    --chart-5: 12 80% 60%;
+    --sidebar-background: 225 48% 9%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 44 89% 68%;
+    --sidebar-primary-foreground: 240 33% 8%;
+    --sidebar-accent: 215 60% 30%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 224 26% 28%;
+    --sidebar-ring: 44 89% 68%;
   }
 
   * {
@@ -279,5 +433,10 @@ a {
 
   body {
     @apply bg-background text-foreground;
+    font-family: "InterVariable", "Inter", system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-optical-sizing: auto;
+    font-variation-settings: "wght" 400;
+    font-weight: 400;
   }
 }
