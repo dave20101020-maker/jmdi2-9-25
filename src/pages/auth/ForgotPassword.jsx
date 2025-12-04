@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import NSInput from "@/components/ui/NSInput";
+import { Mail, Shield } from "lucide-react";
+import InputField from "@/components/ui/InputField";
 import NSButton from "@/components/ui/NSButton";
+import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ForgotPassword() {
@@ -33,16 +35,38 @@ export default function ForgotPassword() {
     }
   };
 
-  return (
-    <div className="ns-auth-shell">
-      <div className="ns-auth-card">
-        <p className="ns-eyebrow">Need a reset?</p>
-        <h1 className="ns-auth-title">Send a recovery link</h1>
-        <p className="text-white/60 mb-8">
-          Enter the email you used for Northstar and we will send secure reset
-          instructions.
-        </p>
+  const securityAside = (
+    <div className="ns-auth-aside">
+      <p className="ns-auth-aside__label">Security protocol</p>
+      <div className="ns-auth-aside__callout">
+        <span className="ns-auth-aside__icon" aria-hidden="true">
+          <Shield className="w-4 h-4" />
+        </span>
+        <div>
+          <p className="ns-auth-aside__title">Secure channel</p>
+          <p className="ns-auth-aside__text">
+            Reset links expire in 30 minutes. Use a trusted device and secure
+            network.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 
+  return (
+    <AuthLayout
+      eyebrow="Need a reset?"
+      title="Send a recovery link"
+      subtitle="Enter the email you used for Northstar and we will dispatch secure reset instructions."
+      aside={securityAside}
+      footer={
+        <>
+          Remembered your password?{" "}
+          <Link to="/sign-in">Head back to sign in</Link>
+        </>
+      }
+    >
+      <div className="ns-auth-stack">
         {status.error && (
           <div className="ns-alert" role="alert">
             {status.error}
@@ -55,12 +79,13 @@ export default function ForgotPassword() {
           </div>
         )}
 
-        <form className="ns-grid" onSubmit={handleSubmit}>
-          <NSInput
+        <form className="ns-auth-form" onSubmit={handleSubmit}>
+          <InputField
             label="Email"
             type="email"
             name="email"
             placeholder="you@northstar.app"
+            icon={<Mail size={16} />}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
@@ -70,12 +95,7 @@ export default function ForgotPassword() {
             {submitting ? "Sending link..." : "Send reset link"}
           </NSButton>
         </form>
-
-        <p className="ns-auth-footer">
-          Remembered your password?{" "}
-          <Link to="/sign-in">Head back to sign in</Link>
-        </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

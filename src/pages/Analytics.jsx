@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import NSButton from "@/components/ui/NSButton";
-import NSInput from "@/components/ui/NSInput";
+import InputField from "@/components/ui/InputField";
 import AIThinkingOverlay from "@/ai/AIThinkingOverlay";
 import HelpTooltip from "@/components/shared/HelpTooltip";
 import { toast } from "sonner";
@@ -858,7 +858,7 @@ export default function Analytics() {
             <div className="ns-data-panel mb-4 animate-in slide-in-from-top duration-200">
               <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
                 <div className="flex-1 w-full">
-                  <NSInput
+                  <InputField
                     id="custom-start-date"
                     label={
                       <span className="flex items-center gap-2">
@@ -878,7 +878,7 @@ export default function Analytics() {
                 </div>
 
                 <div className="flex-1 w-full">
-                  <NSInput
+                  <InputField
                     id="custom-end-date"
                     label="End Date"
                     type="date"

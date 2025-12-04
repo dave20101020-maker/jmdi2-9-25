@@ -15,6 +15,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import ConsentBanner from "./components/ConsentBanner";
 import { useConsent } from "@/hooks/useConsent";
 import "./App.css";
+import { Toaster as SonnerToaster } from "sonner";
 import StarfieldBackground from "@/components/visuals/StarfieldBackground";
 
 function AppContent() {
@@ -91,6 +92,7 @@ export default function App() {
         <AuthProvider>
           <StarfieldBackground />
           <AppContent />
+          <SonnerToaster position="top-right" richColors closeButton />
         </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>

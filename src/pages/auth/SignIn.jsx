@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Chrome, Lock, Mail, Shield, Sparkles } from "lucide-react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import NSInput from "@/components/ui/NSInput";
+import InputField from "@/components/ui/InputField";
 import NSButton from "@/components/ui/NSButton";
+import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { auth } from "@/lib/firebase";
+import { toast } from "sonner";
 
 const ERROR_MESSAGES = {
   "auth/invalid-credential": "Those credentials did not match our records.",
@@ -23,6 +23,9 @@ const FIELD_ERROR_TARGETS = {
 };
 
 const createFieldErrors = () => ({ email: "", password: "" });
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 6;
+const INITIAL_STATUS = { type: null, message: "" };
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -53,16 +56,51 @@ function logAuthDebug(label, payload) {
   console.log(`[SignIn] ${label}`, payload);
 }
 
+const getGoogleErrorDescription = (error) => {
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "this domain";
+  switch (error?.code) {
+    case "auth/unauthorized-domain":
+      return `Google Sign-In is not allowed from ${origin}. Add this origin under Firebase Authentication → Settings → Authorized domains.`;
+    case "auth/popup-blocked":
+      return "Your browser blocked the Google popup. Please enable popups for this site and try again.";
+    case "auth/popup-closed-by-user":
+      return "The Google popup closed before sign-in completed. Please try again.";
+    default:
+      return (
+        getErrorMessage(error) ||
+        "We could not complete Google sign in. Try again."
+      );
+  }
+};
+
 export default function SignIn() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, signInWithGoogle } = useAuth();
+  const {
+    user,
+    signInWithEmail,
+    signInWithGoogle,
+    loading: authLoading,
+  } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
+  const [status, setStatus] = useState(INITIAL_STATUS);
   const [fieldErrors, setFieldErrors] = useState(createFieldErrors);
-  const [submitting, setSubmitting] = useState(false);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [oauthSubmitting, setOauthSubmitting] = useState(false);
 
-  const redirectPath = location.state?.from?.pathname || "/dashboard";
+  const clearStatus = useCallback(() => setStatus(INITIAL_STATUS), []);
+  const exitLoadingStatus = useCallback(
+    () =>
+      setStatus((prev) => (prev.type === "loading" ? INITIAL_STATUS : prev)),
+    []
+  );
+
+  const redirectCandidate = location.state?.from?.pathname;
+  const redirectPath =
+    redirectCandidate && redirectCandidate !== "/sign-in"
+      ? redirectCandidate
+      : "/dashboard";
   const benefits = useMemo(
     () => [
       {
@@ -85,8 +123,8 @@ export default function SignIn() {
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
-    if (error) {
-      setError("");
+    if (status.type && status.type !== "loading") {
+      clearStatus();
     }
     if (fieldErrors[field]) {
       setFieldErrors((prev) => ({ ...prev, [field]: "" }));
@@ -95,20 +133,39 @@ export default function SignIn() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError("");
+    clearStatus();
     setFieldErrors(createFieldErrors());
-    setSubmitting(true);
+    const validationErrors = {};
+    const trimmedEmail = form.email.trim();
+    const isEmailValid = EMAIL_REGEX.test(trimmedEmail);
+    const isPasswordValid = form.password.length >= MIN_PASSWORD_LENGTH;
+    if (!isEmailValid) {
+      validationErrors.email = "Enter a valid email address.";
+    }
+    if (!isPasswordValid) {
+      validationErrors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+    }
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors((prev) => ({ ...prev, ...validationErrors }));
+      setStatus({
+        type: "error",
+        message: "Please fix the highlighted fields.",
+      });
+      return;
+    }
+    setFormSubmitting(true);
+    setStatus({ type: "loading", message: "Signing you in..." });
     const requestBody = { email: form.email };
     logAuthDebug("sign-in request", { body: requestBody });
     try {
-      const credential = await signInWithEmailAndPassword(
-        auth,
-        form.email,
-        form.password
-      );
+      const sessionUser = await signInWithEmail(form.email, form.password);
       logAuthDebug("sign-in response", {
         status: 200,
-        uid: credential?.user?.uid || null,
+        uid: sessionUser?.uid || null,
+      });
+      setStatus({
+        type: "success",
+        message: "Authenticated. Redirecting to your dashboard...",
       });
       navigate(redirectPath, { replace: true });
     } catch (err) {
@@ -119,20 +176,27 @@ export default function SignIn() {
       });
       if (isAuthError(err)) {
         const presentable = getErrorMessage(err);
-        setError(presentable);
+        setStatus({ type: "error", message: presentable });
         const fieldKey = FIELD_ERROR_TARGETS[err.code];
         if (fieldKey) {
           setFieldErrors((prev) => ({ ...prev, [fieldKey]: presentable }));
         }
+      } else {
+        setStatus({
+          type: "error",
+          message: "We could not sign you in. Please try again in a moment.",
+        });
       }
     } finally {
-      setSubmitting(false);
+      setFormSubmitting(false);
+      exitLoadingStatus();
     }
   };
 
   const handleGoogle = async () => {
-    setError("");
-    setSubmitting(true);
+    clearStatus();
+    setOauthSubmitting(true);
+    setStatus({ type: "loading", message: "Contacting Google..." });
     logAuthDebug("google sign-in request", { provider: "google" });
     try {
       const profile = await signInWithGoogle();
@@ -140,40 +204,98 @@ export default function SignIn() {
         status: 200,
         json: profile,
       });
+      toast.success("Signed in with Google", {
+        description:
+          profile?.fullName ||
+          profile?.displayName ||
+          profile?.email ||
+          "Welcome back to NorthStar.",
+      });
+      setStatus({
+        type: "success",
+        message: "Google authentication complete. Redirecting...",
+      });
       navigate(redirectPath, { replace: true });
     } catch (err) {
       logAuthDebug("google sign-in error", {
         status: err?.status || err?.code || "unknown",
         message: err?.message,
       });
-      if (isAuthError(err)) {
-        setError(getErrorMessage(err));
-      }
+      const googleMessage = getGoogleErrorDescription(err);
+      setStatus({ type: "error", message: googleMessage });
+      toast.error("Google sign-in failed", {
+        description: googleMessage,
+      });
     } finally {
-      setSubmitting(false);
+      setOauthSubmitting(false);
+      exitLoadingStatus();
     }
   };
 
-  return (
-    <div className="ns-auth-shell">
-      <div className="ns-auth-card space-y-6">
-        <div>
-          <p className="ns-eyebrow">Base44 Access</p>
-          <h1 className="ns-auth-title">Command Center Login</h1>
-          <p className="ns-auth-subtitle">
-            Authenticate to sync your personalized dashboards, AI copilots, and
-            habit loops.
+  if (authLoading) {
+    return (
+      <AuthLayout
+        eyebrow="Initializing"
+        title="Checking your credentials..."
+        subtitle="Hold tight while we sync with mission control."
+      >
+        <div className="ns-auth-stack" role="status" aria-live="polite">
+          <p className="text-sm text-white/70">
+            Hold tight while we sync with mission control.
           </p>
         </div>
+      </AuthLayout>
+    );
+  }
 
-        {error && (
+  const trimmedEmail = form.email.trim();
+  const isEmailValid = EMAIL_REGEX.test(trimmedEmail);
+  const isPasswordValid = form.password.length >= MIN_PASSWORD_LENGTH;
+  const isFormValid = isEmailValid && isPasswordValid;
+  const isBusy = formSubmitting || oauthSubmitting;
+
+  const missionAside = (
+    <div className="ns-auth-aside">
+      <p className="ns-auth-aside__label">Mission perks</p>
+      <ul className="ns-auth-aside__list">
+        {benefits.map(({ label, icon }) => (
+          <li key={label} className="ns-auth-aside__item">
+            <span className="ns-auth-aside__icon" aria-hidden="true">
+              {icon}
+            </span>
+            <span>{label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  return (
+    <AuthLayout
+      eyebrow="Base44 Access"
+      title="Command Center Login"
+      subtitle="Authenticate to sync your personalized dashboards, AI copilots, and habit loops."
+      aside={missionAside}
+      footer={
+        <>
+          New here? <Link to="/sign-up">Create an account</Link>
+        </>
+      }
+    >
+      <div className="ns-auth-stack">
+        {status.type === "error" && (
           <div className="ns-alert" role="alert">
-            {error}
+            {status.message}
+          </div>
+        )}
+        {status.type === "success" && (
+          <div className="ns-alert ns-alert--success" role="status">
+            {status.message}
           </div>
         )}
 
-        <form className="ns-grid" onSubmit={handleSubmit}>
-          <NSInput
+        <form className="ns-auth-form" onSubmit={handleSubmit}>
+          <InputField
             label="Email"
             type="email"
             name="email"
@@ -185,7 +307,7 @@ export default function SignIn() {
             required
             error={fieldErrors.email}
           />
-          <NSInput
+          <InputField
             label="Password"
             type="password"
             name="password"
@@ -206,19 +328,13 @@ export default function SignIn() {
             <Link to="/forgot-password">Forgot password?</Link>
           </div>
 
-          <NSButton type="submit" disabled={submitting} fullWidth>
-            {submitting ? (
-              <span className="flex items-center justify-center gap-1">
-                Signing in
-                <span className="ns-dots" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              </span>
-            ) : (
-              "Sign in"
-            )}
+          <NSButton
+            type="submit"
+            disabled={!isFormValid || isBusy}
+            loading={formSubmitting}
+            fullWidth
+          >
+            Sign in
           </NSButton>
         </form>
 
@@ -232,30 +348,13 @@ export default function SignIn() {
           className="ns-google-button"
           fullWidth
           onClick={handleGoogle}
-          disabled={submitting}
+          disabled={isBusy}
+          loading={oauthSubmitting}
           icon={<Chrome className="w-4 h-4" />}
         >
           Continue with Google
         </NSButton>
-
-        <div className="grid grid-cols-1 gap-3 text-sm text-white/70 mt-6">
-          {benefits.map(({ label, icon }) => (
-            <div
-              key={label}
-              className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2"
-            >
-              <span className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70">
-                {icon}
-              </span>
-              <span>{label}</span>
-            </div>
-          ))}
-        </div>
-
-        <p className="ns-auth-footer">
-          New here? <Link to="/sign-up">Create an account</Link>
-        </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

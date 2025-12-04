@@ -1,21 +1,30 @@
 .ns-button {
+  --ns-button-bg: linear-gradient(120deg, #facc15 0%, #fde047 100%);
+  --ns-button-color: var(--ns-color-primary-foreground, #020617);
+  --ns-button-border: rgba(250, 204, 21, 0.45);
+  --ns-button-shadow: 0 24px 45px rgba(2, 6, 23, 0.55);
+  --ns-button-radius: var(--ns-radius-pill, 999px);
+  --ns-button-padding-y: 0.9rem;
+  --ns-button-padding-x: 2.2rem;
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border: none;
-  border-radius: 12px;
-  font-family: inherit;
-  font-weight: 600;
+  border-radius: var(--ns-button-radius);
+  border: 1px solid transparent;
+  border-color: var(--ns-button-border, transparent);
+  font-family: var(--ns-font-family, "Inter", system-ui);
+  font-weight: var(--ns-heading-weight, 600);
   letter-spacing: 0.02em;
   cursor: pointer;
-  padding: 0;
-  background: transparent;
-  color: var(--ns-text-strong, #f8fafc);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+  padding: var(--ns-button-padding-y) var(--ns-button-padding-x);
+  background: var(--ns-button-bg);
+  color: var(--ns-button-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease,
+    border-color 0.2s ease, opacity 0.2s ease;
   isolation: isolate;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--ns-button-shadow);
   overflow: hidden;
 }
 
@@ -24,17 +33,26 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
+  border: 1px solid var(--ns-button-border);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.ns-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background: linear-gradient(
     120deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.35) 45%,
+    rgba(255, 255, 255, 0.22) 45%,
     rgba(255, 255, 255, 0) 90%
   );
   opacity: 0;
-  transform: translateX(-80%);
-  transition: opacity 0.35s ease;
-  z-index: 2;
-  pointer-events: none;
+  transform: translateX(-60%);
+  transition: opacity 0.4s ease;
+  z-index: 1;
   mix-blend-mode: screen;
 }
 
@@ -44,10 +62,23 @@
   outline: none;
 }
 
-.ns-button:hover::before,
-.ns-button:focus-visible::before {
+.ns-button:hover::after,
+.ns-button:focus-visible::after {
   opacity: 1;
-  animation: ns-button-shimmer 1.2s forwards;
+  animation: ns-button-shimmer 1.15s forwards;
+}
+
+.ns-button:focus-visible {
+  box-shadow: var(--ns-button-shadow), 0 0 0 2px rgba(255, 255, 255, 0.25),
+    0 0 0 4px var(--ns-color-ring, rgba(250, 204, 21, 0.5));
+}
+
+.ns-button[data-disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  pointer-events: none;
 }
 
 .ns-button--full {
@@ -60,9 +91,13 @@
   justify-content: center;
   gap: 0.55rem;
   width: 100%;
-  min-height: 2.75rem;
+  min-height: 2.5rem;
   position: relative;
-  z-index: 3;
+  z-index: 2;
+}
+
+.ns-button__content--icon-trailing {
+  flex-direction: row-reverse;
 }
 
 .ns-button__icon {
@@ -77,73 +112,117 @@
   white-space: nowrap;
 }
 
+.ns-button__spinner {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: currentColor;
+  animation: ns-button-spin 0.9s linear infinite;
+}
+
+.ns-button[data-loading] .ns-button__label {
+  opacity: 0.75;
+}
+
+.ns-button[data-loading] .ns-button__icon {
+  opacity: 0;
+}
+
 /* Variants */
 .ns-button--primary {
-  padding: 0.9rem 2.35rem;
-  background: linear-gradient(135deg, #f5c542, #f59f42);
-  color: #050c1a;
-  box-shadow: 0 30px 55px rgba(245, 197, 66, 0.35),
-    0 5px 15px rgba(0, 0, 0, 0.35);
+  --ns-button-bg: linear-gradient(
+    135deg,
+    var(--ns-color-primary, #facc15) 0%,
+    #fde047 48%,
+    #fee440 100%
+  );
+  --ns-button-color: var(--ns-color-primary-foreground, #020617);
+  --ns-button-border: rgba(250, 204, 21, 0.55);
+  --ns-button-shadow: 0 28px 55px rgba(250, 204, 21, 0.32);
 }
 
 .ns-button--secondary {
-  padding: 0.85rem 2rem;
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(248, 250, 252, 0.18);
-  color: rgba(248, 250, 252, 0.9);
-  box-shadow: 0 22px 40px rgba(2, 6, 23, 0.55);
+  --ns-button-bg: rgba(15, 23, 42, 0.7);
+  --ns-button-color: rgba(248, 250, 252, 0.92);
+  --ns-button-border: rgba(248, 250, 252, 0.18);
+  --ns-button-shadow: 0 20px 45px rgba(2, 6, 23, 0.6);
 }
 
 .ns-button--ghost {
-  padding: 0.85rem 2rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--ns-text-strong, #f8fafc);
+  --ns-button-bg: rgba(255, 255, 255, 0.04);
+  --ns-button-color: var(--ns-color-foreground, #f8fafc);
+  --ns-button-border: rgba(255, 255, 255, 0.12);
+  --ns-button-shadow: 0 16px 32px rgba(2, 6, 23, 0.45);
 }
 
 .ns-button--ghost:hover {
-  background: rgba(255, 255, 255, 0.08);
+  --ns-button-bg: rgba(255, 255, 255, 0.08);
 }
 
 .ns-button--outline {
-  padding: 0.85rem 2rem;
-  background: rgba(5, 12, 30, 0.65);
-  border: 1px solid rgba(245, 197, 66, 0.65);
-  color: var(--ns-gold, #f5c542);
-  box-shadow: 0 18px 35px rgba(245, 197, 66, 0.25);
+  --ns-button-bg: rgba(5, 12, 30, 0.75);
+  --ns-button-color: var(--ns-gold, #f5c542);
+  --ns-button-border: rgba(245, 197, 66, 0.65);
+  --ns-button-shadow: 0 22px 40px rgba(245, 197, 66, 0.2);
 }
 
-.ns-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+.ns-button--ghost:hover,
+.ns-button--secondary:hover,
+.ns-button--outline:hover {
+  filter: brightness(1.05);
+}
+
+.ns-button--ghost:active,
+.ns-button--secondary:active,
+.ns-button--outline:active {
+  filter: brightness(0.95);
+  transform: translateY(0);
 }
 
 /* Sizes */
 .ns-button--sm {
-  padding: 0.5rem 1.4rem;
+  --ns-button-padding-y: 0.5rem;
+  --ns-button-padding-x: 1.35rem;
   font-size: 0.85rem;
 }
 
 .ns-button--md {
-  padding: 0.9rem 2.2rem;
+  --ns-button-padding-y: 0.85rem;
+  --ns-button-padding-x: 2rem;
   font-size: 0.95rem;
 }
 
 .ns-button--lg {
-  padding: 1rem 2.6rem;
-  font-size: 1rem;
+  --ns-button-padding-y: 1rem;
+  --ns-button-padding-x: 2.65rem;
+  font-size: 1.02rem;
 }
 
 .ns-button--pill {
-  padding: 1.05rem 2.8rem;
+  --ns-button-padding-y: 1.05rem;
+  --ns-button-padding-x: 2.85rem;
+  --ns-button-radius: 999px;
   font-size: 1.05rem;
-  border-radius: 999px;
 }
 
 @keyframes ns-button-shimmer {
   to {
     transform: translateX(120%);
+  }
+}
+
+@keyframes ns-button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ns-button,
+  .ns-button::after,
+  .ns-button__spinner {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

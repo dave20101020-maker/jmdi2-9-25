@@ -89,6 +89,21 @@ function DashboardContent({ user }) {
   const [celebrationMilestone, setCelebrationMilestone] = useState(null);
   const today = format(new Date(), "yyyy-MM-dd");
 
+  const getFirstName = (value) => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return trimmed.split(/\s+/)[0];
+  };
+
+  const welcomeFirstName =
+    getFirstName(user?.full_name) ||
+    getFirstName(user?.fullName) ||
+    getFirstName(user?.displayName) ||
+    getFirstName(user?.raw?.displayName) ||
+    getFirstName(user?.email?.split("@")[0]) ||
+    "Traveler";
+
   const { data: entries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ["entries", user?.email],
     queryFn: () => api.getEntries({ created_by: user?.email }, "-date", 90),
@@ -369,7 +384,7 @@ function DashboardContent({ user }) {
         {/* Welcome Header */}
         <div className="ns-page__header">
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-            Welcome back, {user?.full_name?.split(" ")[0] || "Traveler"}
+            Welcome back, {welcomeFirstName}
           </h1>
           <p className="text-white/60">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
@@ -812,6 +827,11 @@ DashboardContent.propTypes = {
   user: PropTypes.shape({
     email: PropTypes.string,
     full_name: PropTypes.string,
+    fullName: PropTypes.string,
+    displayName: PropTypes.string,
+    raw: PropTypes.shape({
+      displayName: PropTypes.string,
+    }),
     tour_completed: PropTypes.bool,
     onboarding_completed: PropTypes.bool,
     streak_milestones_awarded: PropTypes.object,

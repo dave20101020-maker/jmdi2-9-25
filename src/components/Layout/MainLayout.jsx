@@ -1,28 +1,47 @@
 import React from "react";
-import { NavLink, Outlet, Link } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { PILLARS } from "@/config/pillars";
 import NSButton from "@/components/ui/NSButton";
+import { cn } from "@/utils";
 import "@/App.css";
 
-const NAV_LINKS = [
-  { label: "Dashboard", to: "/dashboard" },
-  { label: "Onboarding", to: "/onboarding" },
-  { label: "Pricing", to: "/pricing" },
-  { label: "Settings", to: "/settings" },
+const ROUTES = Object.freeze({
+  dashboard: "/dashboard",
+  onboarding: "/onboarding",
+  pricing: "/pricing",
+  settings: "/settings",
+  signIn: "/sign-in",
+  signUp: "/sign-up",
+});
+
+const PRIMARY_NAV = [
+  { label: "Dashboard", path: ROUTES.dashboard },
+  { label: "Onboarding", path: ROUTES.onboarding },
+  { label: "Pricing", path: ROUTES.pricing },
+  { label: "Settings", path: ROUTES.settings },
 ];
 
-const FALLBACK_PILLAR_COLORS = {
-  sleep: "#5B5FEF",
-  diet: "#4CD97B",
-  exercise: "#FF6B6B",
-  physical_health: "#FF92B2",
-  mental_health: "#4CC9F0",
-  finances: "#2DD4BF",
-  social: "#FACC15",
-  spirituality: "#C77DFF",
+const normalizePath = (value) => {
+  if (!value) return "/";
+  if (value === "/") return "/";
+  const trimmed = value.replace(/\/+$/, "");
+  return trimmed || "/";
 };
 
 export default function MainLayout() {
+  const location = useLocation();
+  const currentPath = normalizePath(location.pathname);
+
+  const isRouteActive = (path, { exact } = {}) => {
+    const normalized = normalizePath(path);
+    if (exact) {
+      return currentPath === normalized;
+    }
+    return (
+      currentPath === normalized || currentPath.startsWith(`${normalized}/`)
+    );
+  };
+
   return (
     <div className="ns-shell">
       <aside className="ns-sidebar">
@@ -33,17 +52,19 @@ export default function MainLayout() {
           </h2>
         </div>
         <nav className="ns-sidebar__list" aria-label="Primary">
-          {NAV_LINKS.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) =>
-                ["ns-sidebar__link", isActive ? "active" : ""].join(" ")
-              }
-            >
-              <span>{link.label}</span>
-            </NavLink>
-          ))}
+          {PRIMARY_NAV.map((link) => {
+            const active = isRouteActive(link.path);
+            return (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={cn("ns-sidebar__link", active && "active")}
+                aria-current={active ? "page" : undefined}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="ns-pill-list" aria-label="Life pillars">
@@ -55,14 +76,10 @@ export default function MainLayout() {
               key={pillar.id}
               to={`/pillar/${pillar.id}`}
               className="ns-pill"
+              data-pillar={pillar.id}
             >
               <div className="flex items-center gap-2">
-                <span
-                  className="ns-pill__chip"
-                  style={{
-                    background: FALLBACK_PILLAR_COLORS[pillar.id] || "#f4d06f",
-                  }}
-                />
+                <span className="ns-pill__chip" aria-hidden="true" />
                 <span className="text-sm text-white/80">{pillar.label}</span>
               </div>
               <span className="text-white/30 text-xs">↗</span>
@@ -72,8 +89,17 @@ export default function MainLayout() {
 
         <div className="mt-8">
           <p className="text-sm text-white/60 mb-3">Need to switch accounts?</p>
-          <NSButton asChild size="sm" variant="outline" fullWidth>
-            <Link to="/sign-in">Sign in</Link>
+          <NSButton
+            asChild
+            size="sm"
+            variant="outline"
+            fullWidth
+            className="ns-topnav__link"
+            aria-current={
+              isRouteActive(ROUTES.signIn, { exact: true }) ? "page" : undefined
+            }
+          >
+            <Link to={ROUTES.signIn}>Sign in</Link>
           </NSButton>
         </div>
       </aside>
@@ -87,11 +113,30 @@ export default function MainLayout() {
             <p className="text-white font-semibold">Design System · Base44</p>
           </div>
           <div className="flex gap-3">
-            <NSButton asChild variant="ghost" size="sm">
-              <Link to="/sign-in">Login</Link>
+            <NSButton
+              asChild
+              variant="ghost"
+              size="sm"
+              className="ns-topnav__link"
+              aria-current={
+                isRouteActive(ROUTES.signIn, { exact: true })
+                  ? "page"
+                  : undefined
+              }
+            >
+              <Link to={ROUTES.signIn}>Login</Link>
             </NSButton>
-            <NSButton asChild size="sm">
-              <Link to="/sign-up">Get Started</Link>
+            <NSButton
+              asChild
+              size="sm"
+              className="ns-topnav__link"
+              aria-current={
+                isRouteActive(ROUTES.signUp, { exact: true })
+                  ? "page"
+                  : undefined
+              }
+            >
+              <Link to={ROUTES.signUp}>Get Started</Link>
             </NSButton>
           </div>
         </header>

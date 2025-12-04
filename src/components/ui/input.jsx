@@ -1,2 +1,3 @@
-export { default as NSInput } from "./NSInput";
-export { default as Input } from "./NSInput";
+export { default as InputField } from "./InputField";
+export { default as Input } from "./InputField";
+export { default } from "./InputField";

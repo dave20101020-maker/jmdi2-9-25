@@ -2,24 +2,48 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
+const devPort = Number(process.env.PORT) || 5173;
+const isCodespaces = Boolean(process.env.CODESPACES);
+const codespaceDomain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
+const codespaceName = process.env.CODESPACE_NAME;
+
+const defaultCodespaceHost =
+  "fictional-disco-x5797q7rr56wf9v7-5173.app.github.dev";
+const codespacesHmrHost =
+  isCodespaces && codespaceDomain && codespaceName
+    ? `${codespaceName}-${devPort}.${codespaceDomain}`
+    : null;
+const isCodespacesTarget = Boolean(
+  process.env.VITE_CODESPACE_HOST || codespacesHmrHost || process.env.CODESPACES
+);
+const resolvedHmrHost = isCodespacesTarget
+  ? process.env.VITE_CODESPACE_HOST || codespacesHmrHost || defaultCodespaceHost
+  : "localhost";
+const resolvedHmrProtocol = isCodespacesTarget ? "wss" : "ws";
+const resolvedHmrPort = isCodespacesTarget ? 443 : devPort;
+
+const serverConfig = {
+  host: true,
+  port: devPort,
+  strictPort: true,
+  proxy: {},
+  hmr: {
+    protocol: resolvedHmrProtocol,
+    host: resolvedHmrHost,
+    port: resolvedHmrPort,
+  },
+};
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   publicDir: "public",
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    "process.env.NODE_ENV": JSON.stringify(
+      process.env.NODE_ENV || "development"
+    ),
   },
-  server: {
-    host: "0.0.0.0",
-    port: 5173,
-    strictPort: true,
-    hmr: {
-      host: "localhost",
-      protocol: "wss",
-      clientPort: 443,
-    },
-    proxy: {},
-  },
+  server: serverConfig,
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

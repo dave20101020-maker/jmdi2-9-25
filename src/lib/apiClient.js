@@ -1,6 +1,13 @@
 const IS_DEV = import.meta.env.DEV;
-const rawBase = import.meta.env.VITE_API_URL || "http://localhost:5000";
-const API_BASE = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
+const fallbackBackend = "http://localhost:5000";
+const configuredBackend = (
+  import.meta.env.VITE_BACKEND_URL ||
+  import.meta.env.VITE_API_URL ||
+  fallbackBackend
+).trim();
+const normalizedBackend = configuredBackend.replace(/\/$/, "");
+const sanitizedBackend = normalizedBackend.replace(/\/api$/i, "");
+const API_BASE = sanitizedBackend || fallbackBackend;
 
 const maskSensitive = (body) => {
   if (!body || typeof body !== "object") return body;

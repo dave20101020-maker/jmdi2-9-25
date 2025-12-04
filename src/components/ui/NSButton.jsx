@@ -18,6 +18,11 @@ const SIZES = {
   pill: "ns-button--pill",
 };
 
+const ICON_POSITIONS = {
+  leading: "leading",
+  trailing: "trailing",
+};
+
 const NSButton = React.forwardRef(function NSButton(
   {
     asChild = false,
@@ -25,22 +30,54 @@ const NSButton = React.forwardRef(function NSButton(
     size = "md",
     fullWidth = false,
     icon,
+    iconPosition = ICON_POSITIONS.leading,
+    loading = false,
+    disabled: disabledProp,
+    type = "button",
+    href,
     className,
     children,
     ...props
   },
   ref
 ) {
-  const Comp = asChild ? Slot : "button";
+  const shouldRenderLink = Boolean(href && !asChild);
+  const Comp = asChild ? Slot : shouldRenderLink ? "a" : "button";
+  const isTrailingIcon = icon && iconPosition === ICON_POSITIONS.trailing;
+  const isLeadingIcon = icon && iconPosition === ICON_POSITIONS.leading;
+  const isDisabled = Boolean(disabledProp || loading);
+  const componentSpecificProps = asChild
+    ? {}
+    : shouldRenderLink
+    ? {
+        href,
+        role: "button",
+        tabIndex: isDisabled ? -1 : undefined,
+      }
+    : {
+        type,
+        disabled: isDisabled,
+      };
 
   const content = (
-    <span className="ns-button__content">
-      {icon && (
+    <span
+      className={cn(
+        "ns-button__content",
+        isTrailingIcon && "ns-button__content--icon-trailing"
+      )}
+    >
+      {loading && <span className="ns-button__spinner" aria-hidden="true" />}
+      {isLeadingIcon && !loading && (
         <span className="ns-button__icon" aria-hidden="true">
           {icon}
         </span>
       )}
       <span className="ns-button__label">{children}</span>
+      {isTrailingIcon && !loading && (
+        <span className="ns-button__icon" aria-hidden="true">
+          {icon}
+        </span>
+      )}
     </span>
   );
 
@@ -54,6 +91,13 @@ const NSButton = React.forwardRef(function NSButton(
         fullWidth && "ns-button--full",
         className
       )}
+      data-variant={variant}
+      data-size={size}
+      data-loading={loading || undefined}
+      data-disabled={isDisabled || undefined}
+      aria-busy={loading || undefined}
+      aria-disabled={isDisabled || undefined}
+      {...componentSpecificProps}
       {...props}
     >
       {content}
@@ -67,6 +111,11 @@ NSButton.propTypes = {
   size: PropTypes.oneOf(Object.keys(SIZES)),
   fullWidth: PropTypes.bool,
   icon: PropTypes.node,
+  iconPosition: PropTypes.oneOf(Object.values(ICON_POSITIONS)),
+  loading: PropTypes.bool,
+  disabled: PropTypes.bool,
+  type: PropTypes.oneOf(["button", "submit", "reset"]),
+  href: PropTypes.string,
   className: PropTypes.string,
   children: PropTypes.node.isRequired,
 };

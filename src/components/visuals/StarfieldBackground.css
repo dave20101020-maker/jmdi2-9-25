@@ -1,84 +1,46 @@
-.ns-starfield {
+body.ns-starfield-enabled::before {
+  content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  overflow: hidden;
-  background: linear-gradient(135deg, #020617, #0a0f2b);
-  will-change: transform;
-}
-
-.ns-starfield__gradient,
-.ns-starfield__glow {
-  position: absolute;
-  inset: 0;
-  background-size: 200% 200%;
-}
-
-.ns-starfield__gradient {
   background-image: radial-gradient(
-      circle at 20% 20%,
-      rgba(245, 197, 66, 0.08),
+      circle at 20% 15%,
+      rgba(250, 204, 21, 0.15),
       transparent 45%
     ),
-    radial-gradient(circle at 80% 0%, rgba(59, 130, 246, 0.12), transparent 50%),
-    linear-gradient(140deg, rgba(2, 6, 23, 0.9), rgba(10, 15, 43, 0.92));
-  animation: starfieldDrift 40s linear infinite;
-}
-
-.ns-starfield__glow {
-  background: radial-gradient(
-    circle at 50% 120%,
-    rgba(245, 197, 66, 0.08),
-    transparent 55%
-  );
+    radial-gradient(circle at 80% 5%, rgba(59, 130, 246, 0.22), transparent 50%),
+    radial-gradient(
+      circle at 50% 120%,
+      rgba(14, 165, 233, 0.18),
+      transparent 55%
+    ),
+    radial-gradient(1px 1px at 12% 32%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 42% 64%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(2px 2px at 78% 44%, rgba(255, 255, 255, 0.25), transparent),
+    linear-gradient(135deg, #020617 0%, #0b1436 45%, #0f172a 100%);
+  background-size: 140% 140%, 160% 160%, 180% 180%, 100% 100%;
   mix-blend-mode: screen;
-  animation: starfieldDrift 55s linear infinite reverse;
+  filter: drop-shadow(0 0 35px rgba(15, 23, 42, 0.55));
+  animation: ns-starfield-pan 65s linear infinite;
+  opacity: 0.95;
 }
 
-.ns-starfield__particle {
-  position: absolute;
-  background: rgba(248, 250, 252, 0.85);
-  border-radius: 999px;
-  filter: drop-shadow(0 0 6px rgba(245, 197, 66, 0.35));
-  animation-name: starfieldTwinkle;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  will-change: opacity, transform;
-}
-
-@keyframes starfieldTwinkle {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 5px, 0) scale(0.8);
-  }
-  50% {
-    opacity: 0.9;
-    transform: translate3d(0, -5px, 0) scale(1.15);
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.7);
-  }
-}
-
-@keyframes starfieldDrift {
+@keyframes ns-starfield-pan {
   0% {
     transform: translate3d(0, 0, 0) scale(1);
   }
+  50% {
+    transform: translate3d(-2%, -3%, 0) scale(1.02);
+  }
   100% {
-    transform: translate3d(-2%, -4%, 0) scale(1.03);
+    transform: translate3d(-4%, -6%, 0) scale(1.04);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ns-starfield__gradient,
-  .ns-starfield__glow,
-  .ns-starfield__particle {
-    animation: none !important;
-  }
-
-  .ns-starfield__particle {
-    opacity: 0.35;
+  body.ns-starfield-enabled::before {
+    animation: none;
+    opacity: 0.45;
   }
 }

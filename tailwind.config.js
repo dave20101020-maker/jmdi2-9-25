@@ -1,5 +1,11 @@
 const defaultTheme = require("tailwindcss/defaultTheme");
 
+const northStarPalette = {
+  navy: "#020617",
+  card: "#0F172A",
+  gold: "#FACC15",
+};
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
@@ -10,91 +16,60 @@ module.exports = {
         sans: ["InterVariable", "Inter", ...defaultTheme.fontFamily.sans],
       },
       colors: {
-        "ns-navy": {
-          50: "#0b1223",
-          DEFAULT: "#020617",
-          800: "#050c1f",
-          900: "#010312",
-        },
-        "ns-gold": {
-          DEFAULT: "#f5d76e",
-          bright: "#ffe89d",
-          dark: "#c9a037",
-        },
-        "ns-blue": "#1e40af",
-        "ns-glass": "rgba(5,12,30,0.6)",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        "ns-navy": northStarPalette.navy,
+        "ns-card": northStarPalette.card,
+        "ns-gold": northStarPalette.gold,
+        background: "var(--ns-color-background)",
+        foreground: "var(--ns-color-foreground)",
         card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+          DEFAULT: "var(--ns-color-card)",
+          foreground: "var(--ns-color-card-foreground)",
         },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
-        },
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
+        border: "var(--ns-color-border)",
+        ring: "var(--ns-color-ring)",
         muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
+          DEFAULT: "var(--ns-color-muted)",
+          foreground: "var(--ns-color-muted-foreground)",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+          DEFAULT: "var(--ns-color-accent)",
+          foreground: "var(--ns-color-accent-foreground)",
         },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+        primary: {
+          DEFAULT: "var(--ns-color-primary)",
+          foreground: "var(--ns-color-primary-foreground)",
         },
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        chart: {
-          1: "hsl(var(--chart-1))",
-          2: "hsl(var(--chart-2))",
-          3: "hsl(var(--chart-3))",
-          4: "hsl(var(--chart-4))",
-          5: "hsl(var(--chart-5))",
-        },
-        sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
-          foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-          border: "hsl(var(--sidebar-border))",
-          ring: "hsl(var(--sidebar-ring))",
+        secondary: {
+          DEFAULT: "var(--ns-color-secondary)",
+          foreground: "var(--ns-color-secondary-foreground)",
         },
       },
+      spacing: {
+        "space-1": "var(--ns-space-1)",
+        "space-2": "var(--ns-space-2)",
+        "space-3": "var(--ns-space-3)",
+        "space-4": "var(--ns-space-4)",
+        "space-5": "var(--ns-space-5)",
+        "space-6": "var(--ns-space-6)",
+      },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "var(--ns-radius-lg)",
+        md: "var(--ns-radius-md)",
+        sm: "var(--ns-radius-sm)",
+        pill: "var(--ns-radius-pill)",
+      },
+      boxShadow: {
+        "ns-card": "0 0 30px rgba(250,204,21,0.12)",
+        "ns-glow": "0 25px 80px rgba(2,6,23,0.65)",
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
