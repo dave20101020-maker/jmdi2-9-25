@@ -27,6 +27,7 @@ import MilestoneCelebration from "@/components/shared/MilestoneCelebration";
 import { useStreak } from "@/hooks/useStreak";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AIErrorBoundary from "@/components/AIErrorBoundary";
+import { LifeOrbitVisualizer } from "@/components/visuals/LifeOrbitVisualizer";
 
 // This constant is necessary for iterating over all pillars in the UI and filtering
 const PILLARS_ARRAY = getPillarsArray();
@@ -81,6 +82,17 @@ const calculateScores = (entries) => {
 
   return { lifeScore, pillarScores };
 };
+
+const ORBIT_PILLAR_COLORS = Object.freeze({
+  sleep: "#22d3ee",
+  mental: "#a855f7",
+  exercise: "#22c55e",
+  physical: "#0ea5e9",
+  finances: "#f97316",
+  social: "#ec4899",
+  diet: "#84cc16",
+  spiritual: "#6366f1",
+});
 
 function DashboardContent({ user }) {
   const queryClient = useQueryClient();
@@ -299,6 +311,16 @@ function DashboardContent({ user }) {
     ...p,
     score: accessiblePillarScores[p.id] || 0,
   }));
+  const orbitPillars = accessiblePillarArray.map((pillar) => ({
+    id: pillar.id,
+    name: pillar.name,
+    color:
+      ORBIT_PILLAR_COLORS[pillar.id] ||
+      pillar.color ||
+      pillar.accentColor ||
+      "#22d3ee",
+    score: pillar.score ?? 0,
+  }));
   const strongest =
     accessiblePillarArray.length > 0
       ? accessiblePillarArray.reduce(
@@ -397,6 +419,17 @@ function DashboardContent({ user }) {
             user={user}
           />
         </div>
+
+        <section className="ns-card mt-8 flex flex-col items-center gap-4 text-center">
+          <p className="text-xs uppercase tracking-[0.4em] text-white/40">
+            Orbit Map
+          </p>
+          <LifeOrbitVisualizer pillars={orbitPillars} />
+          <p className="text-white/60 text-sm max-w-xl">
+            Each pillar orbits your average life score. Watch for low-flying
+            planets—they highlight where to focus today.
+          </p>
+        </section>
 
         {/* Trial/Free Banner */}
         {!hasFullAccess && (
