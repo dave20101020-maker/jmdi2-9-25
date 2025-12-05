@@ -77,12 +77,7 @@ const getGoogleErrorDescription = (error) => {
 export default function SignIn() {
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    user,
-    signInWithEmail,
-    signInWithGoogle,
-    loading: authLoading,
-  } = useAuth();
+  const { user, signIn, signInWithGoogle, initializing } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [status, setStatus] = useState(INITIAL_STATUS);
   const [fieldErrors, setFieldErrors] = useState(createFieldErrors);
@@ -162,7 +157,7 @@ export default function SignIn() {
     const requestBody = { email: form.email };
     logAuthDebug("sign-in request", { body: requestBody });
     try {
-      const sessionUser = await signInWithEmail(form.email, form.password);
+      const sessionUser = await signIn(form.email, form.password);
       logAuthDebug("sign-in response", {
         status: 200,
         uid: sessionUser?.uid || null,
@@ -243,7 +238,7 @@ export default function SignIn() {
     }
   };
 
-  if (authLoading) {
+  if (initializing) {
     return (
       <AuthLayout
         eyebrow="Initializing"

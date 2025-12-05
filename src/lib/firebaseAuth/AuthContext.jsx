@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import {
-  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
   sendPasswordResetEmail,
-  signInWithPopup,
   signInWithEmailAndPassword,
-  signOut,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  updateProfile,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import AuthContext from "./context";
+import {
+  firebaseAuth,
+  googleAuthProvider,
+} from "@/lib/firebaseClient";
 
 const mapFirebaseUser = (firebaseUser) => {
   if (!firebaseUser) return null;
@@ -33,8 +37,8 @@ const mapFirebaseUser = (firebaseUser) => {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [initializing, setInitializing] = useState(true);
+  const [authError, setAuthError] = useState(null);
 
   const syncUser = useCallback((firebaseUser) => {
     const mapped = mapFirebaseUser(firebaseUser);
@@ -44,96 +48,125 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(
-      auth,
+      firebaseAuth,
       (firebaseUser) => {
         syncUser(firebaseUser);
-        setError(null);
-        setLoading(false);
+        setAuthError(null);
+        setInitializing(false);
       },
-      (authError) => {
-        console.error("[AuthProvider] onAuthStateChanged error", authError);
-        setError(authError);
+      (error) => {
+        console.error("[AuthProvider] Unable to resolve auth state", error);
+        setAuthError(error);
         setUser(null);
-        setLoading(false);
+        setInitializing(false);
       }
     );
 
     return () => unsubscribe();
   }, [syncUser]);
 
-  const refreshUser = useCallback(() => syncUser(auth.currentUser), [syncUser]);
+  const refreshUser = useCallback(
+    () => syncUser(firebaseAuth.currentUser),
+    [syncUser]
+  );
 
-  const signInWithGoogle = useCallback(async () => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
-    try {
-      setError(null);
-      const credential = await signInWithPopup(auth, provider);
-      return syncUser(credential.user);
-    } catch (err) {
-      setError(err);
-      throw err;
-    }
-  }, [syncUser]);
-
-  const signInWithEmail = useCallback(
+  const signIn = useCallback(
     async (email, password) => {
       try {
-        setError(null);
+        setAuthError(null);
         const credential = await signInWithEmailAndPassword(
-          auth,
+          firebaseAuth,
           email,
           password
         );
         return syncUser(credential.user);
-      } catch (err) {
-        setError(err);
-        throw err;
+      } catch (error) {
+        setAuthError(error);
+        throw error;
       }
     },
     [syncUser]
   );
 
-  const resetPassword = useCallback(async (email) => {
-    try {
-      setError(null);
-      await sendPasswordResetEmail(auth, email);
-    } catch (err) {
-      setError(err);
-      throw err;
-    }
-  }, []);
+  const signUp = useCallback(
+    async (email, password, profile = {}) => {
+      try {
+        setAuthError(null);
+        const credential = await createUserWithEmailAndPassword(
+          firebaseAuth,
+          email,
+          password
+        );
+        const displayName = profile.displayName || profile.fullName || null;
+        if (displayName) {
+          await updateProfile(credential.user, { displayName });
+        }
+        return syncUser(credential.user);
+      } catch (error) {
+        setAuthError(error);
+        throw error;
+      }
+    },
+    [syncUser]
+  );
 
-  const logout = useCallback(async () => {
+  const signOut = useCallback(async () => {
     try {
-      setError(null);
-      await signOut(auth);
+      setAuthError(null);
+      await firebaseSignOut(firebaseAuth);
       syncUser(null);
-    } catch (err) {
-      setError(err);
-      throw err;
+    } catch (error) {
+      setAuthError(error);
+      throw error;
     }
   }, [syncUser]);
+
+  const signInWithGoogle = useCallback(async () => {
+    try {
+      setAuthError(null);
+      const credential = await signInWithPopup(
+        firebaseAuth,
+        googleAuthProvider
+      );
+      return syncUser(credential.user);
+    } catch (error) {
+      setAuthError(error);
+      throw error;
+    }
+  }, [syncUser]);
+
+  const resetPassword = useCallback(async (email) => {
+    try {
+      setAuthError(null);
+      await sendPasswordResetEmail(firebaseAuth, email);
+    } catch (error) {
+      setAuthError(error);
+      throw error;
+    }
+  }, []);
 
   const value = useMemo(
     () => ({
       user,
-      loading,
-      error,
-      signInWithEmail,
+      initializing,
+      loading: initializing,
+      error: authError,
+      signIn,
+      signUp,
+      signOut,
       signInWithGoogle,
       resetPassword,
-      logout,
       refreshUser,
     }),
     [
       user,
-      loading,
-      error,
-      signInWithEmail,
+      initializing,
+      authError,
+      signIn,
+      signUp,
+      signOut,
       signInWithGoogle,
       resetPassword,
-      logout,
       refreshUser,
     ]
   );

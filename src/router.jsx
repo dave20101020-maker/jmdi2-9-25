@@ -1,270 +1,529 @@
-import Layout from "@/components/shared/Layout.jsx";
+import { lazy, Suspense } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import RouteLoader from "@/components/fallbacks/RouteLoader";
+import GlobalErrorBoundary from "@/components/shared/ErrorBoundary";
+import MainLayout from "@/components/Layout/MainLayout";
+import { NAMED_ROUTES } from "@/config/routes";
 
-import Dashboard from "@/pages/Dashboard";
+const lazyPage = (loader, displayName) => {
+  const Component = lazy(loader);
+  Component.displayName = displayName || loader.name || "LazyPage";
+  return Component;
+};
 
-import Track from "@/pages/Track";
-import Community from "@/pages/Community";
+const DashboardPage = lazyPage(
+  () => import("@/pages/Dashboard"),
+  "DashboardPage"
+);
+const CommunityPage = lazyPage(
+  () => import("@/pages/Community"),
+  "CommunityPage"
+);
+const TrackPage = lazyPage(() => import("@/pages/Track"), "TrackPage");
+const AnalyticsPage = lazyPage(
+  () => import("@/pages/Analytics"),
+  "AnalyticsPage"
+);
+const CoachSelectPage = lazyPage(
+  () => import("@/pages/CoachSelect"),
+  "CoachSelectPage"
+);
+const CoachPage = lazyPage(() => import("@/pages/Coach"), "CoachPage");
+const ProfilePage = lazyPage(() => import("@/pages/Profile"), "ProfilePage");
+const SettingsPage = lazyPage(() => import("@/pages/Settings"), "SettingsPage");
+const SleepPage = lazyPage(() => import("@/pages/Sleep"), "SleepPage");
+const DietPage = lazyPage(() => import("@/pages/Diet"), "DietPage");
+const ExercisePage = lazyPage(() => import("@/pages/Exercise"), "ExercisePage");
+const PhysicalHealthPage = lazyPage(
+  () => import("@/pages/PhysicalHealth"),
+  "PhysicalHealthPage"
+);
+const MentalHealthPage = lazyPage(
+  () => import("@/pages/MentalHealth"),
+  "MentalHealthPage"
+);
+const FinancesPage = lazyPage(() => import("@/pages/Finances"), "FinancesPage");
+const SocialPage = lazyPage(() => import("@/pages/Social"), "SocialPage");
+const SpiritualityPage = lazyPage(
+  () => import("@/pages/Spirituality"),
+  "SpiritualityPage"
+);
+const OnboardingPage = lazyPage(
+  () => import("@/pages/Onboarding"),
+  "OnboardingPage"
+);
+const MyPlansPage = lazyPage(() => import("@/pages/MyPlans"), "MyPlansPage");
+const PlanDetailPage = lazyPage(
+  () => import("@/pages/PlanDetail"),
+  "PlanDetailPage"
+);
+const DailyProgressPage = lazyPage(
+  () => import("@/pages/DailyProgress"),
+  "DailyProgressPage"
+);
+const WeeklyReflectionPage = lazyPage(
+  () => import("@/pages/WeeklyReflection"),
+  "WeeklyReflectionPage"
+);
+const WeeklyReportPage = lazyPage(
+  () => import("@/pages/WeeklyReport"),
+  "WeeklyReportPage"
+);
+const UpgradePage = lazyPage(() => import("@/pages/Upgrade"), "UpgradePage");
+const PricingPage = lazyPage(() => import("@/pages/Pricing"), "PricingPage");
+const GoalsPage = lazyPage(() => import("@/pages/Goals"), "GoalsPage");
+const MyGrowthPage = lazyPage(() => import("@/pages/MyGrowth"), "MyGrowthPage");
+const MoodTrackerPage = lazyPage(
+  () => import("@/pages/MoodTracker"),
+  "MoodTrackerPage"
+);
+const HabitsPage = lazyPage(() => import("@/pages/Habits"), "HabitsPage");
+const FriendsPage = lazyPage(() => import("@/pages/Friends"), "FriendsPage");
+const MilestonesPage = lazyPage(
+  () => import("@/pages/Milestones"),
+  "MilestonesPage"
+);
+const ConnectionsPage = lazyPage(
+  () => import("@/pages/Connections"),
+  "ConnectionsPage"
+);
+const FeedbackPage = lazyPage(() => import("@/pages/Feedback"), "FeedbackPage");
+const MeditationPage = lazyPage(
+  () => import("@/pages/Meditation"),
+  "MeditationPage"
+);
+const AchievementsPage = lazyPage(
+  () => import("@/pages/Achievements"),
+  "AchievementsPage"
+);
+const MessagesPage = lazyPage(() => import("@/pages/Messages"), "MessagesPage");
+const NotificationsPage = lazyPage(
+  () => import("@/pages/Notifications"),
+  "NotificationsPage"
+);
+const TimelinePage = lazyPage(() => import("@/pages/Timeline"), "TimelinePage");
+const AdminDashboardPage = lazyPage(
+  () => import("@/pages/AdminDashboard"),
+  "AdminDashboardPage"
+);
+const AdminAnalyticsPage = lazyPage(
+  () => import("@/pages/AdminAnalytics"),
+  "AdminAnalyticsPage"
+);
+const PillarPage = lazyPage(() => import("@/pages/Pillar"), "PillarPage");
+const SleepDashboardPage = lazyPage(
+  () => import("@/pages/pillars/SleepDashboard"),
+  "SleepDashboardPage"
+);
+const DietDashboardPage = lazyPage(
+  () => import("@/pages/pillars/DietDashboard"),
+  "DietDashboardPage"
+);
+const ExerciseDashboardPage = lazyPage(
+  () => import("@/pages/pillars/ExerciseDashboard"),
+  "ExerciseDashboardPage"
+);
+const PhysicalHealthDashboardPage = lazyPage(
+  () => import("@/pages/pillars/PhysicalHealthDashboard"),
+  "PhysicalHealthDashboardPage"
+);
+const MentalHealthDashboardPage = lazyPage(
+  () => import("@/pages/pillars/MentalHealthDashboard"),
+  "MentalHealthDashboardPage"
+);
+const FinancesDashboardPage = lazyPage(
+  () => import("@/pages/pillars/FinancesDashboard"),
+  "FinancesDashboardPage"
+);
+const SocialDashboardPage = lazyPage(
+  () => import("@/pages/pillars/SocialDashboard"),
+  "SocialDashboardPage"
+);
+const SpiritualityDashboardPage = lazyPage(
+  () => import("@/pages/pillars/SpiritualityDashboard"),
+  "SpiritualityDashboardPage"
+);
+const LoginPage = lazyPage(() => import("@/pages/Login"), "LoginPage");
+const RegisterPage = lazyPage(() => import("@/pages/Register"), "RegisterPage");
+const SignInPage = lazyPage(() => import("@/pages/auth/SignIn"), "SignInPage");
+const SignUpPage = lazyPage(() => import("@/pages/auth/SignUp"), "SignUpPage");
+const ForgotPasswordPage = lazyPage(
+  () => import("@/pages/auth/ForgotPassword"),
+  "ForgotPasswordPage"
+);
+const NotFoundPage = lazyPage(() => import("@/pages/NotFound"), "NotFoundPage");
 
-import Analytics from "@/pages/Analytics";
+const routeConfig = [
+  {
+    key: "dashboard",
+    path: NAMED_ROUTES.Dashboard,
+    Component: DashboardPage,
+    label: "dashboard",
+  },
+  {
+    key: "community",
+    path: NAMED_ROUTES.Community,
+    Component: CommunityPage,
+    label: "community",
+  },
+  {
+    key: "track",
+    path: NAMED_ROUTES.Track,
+    Component: TrackPage,
+    label: "tracking",
+  },
+  {
+    key: "analytics",
+    path: NAMED_ROUTES.Analytics,
+    Component: AnalyticsPage,
+    label: "analytics",
+  },
+  {
+    key: "coach-select",
+    path: NAMED_ROUTES.CoachSelect,
+    Component: CoachSelectPage,
+    label: "coach selection",
+  },
+  {
+    key: "coach",
+    path: NAMED_ROUTES.Coach,
+    Component: CoachPage,
+    label: "coach",
+  },
+  {
+    key: "profile",
+    path: NAMED_ROUTES.Profile,
+    Component: ProfilePage,
+    label: "profile",
+  },
+  {
+    key: "settings",
+    path: NAMED_ROUTES.Settings,
+    Component: SettingsPage,
+    label: "settings",
+  },
+  {
+    key: "sleep",
+    path: NAMED_ROUTES.Sleep,
+    Component: SleepPage,
+    label: "sleep",
+  },
+  {
+    key: "diet",
+    path: NAMED_ROUTES.Diet,
+    Component: DietPage,
+    label: "nutrition",
+  },
+  {
+    key: "exercise",
+    path: NAMED_ROUTES.Exercise,
+    Component: ExercisePage,
+    label: "exercise",
+  },
+  {
+    key: "physical-health",
+    path: NAMED_ROUTES.PhysicalHealth,
+    Component: PhysicalHealthPage,
+    label: "physical health",
+  },
+  {
+    key: "mental-health",
+    path: NAMED_ROUTES.MentalHealth,
+    Component: MentalHealthPage,
+    label: "mental health",
+  },
+  {
+    key: "finances",
+    path: NAMED_ROUTES.Finances,
+    Component: FinancesPage,
+    label: "finances",
+  },
+  {
+    key: "social",
+    path: NAMED_ROUTES.Social,
+    Component: SocialPage,
+    label: "social",
+  },
+  {
+    key: "spirituality",
+    path: NAMED_ROUTES.Spirituality,
+    Component: SpiritualityPage,
+    label: "spirituality",
+  },
+  {
+    key: "onboarding",
+    path: NAMED_ROUTES.Onboarding,
+    Component: OnboardingPage,
+    label: "onboarding",
+  },
+  {
+    key: "my-plans",
+    path: NAMED_ROUTES.MyPlans,
+    Component: MyPlansPage,
+    label: "plans",
+  },
+  {
+    key: "plan-detail",
+    path: NAMED_ROUTES.PlanDetail,
+    Component: PlanDetailPage,
+    label: "plan details",
+  },
+  {
+    key: "daily-progress",
+    path: NAMED_ROUTES.DailyProgress,
+    Component: DailyProgressPage,
+    label: "daily progress",
+  },
+  {
+    key: "weekly-reflection",
+    path: NAMED_ROUTES.WeeklyReflection,
+    Component: WeeklyReflectionPage,
+    label: "weekly reflection",
+  },
+  {
+    key: "weekly-report",
+    path: NAMED_ROUTES.WeeklyReport,
+    Component: WeeklyReportPage,
+    label: "weekly report",
+  },
+  {
+    key: "upgrade",
+    path: NAMED_ROUTES.Upgrade,
+    Component: UpgradePage,
+    label: "upgrade",
+  },
+  {
+    key: "pricing",
+    path: NAMED_ROUTES.Pricing,
+    Component: PricingPage,
+    label: "pricing",
+    isProtected: false,
+  },
+  {
+    key: "goals",
+    path: NAMED_ROUTES.Goals,
+    Component: GoalsPage,
+    label: "goals",
+  },
+  {
+    key: "my-growth",
+    path: NAMED_ROUTES.MyGrowth,
+    Component: MyGrowthPage,
+    label: "growth",
+  },
+  {
+    key: "mood-tracker",
+    path: NAMED_ROUTES.MoodTracker,
+    Component: MoodTrackerPage,
+    label: "mood tracker",
+  },
+  {
+    key: "habits",
+    path: NAMED_ROUTES.Habits,
+    Component: HabitsPage,
+    label: "habits",
+  },
+  {
+    key: "friends",
+    path: NAMED_ROUTES.Friends,
+    Component: FriendsPage,
+    label: "friends",
+  },
+  {
+    key: "milestones",
+    path: NAMED_ROUTES.Milestones,
+    Component: MilestonesPage,
+    label: "milestones",
+  },
+  {
+    key: "connections",
+    path: NAMED_ROUTES.Connections,
+    Component: ConnectionsPage,
+    label: "connections",
+  },
+  {
+    key: "feedback",
+    path: NAMED_ROUTES.Feedback,
+    Component: FeedbackPage,
+    label: "feedback",
+  },
+  {
+    key: "meditation",
+    path: NAMED_ROUTES.Meditation,
+    Component: MeditationPage,
+    label: "meditation",
+  },
+  {
+    key: "achievements",
+    path: NAMED_ROUTES.Achievements,
+    Component: AchievementsPage,
+    label: "achievements",
+  },
+  {
+    key: "messages",
+    path: NAMED_ROUTES.Messages,
+    Component: MessagesPage,
+    label: "messages",
+  },
+  {
+    key: "notifications",
+    path: NAMED_ROUTES.Notifications,
+    Component: NotificationsPage,
+    label: "notifications",
+  },
+  {
+    key: "timeline",
+    path: NAMED_ROUTES.Timeline,
+    Component: TimelinePage,
+    label: "timeline",
+  },
+  {
+    key: "admin",
+    path: NAMED_ROUTES.AdminDashboard,
+    Component: AdminDashboardPage,
+    label: "admin",
+  },
+  {
+    key: "admin-analytics",
+    path: "/admin/analytics",
+    Component: AdminAnalyticsPage,
+    label: "admin analytics",
+  },
+  {
+    key: "pillar-generic",
+    path: "pillar/:pillarId",
+    Component: PillarPage,
+    label: "pillar",
+  },
+  {
+    key: "pillar-sleep",
+    path: "pillar/sleep",
+    Component: SleepDashboardPage,
+    label: "sleep insights",
+  },
+  {
+    key: "pillar-diet",
+    path: "pillar/diet",
+    Component: DietDashboardPage,
+    label: "diet insights",
+  },
+  {
+    key: "pillar-exercise",
+    path: "pillar/exercise",
+    Component: ExerciseDashboardPage,
+    label: "exercise insights",
+  },
+  {
+    key: "pillar-physical-health",
+    path: "pillar/physical-health",
+    Component: PhysicalHealthDashboardPage,
+    label: "physical pillar",
+  },
+  {
+    key: "pillar-mental-health",
+    path: "pillar/mental-health",
+    Component: MentalHealthDashboardPage,
+    label: "mental pillar",
+  },
+  {
+    key: "pillar-finances",
+    path: "pillar/finances",
+    Component: FinancesDashboardPage,
+    label: "finance pillar",
+  },
+  {
+    key: "pillar-social",
+    path: "pillar/social",
+    Component: SocialDashboardPage,
+    label: "social pillar",
+  },
+  {
+    key: "pillar-spirituality",
+    path: "pillar/spirituality",
+    Component: SpiritualityDashboardPage,
+    label: "spiritual pillar",
+  },
+];
 
-import CoachSelect from "@/pages/CoachSelect";
+const authRoutes = [
+  { key: "login", path: "/login", Component: LoginPage },
+  { key: "sign-in", path: "/sign-in", Component: SignInPage },
+  { key: "register", path: "/register", Component: RegisterPage },
+  { key: "sign-up", path: "/sign-up", Component: SignUpPage },
+  {
+    key: "forgot-password",
+    path: "/forgot-password",
+    Component: ForgotPasswordPage,
+  },
+];
 
-import Coach from "@/pages/Coach";
+const normalizeNestedPath = (path) => {
+  if (typeof path !== "string") return path;
+  return path.startsWith("/") ? path.slice(1) : path;
+};
 
-import Profile from "@/pages/Profile";
+const renderRoute = (
+  Component,
+  { isProtected = true, loadingMessage } = {}
+) => {
+  const fallbackMessage = loadingMessage || "Calibrating mission HUD...";
 
-import Sleep from "@/pages/Sleep";
+  const content = (
+    <Suspense fallback={<RouteLoader message={fallbackMessage} />}>
+      <Component />
+    </Suspense>
+  );
 
-import Diet from "@/pages/Diet";
+  if (!isProtected) {
+    return <GlobalErrorBoundary>{content}</GlobalErrorBoundary>;
+  }
 
-import Exercise from "@/pages/Exercise";
+  return (
+    <GlobalErrorBoundary>
+      <ProtectedRoute>{content}</ProtectedRoute>
+    </GlobalErrorBoundary>
+  );
+};
 
-import PhysicalHealth from "@/pages/PhysicalHealth";
+export default function AppRouter() {
+  return (
+    <Routes>
+      {authRoutes.map(({ key, path, Component }) => (
+        <Route
+          key={key}
+          path={path}
+          element={renderRoute(Component, {
+            isProtected: false,
+            loadingMessage: "Preparing secure access...",
+          })}
+        />
+      ))}
 
-import MentalHealth from "@/pages/MentalHealth";
+      <Route path="/" element={<MainLayout />}>
+        <Route
+          index
+          element={<Navigate to={NAMED_ROUTES.Dashboard} replace />}
+        />
+        {routeConfig.map(({ key, path, Component, isProtected, label }) => (
+          <Route
+            key={key}
+            path={normalizeNestedPath(path)}
+            element={renderRoute(Component, {
+              isProtected: isProtected !== false,
+              loadingMessage: `Loading ${label || key}...`,
+            })}
+          />
+        ))}
+      </Route>
 
-import Finances from "@/pages/Finances";
-
-import Social from "@/pages/Social";
-
-import Spirituality from "@/pages/Spirituality";
-
-// New Pillar Dashboards
-import SleepDashboard from "@/pages/pillars/SleepDashboard";
-import DietDashboard from "@/pages/pillars/DietDashboard";
-import ExerciseDashboard from "@/pages/pillars/ExerciseDashboard";
-import PhysicalHealthDashboard from "@/pages/pillars/PhysicalHealthDashboard";
-import MentalHealthDashboard from "@/pages/pillars/MentalHealthDashboard";
-import FinancesDashboard from "@/pages/pillars/FinancesDashboard";
-import SocialDashboard from "@/pages/pillars/SocialDashboard";
-import SpiritualityDashboard from "@/pages/pillars/SpiritualityDashboard";
-
-import Onboarding from "@/pages/Onboarding";
-
-import MyPlans from "@/pages/MyPlans";
-
-import PlanDetail from "@/pages/PlanDetail";
-
-import DailyProgress from "@/pages/DailyProgress";
-
-import WeeklyReflection from "@/pages/WeeklyReflection";
-import WeeklyReport from "@/pages/WeeklyReport";
-
-import Upgrade from "@/pages/Upgrade";
-import Pricing from "@/pages/Pricing";
-
-import Goals from "@/pages/Goals";
-
-import MyGrowth from "@/pages/MyGrowth";
-
-import MoodTracker from "@/pages/MoodTracker";
-
-import Habits from "@/pages/Habits";
-
-import Friends from "@/pages/Friends";
-
-import Milestones from "@/pages/Milestones";
-
-import Connections from "@/pages/Connections";
-
-import Feedback from "@/pages/Feedback";
-
-import Meditation from "@/pages/Meditation";
-
-import Achievements from "@/pages/Achievements";
-import Messages from "@/pages/Messages";
-import Notifications from "@/pages/Notifications";
-import Timeline from "@/pages/Timeline";
-
-import AdminDashboard from "@/pages/AdminDashboard";
-
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
-
-const PAGES = {
-    
-    Dashboard: Dashboard,
-    
-    Community: Community,
-    Track: Track,
-    
-    Analytics: Analytics,
-    
-    CoachSelect: CoachSelect,
-    
-    Coach: Coach,
-    
-    Profile: Profile,
-    
-    Sleep: Sleep,
-    
-    Diet: Diet,
-    
-    Exercise: Exercise,
-    
-    PhysicalHealth: PhysicalHealth,
-    
-    MentalHealth: MentalHealth,
-    
-    Finances: Finances,
-    
-    Social: Social,
-    
-    Spirituality: Spirituality,
-    
-    Onboarding: Onboarding,
-    
-    MyPlans: MyPlans,
-    
-    PlanDetail: PlanDetail,
-    
-    DailyProgress: DailyProgress,
-    
-    WeeklyReflection: WeeklyReflection,
-    
-    Upgrade: Upgrade,
-        Pricing: Pricing,
-    
-    Goals: Goals,
-    
-    MyGrowth: MyGrowth,
-    
-    MoodTracker: MoodTracker,
-    
-    Habits: Habits,
-    
-    Friends: Friends,
-    
-    Milestones: Milestones,
-    
-    Connections: Connections,
-    
-    Feedback: Feedback,
-    
-    Meditation: Meditation,
-    
-    Achievements: Achievements,
-    
-}
-
-function _getCurrentPage(url) {
-    if (url.endsWith('/')) {
-        url = url.slice(0, -1);
-    }
-    let urlLastPart = url.split('/').pop();
-    if (urlLastPart.includes('?')) {
-        urlLastPart = urlLastPart.split('?')[0];
-    }
-
-    const pageName = Object.keys(PAGES).find(page => page.toLowerCase() === urlLastPart.toLowerCase());
-    return pageName || Object.keys(PAGES)[0];
-}
-
-// Create a wrapper component that uses useLocation inside the Router context
-function PagesContent() {
-    const location = useLocation();
-    const currentPage = _getCurrentPage(location.pathname);
-    
-    return (
-        <Layout currentPageName={currentPage}>
-            <Routes>            
-                
-                    <Route path="/" element={<Dashboard />} />
-                
-                
-                <Route path="/Dashboard" element={<Dashboard />} />
-                <Route path="/Community" element={<Community />} />
-                <Route path="/community" element={<Community />} />
-                
-                <Route path="/Track" element={<Track />} />
-                
-                <Route path="/Analytics" element={<Analytics />} />
-                
-                <Route path="/CoachSelect" element={<CoachSelect />} />
-                
-                <Route path="/Coach" element={<Coach />} />
-                
-                <Route path="/Profile" element={<Profile />} />
-                
-                <Route path="/Sleep" element={<Sleep />} />
-                
-                <Route path="/Diet" element={<Diet />} />
-                
-                <Route path="/Exercise" element={<Exercise />} />
-                
-                <Route path="/PhysicalHealth" element={<PhysicalHealth />} />
-                
-                <Route path="/MentalHealth" element={<MentalHealth />} />
-                
-                <Route path="/Finances" element={<Finances />} />
-                
-                <Route path="/Social" element={<Social />} />
-                
-                <Route path="/Spirituality" element={<Spirituality />} />
-                
-                {/* Pillar Dashboards */}
-                <Route path="/pillar/sleep" element={<SleepDashboard />} />
-                <Route path="/pillar/diet" element={<DietDashboard />} />
-                <Route path="/pillar/exercise" element={<ExerciseDashboard />} />
-                <Route path="/pillar/physical-health" element={<PhysicalHealthDashboard />} />
-                <Route path="/pillar/mental-health" element={<MentalHealthDashboard />} />
-                <Route path="/pillar/finances" element={<FinancesDashboard />} />
-                <Route path="/pillar/social" element={<SocialDashboard />} />
-                <Route path="/pillar/spirituality" element={<SpiritualityDashboard />} />
-                
-                <Route path="/Onboarding" element={<Onboarding />} />
-                
-                <Route path="/MyPlans" element={<MyPlans />} />
-                
-                <Route path="/PlanDetail" element={<PlanDetail />} />
-                
-                <Route path="/DailyProgress" element={<DailyProgress />} />
-                
-                <Route path="/WeeklyReflection" element={<WeeklyReflection />} />
-                <Route path="/weekly-report" element={<WeeklyReport />} />
-                <Route path="/WeeklyReport" element={<WeeklyReport />} />
-                <Route path="/messages" element={<Messages />} />
-                <Route path="/Messages" element={<Messages />} />
-                <Route path="/notifications" element={<Notifications />} />
-                <Route path="/Notifications" element={<Notifications />} />
-                <Route path="/timeline" element={<Timeline />} />
-                <Route path="/Timeline" element={<Timeline />} />
-                
-                <Route path="/Upgrade" element={<Upgrade />} />
-                    <Route path="/Pricing" element={<Pricing />} />
-                    <Route path="/pricing" element={<Pricing />} />
-                
-                <Route path="/Goals" element={<Goals />} />
-                
-                <Route path="/MyGrowth" element={<MyGrowth />} />
-                
-                <Route path="/MoodTracker" element={<MoodTracker />} />
-                
-                <Route path="/Habits" element={<Habits />} />
-                
-                <Route path="/Friends" element={<Friends />} />
-                
-                <Route path="/Milestones" element={<Milestones />} />
-                
-                <Route path="/Connections" element={<Connections />} />
-                
-                <Route path="/Feedback" element={<Feedback />} />
-                
-                <Route path="/Meditation" element={<Meditation />} />
-                
-                <Route path="/Achievements" element={<Achievements />} />
-                
-                {/* Admin */}
-                <Route path="/admin" element={<AdminDashboard />} />
-                
-            </Routes>
-        </Layout>
-    );
-}
-
-export default function Pages() {
-    return (
-        <Router>
-            <PagesContent />
-        </Router>
-    );
+      <Route
+        path="*"
+        element={renderRoute(NotFoundPage, {
+          isProtected: false,
+          loadingMessage: "Searching the galaxy...",
+        })}
+      />
+    </Routes>
+  );
 }

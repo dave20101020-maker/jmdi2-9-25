@@ -2,8 +2,10 @@
  * Custom Backend API Client
  * Replaces the legacy SDK with direct backend endpoints
  */
+import { firebaseAuth } from "@/lib/firebaseClient";
 
 const API_PREFIX = "/api";
+const isBrowser = typeof window !== "undefined";
 
 const rawBackendUrl = import.meta.env.VITE_BACKEND_URL
   ? String(import.meta.env.VITE_BACKEND_URL).trim()
@@ -52,6 +54,28 @@ const normalizeEndpoint = (endpoint = "") => {
   return `${API_PREFIX}${hasLeadingSlash}`;
 };
 
+const maybeAttachFirebaseToken = async (headers, options = {}) => {
+  if (!isBrowser || options.skipFirebaseAuth || !firebaseAuth?.currentUser) {
+    return headers;
+  }
+
+  try {
+    const token = await firebaseAuth.currentUser.getIdToken();
+    if (token && !headers.Authorization) {
+      return {
+        ...headers,
+        Authorization: `Bearer ${token}`,
+      };
+    }
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn("[apiClient] Unable to read Firebase token", error);
+    }
+  }
+
+  return headers;
+};
+
 class APIClient {
   constructor(baseUrl = BASE_BACKEND_URL) {
     if (!baseUrl) {
@@ -66,10 +90,12 @@ class APIClient {
     }
     const path = normalizeEndpoint(endpoint);
     const url = `${this.baseUrl}${path}`;
-    const headers = {
+    let headers = {
       "Content-Type": "application/json",
       ...options.headers,
     };
+
+    headers = await maybeAttachFirebaseToken(headers, options);
 
     try {
       const response = await fetch(url, {
@@ -101,7 +127,8 @@ class APIClient {
 
   // Auth endpoints
   async authMe() {
-    return this.request("/auth/me", { method: "GET" });
+    const payload = await this.request("/auth/me", { method: "GET" });
+    return payload?.data ?? payload;
   }
 
   async authLogin(email, password) {

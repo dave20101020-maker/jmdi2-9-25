@@ -38,7 +38,10 @@ const serverConfig = {
   port: devPort,
   strictPort: true,
   proxy: {},
-  hmr: hmrConfig,
+  hmr: {
+    ...hmrConfig,
+    clientPort: 443,
+  },
 };
 
 // https://vite.dev/config/

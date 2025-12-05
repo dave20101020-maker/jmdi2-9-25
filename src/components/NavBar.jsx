@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function NavBar() {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const location = useLocation();
   const displayName =
     user?.fullName || user?.displayName || user?.username || user?.email;
@@ -50,7 +50,7 @@ export default function NavBar() {
               <>
                 <span className="text-sm text-white/70">{displayName}</span>
                 <button
-                  onClick={logout}
+                  onClick={signOut}
                   className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors text-sm"
                 >
                   Logout

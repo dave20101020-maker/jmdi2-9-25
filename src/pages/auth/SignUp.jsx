@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Chrome, CheckCircle2, Lock, Mail, UserRound } from "lucide-react";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { auth } from "@/lib/firebase";
 import { toast } from "sonner";
 
 const ERROR_MESSAGES = {
@@ -53,7 +51,7 @@ const getGoogleErrorDescription = (error) => {
 
 export default function SignUp() {
   const navigate = useNavigate();
-  const { user, signInWithGoogle, loading: authLoading } = useAuth();
+  const { user, signUp, signInWithGoogle, initializing } = useAuth();
   const [form, setForm] = useState({ fullName: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState(createFieldErrors);
@@ -112,18 +110,14 @@ export default function SignUp() {
     setFormSubmitting(true);
     try {
       logSignUpDebug("email sign-up request", { body: { email: form.email } });
-      const credential = await createUserWithEmailAndPassword(
-        auth,
-        form.email,
-        form.password
-      );
       const trimmedName = form.fullName.trim();
-      if (trimmedName) {
-        await updateProfile(credential.user, { displayName: trimmedName });
-      }
+      const profile = await signUp(form.email, form.password, {
+        displayName: trimmedName,
+        fullName: trimmedName,
+      });
       logSignUpDebug("email sign-up response", {
         status: 200,
-        uid: credential?.user?.uid || null,
+        uid: profile?.uid || null,
       });
       navigate("/dashboard", { replace: true });
     } catch (err) {
@@ -172,7 +166,7 @@ export default function SignUp() {
     }
   };
 
-  if (authLoading) {
+  if (initializing) {
     return (
       <AuthLayout
         eyebrow="Initializing"

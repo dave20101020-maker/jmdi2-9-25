@@ -1,9 +1,11 @@
 import { Navigate, Outlet, useLocation, Link } from "react-router-dom";
 import NSButton from "@/components/ui/NSButton";
+import ConnectionIssue from "@/components/fallbacks/ConnectionIssue";
+import RouteLoader from "@/components/fallbacks/RouteLoader";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ProtectedRoute({ children, redirectTo = "/sign-in" }) {
-  const { user, loading, error } = useAuth();
+  const { user, initializing, error } = useAuth();
   const location = useLocation();
   const redirectTarget = redirectTo || "/sign-in";
   const shouldStoreReturnPath = location.pathname !== redirectTarget;
@@ -23,48 +25,38 @@ export default function ProtectedRoute({ children, redirectTo = "/sign-in" }) {
   );
   const isNotFoundError =
     errorStatus === 404 || error?.code === "auth/user-not-found";
-  const showErrorState = !loading && (isNetworkError || isNotFoundError);
+  const showErrorState = !initializing && (isNetworkError || isNotFoundError);
 
   if (showErrorState) {
     return (
-      <div className="ns-auth-shell" role="alert" aria-live="assertive">
-        <div className="ns-auth-card space-y-4">
-          <p className="ns-eyebrow">Session unavailable</p>
-          <h1 className="ns-auth-title">We can't reach mission control</h1>
-          <p className="text-sm text-white/70">
-            {normalizedMessage ||
-              "A network or access error prevented us from verifying your session."}
-          </p>
-          <div className="flex flex-col gap-3">
-            <NSButton
-              variant="secondary"
-              size="lg"
-              fullWidth
-              onClick={() => window.location.reload()}
-            >
-              Retry connection
-            </NSButton>
-            <NSButton asChild size="lg" fullWidth>
-              <Link to={redirectTarget}>Go to sign in</Link>
-            </NSButton>
-          </div>
-        </div>
-      </div>
+      <ConnectionIssue
+        status={isNetworkError ? "offline" : "error"}
+        title={
+          isNetworkError
+            ? "Unable to reach mission control"
+            : "Session unavailable"
+        }
+        subtitle={
+          normalizedMessage ||
+          "A transient network error prevented us from verifying your session."
+        }
+        details={
+          isNetworkError
+            ? "Check your connection or VPN, then retry."
+            : "Your session may have expired. Sign in again to continue."
+        }
+        onRetry={() => window.location.reload()}
+        action={
+          <NSButton asChild size="lg" fullWidth>
+            <Link to={redirectTarget}>Return to sign in</Link>
+          </NSButton>
+        }
+      />
     );
   }
 
-  if (loading) {
-    return (
-      <div className="ns-auth-shell" role="status" aria-live="polite">
-        <div className="ns-auth-card">
-          <p className="ns-eyebrow">Syncing</p>
-          <h1 className="ns-auth-title">Checking your session...</h1>
-          <p className="text-sm text-white/70">
-            Hold tight while we verify your mission credentials.
-          </p>
-        </div>
-      </div>
-    );
+  if (initializing) {
+    return <RouteLoader message="Verifying your mission credentials..." />;
   }
 
   if (!user) {

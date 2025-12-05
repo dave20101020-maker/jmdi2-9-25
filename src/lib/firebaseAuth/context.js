@@ -2,13 +2,14 @@ import { createContext } from "react";
 
 const AuthContext = createContext({
   user: null,
+  initializing: true,
   loading: true,
   error: null,
-  signInWithEmail: async () => {},
+  signIn: async () => {},
+  signUp: async () => {},
+  signOut: async () => {},
   signInWithGoogle: async () => {},
   resetPassword: async () => {},
-  logout: async () => {},
-  refreshUser: () => null,
 });
 
 export default AuthContext;

@@ -1,196 +1,247 @@
-const IS_DEV = import.meta.env.DEV;
-const fallbackBackend = "http://localhost:5000";
-const configuredBackend = (
-  import.meta.env.VITE_BACKEND_URL ||
-  import.meta.env.VITE_API_URL ||
-  fallbackBackend
-).trim();
-const normalizedBackend = configuredBackend.replace(/\/$/, "");
-const sanitizedBackend = normalizedBackend.replace(/\/api$/i, "");
-const API_BASE = sanitizedBackend || fallbackBackend;
+const BASE_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
 
-const maskSensitive = (body) => {
-  if (!body || typeof body !== "object") return body;
-  const clone = { ...body };
-  if (typeof clone.password !== "undefined") {
-    clone.password = "***";
-  }
-  if (typeof clone.passphrase !== "undefined") {
-    clone.passphrase = "***";
-  }
-  return clone;
-};
-
-const safeParse = (text) => {
-  if (!text || !text.length) return null;
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    return text;
-  }
-};
-
-async function request(path, opts = {}) {
-  const url = `${API_BASE}${path}`;
-  const method = opts.method || "GET";
-  const headers = {
-    "Content-Type": "application/json",
-    ...(opts.headers || {}),
-  };
-  const parsedBody =
-    typeof opts.body === "string" ? safeParse(opts.body) : opts.body;
-  const requestLog = maskSensitive(parsedBody);
-  const shouldLog =
-    IS_DEV && (path.startsWith("/api/auth/login") || opts.debug);
-
-  if (shouldLog) {
-    console.log(`[apiClient] ${method} ${url} request`, {
-      body: requestLog,
-    });
-  }
-
-  const res = await fetch(url, {
-    credentials: "include", // send cookies
-    headers,
-    ...opts,
-  });
-
-  const text = await res.text().catch(() => null);
-  const data = safeParse(text);
-
-  if (shouldLog) {
-    console.log(`[apiClient] ${method} ${url} response`, {
-      status: res.status,
-      json: data,
-    });
-  }
-
-  if (!res.ok) {
-    const errPayload = data || res.statusText;
-    const message =
-      errPayload && errPayload.message
-        ? errPayload.message
-        : typeof errPayload === "string"
-        ? errPayload
-        : JSON.stringify(errPayload);
-    try {
-      if (typeof window !== "undefined" && window.dispatchEvent) {
-        window.dispatchEvent(new CustomEvent("api-error", { detail: message }));
-      }
-    } catch (e) {
-      /* no-op */
-    }
-    const error =
-      errPayload instanceof Error
-        ? errPayload
-        : { message, status: res.status, body: errPayload };
-    throw error;
-  }
-
-  return data;
+if (!BASE_URL) {
+  console.error("[apiClient] VITE_BACKEND_URL missing");
 }
 
-export const api = {
-  // Auth
-  register: (data) =>
-    request("/api/auth/register", {
+class APIClient {
+  async request(path, options = {}) {
+    const url = `${BASE_URL}${path}`;
+    let response;
+
+    try {
+      response = await fetch(url, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {}),
+        },
+        credentials: "include",
+        ...options,
+      });
+    } catch (networkError) {
+      console.error("[apiClient] Network failure", {
+        path,
+        url,
+        message: networkError?.message,
+      });
+      throw networkError;
+    }
+
+    const text = await response.text();
+    let payload = null;
+
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch (error) {
+        console.error("Bad response:", text);
+        throw new Error("Response was not JSON");
+      }
+    }
+
+    if (!response.ok) {
+      const err = new Error(
+        payload?.message || response.statusText || "Request failed"
+      );
+      err.status = response.status;
+      err.body = payload;
+      console.error("[apiClient] Request error", {
+        path,
+        url,
+        status: response.status,
+        body: payload,
+      });
+      throw err;
+    }
+
+    return payload;
+  }
+
+  authMe() {
+    return this.request("/api/auth/me");
+  }
+
+  register(data) {
+    return this.request("/api/auth/register", {
       method: "POST",
       body: JSON.stringify(data),
-    }),
-  login: (data) =>
-    request("/api/auth/login", { method: "POST", body: JSON.stringify(data) }),
-  me: () => request("/api/auth/me", { method: "GET" }),
+    });
+  }
 
-  // Pillars
-  getPillars: (q = "") => request(`/api/pillars${q ? `?${q}` : ""}`),
-  upsertPillar: (data) =>
-    request("/api/pillars", { method: "POST", body: JSON.stringify(data) }),
+  login(data) {
+    return this.request("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
 
-  // Entries
-  getEntries: (q = "") => request(`/api/entries${q ? `?${q}` : ""}`),
-  createEntry: (data) =>
-    request("/api/entries", { method: "POST", body: JSON.stringify(data) }),
+  me() {
+    return this.authMe();
+  }
 
-  // AI
-  ai: (path, data) =>
-    request(`/api/ai/${path}`, { method: "POST", body: JSON.stringify(data) }),
-  // Onboarding
-  getOnboardingProfile: () => request("/api/onboarding", { method: "GET" }),
-  saveOnboardingProfile: (data) =>
-    request("/api/onboarding", { method: "POST", body: JSON.stringify(data) }),
-  // Subscription
-  getMySubscription: () => request("/api/subscription/me", { method: "GET" }),
-  upgradeSubscription: (tier) =>
-    request("/api/subscription/upgrade", {
+  getPillars(query = "") {
+    const search = query ? `?${query}` : "";
+    return this.request(`/api/pillars${search}`);
+  }
+
+  upsertPillar(data) {
+    return this.request("/api/pillars", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  getEntries(query = "") {
+    const search = query ? `?${query}` : "";
+    return this.request(`/api/entries${search}`);
+  }
+
+  createEntry(data) {
+    return this.request("/api/entries", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  ai(path, data) {
+    return this.request(`/api/ai/${path}`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  getOnboardingProfile() {
+    return this.request("/api/onboarding");
+  }
+
+  saveOnboardingProfile(data) {
+    return this.request("/api/onboarding", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  getMySubscription() {
+    return this.request("/api/subscription/me");
+  }
+
+  upgradeSubscription(tier) {
+    return this.request("/api/subscription/upgrade", {
       method: "POST",
       body: JSON.stringify({ tier }),
-    }),
-  // Action Plans
-  createActionPlan: (data) =>
-    request("/api/action-plans", {
+    });
+  }
+
+  createActionPlan(data) {
+    return this.request("/api/action-plans", {
       method: "POST",
       body: JSON.stringify(data),
-    }),
-  getLatestActionPlan: (pillarId) =>
-    request(`/api/action-plans/${pillarId}`, { method: "GET" }),
-  // Pillar check-ins
-  createPillarCheckIn: (data) =>
-    request("/api/pillars/check-in", {
+    });
+  }
+
+  getLatestActionPlan(pillarId) {
+    return this.request(`/api/action-plans/${pillarId}`);
+  }
+
+  createPillarCheckIn(data) {
+    return this.request("/api/pillars/check-in", {
       method: "POST",
       body: JSON.stringify(data),
-    }),
-  getPillarHistory: (pillarId) =>
-    request(`/api/pillars/${pillarId}/history`, { method: "GET" }),
-  // Friends
-  sendFriendRequest: (data) =>
-    request("/api/friends/request", {
+    });
+  }
+
+  getPillarHistory(pillarId) {
+    return this.request(`/api/pillars/${pillarId}/history`);
+  }
+
+  sendFriendRequest(data) {
+    return this.request("/api/friends/request", {
       method: "POST",
       body: JSON.stringify(data),
-    }),
-  acceptFriendRequest: (data) =>
-    request("/api/friends/accept", {
+    });
+  }
+
+  acceptFriendRequest(data) {
+    return this.request("/api/friends/accept", {
       method: "POST",
       body: JSON.stringify(data),
-    }),
-  listFriends: () => request("/api/friends", { method: "GET" }),
-  listPendingFriendRequests: () =>
-    request("/api/friends/pending", { method: "GET" }),
-  // Leaderboards
-  getLeaderboard: (pillarId) =>
-    request(`/api/friends/leaderboard/${pillarId}`, { method: "GET" }),
-  getOverallLeaderboard: () =>
-    request("/api/friends/leaderboard/overall", { method: "GET" }),
-  // Weekly report
-  getWeeklyReport: () => request("/api/ai/weekly-report", { method: "GET" }),
-  // Challenges
-  createChallenge: (data) =>
-    request("/api/challenges", { method: "POST", body: JSON.stringify(data) }),
-  joinChallenge: (challengeId) =>
-    request("/api/challenges/join", {
+    });
+  }
+
+  listFriends() {
+    return this.request("/api/friends");
+  }
+
+  listPendingFriendRequests() {
+    return this.request("/api/friends/pending");
+  }
+
+  getLeaderboard(pillarId) {
+    return this.request(`/api/friends/leaderboard/${pillarId}`);
+  }
+
+  getOverallLeaderboard() {
+    return this.request("/api/friends/leaderboard/overall");
+  }
+
+  getWeeklyReport() {
+    return this.request("/api/ai/weekly-report");
+  }
+
+  createChallenge(data) {
+    return this.request("/api/challenges", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  joinChallenge(challengeId) {
+    return this.request("/api/challenges/join", {
       method: "POST",
       body: JSON.stringify({ challengeId }),
-    }),
-  getMyChallenges: () => request("/api/challenges/my", { method: "GET" }),
-  // Messaging
-  sendMessage: (data) =>
-    request("/api/messages/send", {
+    });
+  }
+
+  getMyChallenges() {
+    return this.request("/api/challenges/my");
+  }
+
+  sendMessage(data) {
+    return this.request("/api/messages/send", {
       method: "POST",
       body: JSON.stringify(data),
-    }),
-  getConversation: (friendId) =>
-    request(`/api/messages/${friendId}`, { method: "GET" }),
-  // Notifications
-  getNotifications: () => request("/api/notifications", { method: "GET" }),
-  markNotificationsRead: (body) =>
-    request("/api/notifications/mark-read", {
+    });
+  }
+
+  getConversation(friendId) {
+    return this.request(`/api/messages/${friendId}`);
+  }
+
+  getNotifications() {
+    return this.request("/api/notifications");
+  }
+
+  markNotificationsRead(body) {
+    return this.request("/api/notifications/mark-read", {
       method: "POST",
       body: JSON.stringify(body),
-    }),
-  // Timeline
-  getTimeline: () => request("/api/timeline", { method: "GET" }),
-  // GDPR: export & delete
-  exportUserData: () => request("/api/user/export", { method: "GET" }),
-  deleteAccount: () => request("/api/user/delete-account", { method: "POST" }),
-};
+    });
+  }
 
+  getTimeline() {
+    return this.request("/api/timeline");
+  }
+
+  exportUserData() {
+    return this.request("/api/user/export");
+  }
+
+  deleteAccount() {
+    return this.request("/api/user/delete-account", {
+      method: "POST",
+    });
+  }
+}
+
+export const api = new APIClient();
 export default api;

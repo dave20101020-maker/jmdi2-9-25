@@ -4,9 +4,7 @@ import MainLayout from "./components/Layout/MainLayout";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import ForgotPassword from "./pages/auth/ForgotPassword";
-import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import ErrorBoundary from "./components/ErrorBoundary";
 import ConsentBanner from "./components/ConsentBanner";
 import { useConsent } from "@/hooks/useConsent";
 import "./App.css";
@@ -213,18 +211,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <div className="ns-app-surface">
-            <StarfieldBackground />
-            <div className="ns-app-surface__content">
-              <AppContent />
-              <SonnerToaster position="top-right" richColors closeButton />
-            </div>
-          </div>
-        </AuthProvider>
-      </BrowserRouter>
-    </ErrorBoundary>
+    <BrowserRouter>
+      <div className="ns-app-surface">
+        <StarfieldBackground />
+        <div className="ns-app-surface__content">
+          <AppContent />
+          <SonnerToaster position="top-right" richColors closeButton />
+        </div>
+      </div>
+    </BrowserRouter>
   );
 }
