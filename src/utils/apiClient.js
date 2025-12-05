@@ -1,40 +1,71 @@
 /**
  * Custom Backend API Client
- * Replaces Base44 SDK with custom backend endpoints
+ * Replaces the legacy SDK with direct backend endpoints
  */
 
-const configuredBackendUrl = (
-  import.meta.env.VITE_BACKEND_URL ||
-  import.meta.env.VITE_API_URL ||
-  ""
-).trim();
-const normalizedBackendUrl = configuredBackendUrl
-  ? configuredBackendUrl.replace(/\/$/, "")
-  : "";
-const runtimeOrigin =
-  typeof window !== "undefined" && window.location?.origin
-    ? window.location.origin.replace(/\/$/, "")
-    : "";
+const API_PREFIX = "/api";
 
-const API_BASE_URL = normalizedBackendUrl
-  ? `${normalizedBackendUrl}/api`
-  : runtimeOrigin
-  ? `${runtimeOrigin}/api`
+const rawBackendUrl = import.meta.env.VITE_BACKEND_URL
+  ? String(import.meta.env.VITE_BACKEND_URL).trim()
   : "";
+const fallbackHint =
+  (import.meta.env.VITE_API_URL || "").trim() ||
+  (typeof window !== "undefined" && window.location?.origin
+    ? window.location.origin
+    : "");
 
-if (!normalizedBackendUrl) {
-  console.warn(
-    "[apiClient] VITE_BACKEND_URL is not defined. Set it in src/.env.development so the frontend can reach the backend."
+if (!rawBackendUrl) {
+  if (fallbackHint) {
+    console.error(
+      `[apiClient] Missing VITE_BACKEND_URL. A fallback host was detected (${fallbackHint}) but will not be used.`
+    );
+  } else {
+    console.error(
+      "[apiClient] Missing VITE_BACKEND_URL and no fallback host is available."
+    );
+  }
+  throw new Error(
+    "VITE_BACKEND_URL is required for API calls. Update src/.env.development with your backend origin."
   );
 }
 
+const BASE_BACKEND_URL = rawBackendUrl.replace(/\/$/, "");
+
+if (
+  import.meta.env.VITE_API_URL &&
+  import.meta.env.VITE_API_URL !== rawBackendUrl
+) {
+  console.info(
+    `[apiClient] Using VITE_BACKEND_URL (${BASE_BACKEND_URL}) and ignoring legacy VITE_API_URL.`
+  );
+}
+
+const normalizeEndpoint = (endpoint = "") => {
+  if (!endpoint) return API_PREFIX;
+  const hasLeadingSlash = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  if (
+    hasLeadingSlash === API_PREFIX ||
+    hasLeadingSlash.startsWith(`${API_PREFIX}/`)
+  ) {
+    return hasLeadingSlash;
+  }
+  return `${API_PREFIX}${hasLeadingSlash}`;
+};
+
 class APIClient {
-  constructor(baseUrl = API_BASE_URL) {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl = BASE_BACKEND_URL) {
+    if (!baseUrl) {
+      throw new Error("[apiClient] A base URL must be provided.");
+    }
+    this.baseUrl = baseUrl.replace(/\/$/, "");
   }
 
   async request(endpoint, options = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
+    if (!this.baseUrl) {
+      throw new Error("[apiClient] Base URL is not configured.");
+    }
+    const path = normalizeEndpoint(endpoint);
+    const url = `${this.baseUrl}${path}`;
     const headers = {
       "Content-Type": "application/json",
       ...options.headers,

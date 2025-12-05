@@ -21,17 +21,24 @@ const resolvedHmrHost = isCodespacesTarget
   : "localhost";
 const resolvedHmrProtocol = isCodespacesTarget ? "wss" : "ws";
 const resolvedHmrPort = isCodespacesTarget ? 443 : devPort;
+const resolvedHmrClientPort = isCodespacesTarget ? 443 : devPort;
+
+const hmrConfig = {
+  protocol: resolvedHmrProtocol,
+  clientPort: resolvedHmrClientPort,
+};
+
+if (!isCodespacesTarget) {
+  hmrConfig.host = resolvedHmrHost;
+  hmrConfig.port = devPort;
+}
 
 const serverConfig = {
   host: true,
   port: devPort,
   strictPort: true,
   proxy: {},
-  hmr: {
-    protocol: resolvedHmrProtocol,
-    host: resolvedHmrHost,
-    port: resolvedHmrPort,
-  },
+  hmr: hmrConfig,
 };
 
 // https://vite.dev/config/

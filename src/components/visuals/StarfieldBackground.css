@@ -1,46 +1,67 @@
-body.ns-starfield-enabled::before {
-  content: "";
-  position: fixed;
+.ns-starfield {
+  position: absolute;
   inset: 0;
-  z-index: -1;
   pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.ns-starfield__gradient,
+.ns-starfield__stars {
+  position: absolute;
+  inset: 0;
+  transform: translateZ(0);
+}
+
+.ns-starfield__gradient {
+  background: var(--ns-gradient-galaxy);
+  background-size: 120% 120%;
+  filter: drop-shadow(0 0 35px rgba(15, 23, 42, 0.45));
+  animation: ns-starfield-pan 55s linear infinite;
+}
+
+.ns-starfield__stars {
   background-image: radial-gradient(
-      circle at 20% 15%,
-      rgba(250, 204, 21, 0.15),
-      transparent 45%
+      1px 1px at 12% 32%,
+      rgba(255, 255, 255, 0.5),
+      transparent
     ),
-    radial-gradient(circle at 80% 5%, rgba(59, 130, 246, 0.22), transparent 50%),
-    radial-gradient(
-      circle at 50% 120%,
-      rgba(14, 165, 233, 0.18),
-      transparent 55%
-    ),
-    radial-gradient(1px 1px at 12% 32%, rgba(255, 255, 255, 0.5), transparent),
     radial-gradient(1px 1px at 42% 64%, rgba(255, 255, 255, 0.35), transparent),
-    radial-gradient(2px 2px at 78% 44%, rgba(255, 255, 255, 0.25), transparent),
-    linear-gradient(135deg, #020617 0%, #0b1436 45%, #0f172a 100%);
-  background-size: 140% 140%, 160% 160%, 180% 180%, 100% 100%;
-  mix-blend-mode: screen;
-  filter: drop-shadow(0 0 35px rgba(15, 23, 42, 0.55));
-  animation: ns-starfield-pan 65s linear infinite;
-  opacity: 0.95;
+    radial-gradient(2px 2px at 78% 44%, rgba(255, 255, 255, 0.25), transparent);
+  background-size: 320px 320px, 420px 420px, 520px 520px;
+  opacity: 0.55;
+  animation: ns-starfield-twinkle 12s ease-in-out infinite;
 }
 
 @keyframes ns-starfield-pan {
   0% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: scale(1) translate3d(0, 0, 0);
   }
   50% {
-    transform: translate3d(-2%, -3%, 0) scale(1.02);
+    transform: scale(1.01) translate3d(-1.5%, -2.5%, 0);
   }
   100% {
-    transform: translate3d(-4%, -6%, 0) scale(1.04);
+    transform: scale(1.02) translate3d(-3%, -5%, 0);
+  }
+}
+
+@keyframes ns-starfield-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.65;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body.ns-starfield-enabled::before {
+  .ns-starfield__gradient,
+  .ns-starfield__stars {
     animation: none;
-    opacity: 0.45;
+  }
+  .ns-starfield__stars {
+    opacity: 0.4;
   }
 }

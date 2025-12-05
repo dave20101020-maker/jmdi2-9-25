@@ -1,0 +1,204 @@
+.ns-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ns-input__control {
+  --ns-input-bg: rgba(6, 11, 28, 0.85);
+  --ns-input-border: rgba(255, 255, 255, 0.12);
+  --ns-input-shadow: 0 24px 42px rgba(2, 6, 23, 0.45);
+  --ns-input-padding-y: 1.05rem;
+  --ns-input-padding-x: 1.35rem;
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 1.2rem;
+  border: 1px solid var(--ns-input-border);
+  background: var(--ns-input-bg);
+  padding: var(--ns-input-padding-y) var(--ns-input-padding-x) 0.6rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease,
+    background 0.25s ease, transform 0.2s ease;
+  backdrop-filter: blur(28px);
+  box-shadow: var(--ns-input-shadow);
+}
+
+.ns-input__control[data-left-icon] {
+  padding-left: calc(var(--ns-input-padding-x) + 1.75rem);
+}
+
+.ns-input__control[data-right-icon] {
+  padding-right: calc(var(--ns-input-padding-x) + 1.75rem);
+}
+
+.ns-input__control:hover {
+  transform: translateY(-1px);
+}
+
+.ns-input__control:focus-within {
+  --ns-input-border: rgba(250, 204, 21, 0.75);
+  background: rgba(10, 18, 45, 0.94);
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.3),
+    0 14px 32px rgba(15, 23, 42, 0.55);
+}
+
+.ns-input__control[data-error] {
+  --ns-input-border: rgba(248, 113, 113, 0.85);
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.35),
+    0 16px 32px rgba(248, 113, 113, 0.2);
+}
+
+.ns-input__control[data-disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ns-input__control[data-variant="contrast"] {
+  --ns-input-bg: rgba(12, 16, 36, 0.95);
+  --ns-input-border: rgba(255, 255, 255, 0.2);
+}
+
+.ns-input__control[data-variant="subtle"] {
+  --ns-input-bg: rgba(255, 255, 255, 0.04);
+  --ns-input-border: rgba(255, 255, 255, 0.12);
+}
+
+.ns-input__control[data-size="sm"] {
+  --ns-input-padding-y: 0.8rem;
+  --ns-input-padding-x: 1.1rem;
+  border-radius: 1rem;
+}
+
+.ns-input__control[data-size="lg"] {
+  --ns-input-padding-y: 1.25rem;
+  --ns-input-padding-x: 1.5rem;
+  border-radius: 1.35rem;
+}
+
+.ns-input__input {
+  flex: 1;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--ns-color-foreground, #f8fafc);
+  font-size: 1rem;
+  font-family: var(--ns-font-family, "Inter", system-ui);
+  padding: 0;
+  height: 2rem;
+  caret-color: var(--ns-color-primary, #facc15);
+}
+
+.ns-input__input:focus {
+  outline: none;
+}
+
+.ns-input__input::placeholder {
+  color: rgba(226, 232, 240, 0.45);
+}
+
+.ns-input__icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(226, 232, 240, 0.6);
+  display: inline-flex;
+  pointer-events: none;
+  font-size: 1rem;
+}
+
+.ns-input__icon--left {
+  left: 1.1rem;
+}
+
+.ns-input__icon--right {
+  right: 1.1rem;
+}
+
+.ns-input__label {
+  position: absolute;
+  left: 1.2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.92rem;
+  color: rgba(226, 232, 240, 0.7);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+  transition: transform 0.18s ease, color 0.18s ease, font-size 0.18s ease;
+}
+
+.ns-input__control[data-left-icon] .ns-input__label {
+  left: 3rem;
+}
+
+.ns-input__control[data-filled] .ns-input__label,
+.ns-input__control:focus-within .ns-input__label {
+  transform: translateY(-155%) scale(0.86);
+  color: rgba(250, 204, 21, 0.92);
+}
+
+.ns-input__required {
+  margin-left: 0.2rem;
+  color: rgba(250, 204, 21, 0.85);
+}
+
+.ns-input__spinner {
+  position: absolute;
+  right: 1.1rem;
+  top: 50%;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: rgba(255, 255, 255, 0.8);
+  animation: ns-input-spin 0.9s linear infinite;
+  transform: translateY(-50%);
+}
+
+.ns-input__control[data-right-icon] .ns-input__spinner {
+  right: 2.4rem;
+}
+
+.ns-input__description {
+  font-size: 0.85rem;
+  color: rgba(226, 232, 240, 0.75);
+  margin: 0;
+}
+
+.ns-input__error {
+  font-size: 0.85rem;
+  color: #fecaca;
+  margin: 0;
+}
+
+@keyframes ns-input-spin {
+  to {
+    transform: translateY(-50%) rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .ns-input__control {
+    --ns-input-padding-y: 0.9rem;
+    --ns-input-padding-x: 1rem;
+  }
+
+  .ns-input__control[data-left-icon] {
+    padding-left: 2.6rem;
+  }
+
+  .ns-input__label {
+    font-size: 0.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ns-input__control,
+  .ns-input__label,
+  .ns-input__spinner {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

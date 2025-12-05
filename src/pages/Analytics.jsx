@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import NSButton from "@/components/ui/NSButton";
-import InputField from "@/components/ui/InputField";
+import NSInput from "@/components/ui/NSInput";
 import AIThinkingOverlay from "@/ai/AIThinkingOverlay";
 import HelpTooltip from "@/components/shared/HelpTooltip";
 import { toast } from "sonner";
@@ -381,6 +381,7 @@ function ScatterPlotModal({ correlation, onClose, entries }) {
         <NSButton
           fullWidth
           variant="secondary"
+          size="lg"
           className="mt-4"
           onClick={onClose}
         >
@@ -858,7 +859,7 @@ export default function Analytics() {
             <div className="ns-data-panel mb-4 animate-in slide-in-from-top duration-200">
               <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
                 <div className="flex-1 w-full">
-                  <InputField
+                  <NSInput
                     id="custom-start-date"
                     label={
                       <span className="flex items-center gap-2">
@@ -874,11 +875,12 @@ export default function Analytics() {
                     onChange={(e) => setCustomStartDate(e.target.value)}
                     max={customEndDate || format(new Date(), "yyyy-MM-dd")}
                     className="w-full"
+                    variant="subtle"
                   />
                 </div>
 
                 <div className="flex-1 w-full">
-                  <InputField
+                  <NSInput
                     id="custom-end-date"
                     label="End Date"
                     type="date"
@@ -887,6 +889,7 @@ export default function Analytics() {
                     min={customStartDate}
                     max={format(new Date(), "yyyy-MM-dd")}
                     className="w-full"
+                    variant="subtle"
                   />
                 </div>
 
@@ -1034,7 +1037,7 @@ export default function Analytics() {
             </div>
             <NSButton
               size="pill"
-              icon={<Plus className="w-4 h-4" aria-hidden="true" />}
+              leadingIcon={<Plus className="w-4 h-4" aria-hidden="true" />}
               aria-label="Add a widget to dashboard"
               onClick={() => setShowAddWidget(true)}
             >

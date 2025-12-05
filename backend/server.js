@@ -31,7 +31,6 @@ const envName = process.env.NODE_ENV || "development";
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || process.env.DATABASE_URL;
 const JWT_SECRET = process.env.JWT_SECRET;
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
 // Validate critical environment variables
 if (!JWT_SECRET && envName === "production") {
@@ -50,20 +49,18 @@ if (!JWT_SECRET) {
 const app = express();
 
 // Middleware
-// Configure CORS to allow localhost and the current Codespaces domain
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://fictional-disco-x5797q7rr56wf9v7-5173.app.github.dev",
-];
-
-const corsOptions = {
-  origin: allowedOrigins,
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-
-app.use(cors(corsOptions));
+app.use(
+  cors({
+    origin: [
+      "https://fictional-disco-x5797q7rr56wf9v7-5173.app.github.dev",
+      "https://*.github.dev",
+      "http://localhost:5173",
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Request logging with Winston
 app.use(morgan("combined", { stream: logger.stream }));
@@ -201,7 +198,9 @@ if (process.env.NODE_ENV !== "test") {
       aiEndpoints: `http://localhost:${PORT}/api/ai`,
       jwtConfigured: !!JWT_SECRET,
       mongoConfigured: !!MONGO_URI,
-      corsOrigin: CLIENT_URL,
+      corsOrigins: allowedOrigins.map((entry) =>
+        typeof entry === "string" ? entry : entry.toString()
+      ),
     });
 
     console.log("\n" + "=".repeat(60));
@@ -215,7 +214,11 @@ if (process.env.NODE_ENV !== "test") {
     console.log(
       `🗄️  MongoDB: ${MONGO_URI ? "✓ Connected" : "✗ Not configured"}`
     );
-    console.log(`🌐 CORS Origin: ${CLIENT_URL}`);
+    console.log(
+      `🌐 CORS Origins: ${allowedOrigins
+        .map((entry) => (typeof entry === "string" ? entry : entry.toString()))
+        .join(", ")}`
+    );
     console.log(`📝 Logs: ./logs/`);
     console.log("=".repeat(60) + "\n");
   });

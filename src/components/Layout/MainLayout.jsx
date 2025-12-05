@@ -91,7 +91,7 @@ export default function MainLayout() {
           <p className="text-sm text-white/60 mb-3">Need to switch accounts?</p>
           <NSButton
             asChild
-            size="sm"
+            size="md"
             variant="outline"
             fullWidth
             className="ns-topnav__link"
@@ -110,7 +110,9 @@ export default function MainLayout() {
             <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-1">
               Mission
             </p>
-            <p className="text-white font-semibold">Design System · Base44</p>
+            <p className="text-white font-semibold">
+              Mission Control · NorthStar
+            </p>
           </div>
           <div className="flex gap-3">
             <NSButton
@@ -129,6 +131,7 @@ export default function MainLayout() {
             <NSButton
               asChild
               size="sm"
+              variant="primary"
               className="ns-topnav__link"
               aria-current={
                 isRouteActive(ROUTES.signUp, { exact: true })

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Mail, Shield } from "lucide-react";
-import InputField from "@/components/ui/InputField";
+import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
@@ -80,18 +80,25 @@ export default function ForgotPassword() {
         )}
 
         <form className="ns-auth-form" onSubmit={handleSubmit}>
-          <InputField
+          <NSInput
             label="Email"
             type="email"
             name="email"
             placeholder="you@northstar.app"
-            icon={<Mail size={16} />}
+            leftIcon={<Mail size={16} />}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
+            variant="contrast"
           />
 
-          <NSButton type="submit" disabled={submitting} fullWidth>
+          <NSButton
+            type="submit"
+            disabled={submitting}
+            loading={submitting}
+            size="lg"
+            fullWidth
+          >
             {submitting ? "Sending link..." : "Send reset link"}
           </NSButton>
         </form>

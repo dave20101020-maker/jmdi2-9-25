@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Chrome, Lock, Mail, Shield, Sparkles } from "lucide-react";
-import InputField from "@/components/ui/InputField";
+import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
@@ -147,9 +147,13 @@ export default function SignIn() {
     }
     if (Object.keys(validationErrors).length > 0) {
       setFieldErrors((prev) => ({ ...prev, ...validationErrors }));
+      const validationMessage = "Please fix the highlighted fields.";
       setStatus({
         type: "error",
-        message: "Please fix the highlighted fields.",
+        message: validationMessage,
+      });
+      toast.error("Sign-in validation failed", {
+        description: validationMessage,
       });
       return;
     }
@@ -167,6 +171,9 @@ export default function SignIn() {
         type: "success",
         message: "Authenticated. Redirecting to your dashboard...",
       });
+      toast.success("Welcome back", {
+        description: "Redirecting you to mission control.",
+      });
       navigate(redirectPath, { replace: true });
     } catch (err) {
       logAuthDebug("sign-in error", {
@@ -177,15 +184,19 @@ export default function SignIn() {
       if (isAuthError(err)) {
         const presentable = getErrorMessage(err);
         setStatus({ type: "error", message: presentable });
+        toast.error("Sign-in failed", { description: presentable });
         const fieldKey = FIELD_ERROR_TARGETS[err.code];
         if (fieldKey) {
           setFieldErrors((prev) => ({ ...prev, [fieldKey]: presentable }));
         }
       } else {
+        const fallbackMessage =
+          "We could not sign you in. Please try again in a moment.";
         setStatus({
           type: "error",
-          message: "We could not sign you in. Please try again in a moment.",
+          message: fallbackMessage,
         });
+        toast.error("Sign-in failed", { description: fallbackMessage });
       }
     } finally {
       setFormSubmitting(false);
@@ -272,7 +283,7 @@ export default function SignIn() {
 
   return (
     <AuthLayout
-      eyebrow="Base44 Access"
+      eyebrow="NorthStar Access"
       title="Command Center Login"
       subtitle="Authenticate to sync your personalized dashboards, AI copilots, and habit loops."
       aside={missionAside}
@@ -295,28 +306,30 @@ export default function SignIn() {
         )}
 
         <form className="ns-auth-form" onSubmit={handleSubmit}>
-          <InputField
+          <NSInput
             label="Email"
             type="email"
             name="email"
             autoComplete="email"
-            icon={<Mail size={16} />}
+            leftIcon={<Mail size={16} />}
             placeholder="commander@northstar.app"
             value={form.email}
             onChange={handleChange("email")}
             required
+            variant="contrast"
             error={fieldErrors.email}
           />
-          <InputField
+          <NSInput
             label="Password"
             type="password"
             name="password"
             autoComplete="current-password"
             placeholder="Enter your access key"
-            icon={<Lock size={16} />}
+            leftIcon={<Lock size={16} />}
             value={form.password}
             onChange={handleChange("password")}
             required
+            variant="contrast"
             error={fieldErrors.password}
           />
 
@@ -332,6 +345,7 @@ export default function SignIn() {
             type="submit"
             disabled={!isFormValid || isBusy}
             loading={formSubmitting}
+            size="lg"
             fullWidth
           >
             Sign in
@@ -346,11 +360,12 @@ export default function SignIn() {
           type="button"
           variant="outline"
           className="ns-google-button"
+          size="lg"
           fullWidth
           onClick={handleGoogle}
           disabled={isBusy}
           loading={oauthSubmitting}
-          icon={<Chrome className="w-4 h-4" />}
+          leadingIcon={<Chrome className="w-4 h-4" />}
         >
           Continue with Google
         </NSButton>

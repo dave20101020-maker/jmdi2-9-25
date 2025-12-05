@@ -1,7 +1,10 @@
 import * as React from "react";
 import PropTypes from "prop-types";
 import { cn } from "@/utils";
-import "./InputField.css";
+import "./NSInput.css";
+
+const VARIANTS = ["default", "contrast", "subtle"];
+const SIZES = ["sm", "md", "lg"];
 
 const hasContent = (value, defaultValue) => {
   const candidate = value ?? defaultValue;
@@ -14,7 +17,7 @@ const hasContent = (value, defaultValue) => {
   return `${candidate}`.trim().length > 0;
 };
 
-const InputField = React.forwardRef(function InputField(
+const NSInput = React.forwardRef(function NSInput(
   {
     label,
     description,
@@ -25,6 +28,10 @@ const InputField = React.forwardRef(function InputField(
     icon,
     className,
     inputClassName,
+    variant = "default",
+    size = "md",
+    loading = false,
+    disabled = false,
     id,
     name,
     required,
@@ -38,8 +45,7 @@ const InputField = React.forwardRef(function InputField(
 ) {
   const generatedId = React.useId();
   const inputId = id || name || generatedId;
-  const resolvedDescription =
-    description ?? hint ?? (label && placeholder ? placeholder : null);
+  const resolvedDescription = description ?? hint ?? null;
   const resolvedLeftIcon = leftIcon ?? icon;
   const descriptionId = resolvedDescription
     ? `${inputId}-description`
@@ -47,6 +53,11 @@ const InputField = React.forwardRef(function InputField(
   const errorId = error ? `${inputId}-error` : undefined;
   const describedBy =
     [descriptionId, errorId].filter(Boolean).join(" ") || undefined;
+
+  const activeVariant = VARIANTS.includes(variant) ? variant : "default";
+  const activeSize = SIZES.includes(size) ? size : "md";
+  const isError = Boolean(error);
+  const isDisabled = Boolean(disabled);
 
   const isControlled = value !== undefined;
   const [isFilled, setIsFilled] = React.useState(() =>
@@ -70,19 +81,21 @@ const InputField = React.forwardRef(function InputField(
   );
 
   return (
-    <div className={cn("input-field", className)} data-error={!!error}>
+    <div className={cn("ns-input", className)}>
       <div
-        className={cn(
-          "input-field__control",
-          error && "input-field__control--error"
-        )}
-        data-filled={isFilled}
-        data-left-icon={!!resolvedLeftIcon}
-        data-right-icon={!!rightIcon}
+        className="ns-input__control"
+        data-variant={activeVariant}
+        data-size={activeSize}
+        data-filled={isFilled || undefined}
+        data-left-icon={resolvedLeftIcon ? "true" : undefined}
+        data-right-icon={rightIcon ? "true" : undefined}
+        data-error={isError || undefined}
+        data-disabled={isDisabled || undefined}
+        data-loading={loading || undefined}
       >
         {resolvedLeftIcon && (
           <span
-            className="input-field__icon input-field__icon--left"
+            className="ns-input__icon ns-input__icon--left"
             aria-hidden="true"
           >
             {resolvedLeftIcon}
@@ -92,30 +105,33 @@ const InputField = React.forwardRef(function InputField(
           id={inputId}
           ref={ref}
           name={name}
-          className={cn("input-field__input", inputClassName)}
-          aria-invalid={error ? true : undefined}
+          className={cn("ns-input__input", inputClassName)}
+          aria-invalid={isError || undefined}
           aria-errormessage={errorId}
           aria-describedby={describedBy}
+          aria-busy={loading || undefined}
           placeholder={placeholder ?? ""}
           value={value}
           defaultValue={defaultValue}
           required={required}
+          disabled={isDisabled}
           onChange={handleChange}
           {...rest}
         />
         {label && (
-          <label className="input-field__label" htmlFor={inputId}>
+          <label className="ns-input__label" htmlFor={inputId}>
             {label}
             {required && (
-              <span className="input-field__required" aria-hidden="true">
+              <span className="ns-input__required" aria-hidden="true">
                 *
               </span>
             )}
           </label>
         )}
-        {rightIcon && (
+        {loading && <span className="ns-input__spinner" aria-hidden="true" />}
+        {rightIcon && !loading && (
           <span
-            className="input-field__icon input-field__icon--right"
+            className="ns-input__icon ns-input__icon--right"
             aria-hidden="true"
           >
             {rightIcon}
@@ -123,13 +139,13 @@ const InputField = React.forwardRef(function InputField(
         )}
       </div>
       {resolvedDescription && (
-        <p className="input-field__description" id={descriptionId}>
+        <p className="ns-input__description" id={descriptionId}>
           {resolvedDescription}
         </p>
       )}
-      {error && (
+      {isError && (
         <p
-          className="input-field__error"
+          className="ns-input__error"
           id={errorId}
           role="alert"
           aria-live="polite"
@@ -141,7 +157,9 @@ const InputField = React.forwardRef(function InputField(
   );
 });
 
-InputField.propTypes = {
+NSInput.displayName = "NSInput";
+
+NSInput.propTypes = {
   label: PropTypes.node,
   description: PropTypes.node,
   hint: PropTypes.node,
@@ -151,6 +169,10 @@ InputField.propTypes = {
   icon: PropTypes.node,
   className: PropTypes.string,
   inputClassName: PropTypes.string,
+  variant: PropTypes.oneOf(VARIANTS),
+  size: PropTypes.oneOf(SIZES),
+  loading: PropTypes.bool,
+  disabled: PropTypes.bool,
   id: PropTypes.string,
   name: PropTypes.string,
   required: PropTypes.bool,
@@ -160,4 +182,4 @@ InputField.propTypes = {
   defaultValue: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
-export default InputField;
+export default NSInput;

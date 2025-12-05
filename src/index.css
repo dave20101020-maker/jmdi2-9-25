@@ -91,15 +91,35 @@ body,
 #root {
   min-height: 100vh;
   margin: 0;
+  background-color: var(--ns-color-background);
 }
 
 body {
   position: relative;
   font-family: var(--ns-font-family);
-  background: var(--ns-gradient-galaxy);
-  background-attachment: fixed;
   color: var(--ns-color-foreground);
   overflow-x: hidden;
+}
+
+#root {
+  isolation: isolate;
+}
+
+.ns-app-surface {
+  position: relative;
+  min-height: 100vh;
+  background-color: var(--ns-color-background);
+  overflow-x: hidden;
+  isolation: isolate;
+}
+
+.ns-app-surface__content {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 a {
@@ -110,6 +130,8 @@ a {
 .ns-shell {
   min-height: 100vh;
   display: flex;
+  width: 100%;
+  max-width: 100vw;
   background: transparent;
 }
 
@@ -119,6 +141,7 @@ a {
   background: rgba(2, 6, 23, 0.85);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(28px);
+  flex-shrink: 0;
 }
 
 .ns-sidebar__logo {
@@ -158,6 +181,8 @@ a {
   display: flex;
   flex-direction: column;
   background: transparent;
+  min-width: 0;
+  width: 100%;
 }
 
 .ns-topbar {
@@ -248,14 +273,32 @@ a {
 .ns-main-panel {
   flex: 1;
   padding: var(--ns-spacing-section) var(--ns-spacing-gutter);
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .ns-shell {
+    flex-direction: column;
+  }
+
+  .ns-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .ns-content {
+    width: 100%;
+  }
 }
 
 .ns-card {
   border-radius: var(--ns-radius-lg);
-  background: var(--ns-card-bg);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: var(--ns-card-shadow);
-  padding: 1.75rem;
+  background: rgba(5, 12, 30, 0.72);
+  border: 1px solid rgba(245, 215, 110, 0.25);
+  box-shadow: 0 40px 80px rgba(1, 3, 15, 0.6);
+  padding: clamp(1.5rem, 2vw, 2.5rem);
   backdrop-filter: blur(24px);
 }
 
@@ -487,17 +530,19 @@ a {
 
 .ns-auth-divider {
   position: relative;
-  margin: 2rem 0;
+  margin: 1.75rem 0;
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.45);
   letter-spacing: 0.25em;
   text-transform: uppercase;
+  font-size: 0.85rem;
 }
 
 .ns-auth-divider span {
   position: relative;
-  padding: 0 0.9rem;
-  background: rgba(2, 6, 23, 0.8);
+  padding: 0 0.75rem;
+  z-index: 1;
+  background: rgba(2, 6, 23, 0.9);
   border-radius: 999px;
 }
 
@@ -506,9 +551,9 @@ a {
   content: "";
   position: absolute;
   top: 50%;
-  width: 40%;
+  width: 45%;
   height: 1px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .ns-auth-divider::before {
@@ -521,16 +566,18 @@ a {
 
 .ns-alert {
   border-radius: var(--ns-radius-md);
-  padding: 0.85rem 1rem;
-  background: rgba(248, 113, 113, 0.12);
-  border: 1px solid rgba(248, 113, 113, 0.35);
+  padding: 0.95rem 1.15rem;
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.4);
   color: rgba(254, 226, 226, 0.95);
   font-size: 0.95rem;
+  margin-bottom: 1.25rem;
+  backdrop-filter: blur(16px);
 }
 
 .ns-alert--success {
   background: rgba(74, 222, 128, 0.12);
-  border-color: rgba(74, 222, 128, 0.4);
+  border-color: rgba(74, 222, 128, 0.45);
   color: rgba(187, 247, 208, 0.95);
 }
 
@@ -615,5 +662,29 @@ a {
     font-optical-sizing: auto;
     font-variation-settings: "wght" 400;
     font-weight: 400;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--ns-font-family);
+    font-weight: var(--ns-heading-weight, 600);
+    letter-spacing: var(--ns-letter-tight, -0.02em);
+    color: var(--ns-color-foreground);
+  }
+
+  p,
+  span,
+  li,
+  button,
+  input,
+  textarea,
+  label {
+    font-family: var(--ns-font-family);
+    font-weight: var(--ns-body-weight, 400);
+    color: inherit;
   }
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Chrome, CheckCircle2, Lock, Mail, UserRound } from "lucide-react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import InputField from "@/components/ui/InputField";
+import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
@@ -213,7 +213,7 @@ export default function SignUp() {
   return (
     <AuthLayout
       eyebrow="Create access"
-      title="Join the Base44 mission"
+      title="Join the NorthStar mission"
       subtitle="Unlock the premium Galaxy Navy cockpit with AI copilots and habit frameworks."
       aside={missionAside}
       footer={
@@ -230,40 +230,43 @@ export default function SignUp() {
         )}
 
         <form className="ns-auth-form" onSubmit={handleSubmit}>
-          <InputField
+          <NSInput
             label="Full name"
             name="fullName"
             placeholder="Lyra Bennett"
-            icon={<UserRound size={16} />}
+            leftIcon={<UserRound size={16} />}
             value={form.fullName}
             onChange={handleChange("fullName")}
             autoComplete="name"
             required
+            variant="contrast"
             error={fieldErrors.fullName}
           />
-          <InputField
+          <NSInput
             label="Email"
             type="email"
             name="email"
             placeholder="pilot@northstar.app"
-            icon={<Mail size={16} />}
+            leftIcon={<Mail size={16} />}
             value={form.email}
             onChange={handleChange("email")}
             autoComplete="email"
             required
+            variant="contrast"
             error={fieldErrors.email}
           />
-          <InputField
+          <NSInput
             label="Password"
             type="password"
             name="password"
             placeholder="Choose a secure key"
-            icon={<Lock size={16} />}
+            leftIcon={<Lock size={16} />}
             value={form.password}
             onChange={handleChange("password")}
             autoComplete="new-password"
             required
             minLength={6}
+            variant="contrast"
             error={fieldErrors.password}
           />
           <div className="ns-auth-actions ns-auth-actions--baseline">
@@ -276,6 +279,7 @@ export default function SignUp() {
             type="submit"
             disabled={!isFormValid || isBusy}
             loading={formSubmitting}
+            size="lg"
             fullWidth
           >
             Create account
@@ -290,11 +294,12 @@ export default function SignUp() {
           type="button"
           variant="outline"
           className="ns-google-button"
+          size="lg"
           fullWidth
           onClick={handleGoogle}
           disabled={isBusy}
           loading={oauthSubmitting}
-          icon={<Chrome className="w-4 h-4" />}
+          leadingIcon={<Chrome className="w-4 h-4" />}
         >
           Continue with Google
         </NSButton>
