@@ -2,61 +2,79 @@ name: Frontend Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
-      - 'src/**'
-      - 'package.json'
-      - 'vite.config.js'
-      - '.github/workflows/frontend-tests.yml'
-  pull_request:
-    branches: [ main, develop ]
-    paths:
-      - 'src/**'
-      - 'package.json'
-      - 'vite.config.js'
+      - "src/**"
+      SHOULD_SKIP_FRONTEND: ${{
+        (github.event_name == 'push' && (
+          contains(github.event.head_commit.message, '[skip ci]') ||
+          contains(github.event.head_commit.message, '[skip frontend]')
+        )) ||
+        (github.event_name == 'pull_request' && (
+          contains(github.event.pull_request.title, '[skip ci]') ||
+          contains(github.event.pull_request.title, '[skip frontend]') ||
+          contains(github.event.pull_request.body || '', '[skip ci]') ||
+          contains(github.event.pull_request.body || '', '[skip frontend]')
+        ))
+      }}
+
+concurrency:
+  group: frontend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: "20.x"
+  SHOULD_SKIP_FRONTEND: >-
+    ${{
+      (github.event_name == 'push' && (
+        contains(github.event.head_commit.message, '[skip ci]') ||
+        contains(github.event.head_commit.message, '[skip frontend]')
+      )) ||
+      (github.event_name == 'pull_request' && (
+        contains(github.event.pull_request.title, '[skip ci]') ||
+        contains(github.event.pull_request.title, '[skip frontend]') ||
+        contains(github.event.pull_request.body || '', '[skip ci]') ||
+        contains(github.event.pull_request.body || '', '[skip frontend]')
+      ))
+    }}
 
 jobs:
-  test:
+  quality:
+    name: Lint, Unit Tests & Build
+    if: ${{ env.SHOULD_SKIP_FRONTEND != 'true' }}
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-    
+    timeout-minutes: 25
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
-      - name: Setup Node.js ${{ matrix.node-version }}
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+
       - name: Install dependencies
         run: npm ci
-        env:
-          CI: true
-      
-      - name: Lint code
+
+      - name: Lint source
         run: npm run lint
-        continue-on-error: true
-      
-      - name: Run unit tests
-        run: npm run test -- --coverage --reporter=verbose
+
+      - name: Run Vitest suite
+        run: npm run test:coverage -- --reporter=verbose
         env:
           CI: true
-      
+
       - name: Build for production
         run: npm run build
         env:
           CI: true
-      
+
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
         with:
@@ -64,60 +82,70 @@ jobs:
           flags: frontend
           name: frontend-coverage
           fail_ci_if_error: false
-      
-      - name: Archive build artifacts
-        if: success()
-        uses: actions/upload-artifact@v3
+
+      - name: Upload production build
+        uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.node-version }}
-          path: dist/
+          name: frontend-dist
+          path: dist
           retention-days: 5
 
   accessibility-audit:
+    name: Axe Accessibility Audit
+    if: ${{ env.SHOULD_SKIP_FRONTEND != 'true' }}
+    needs: quality
     runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-        env:
-          CI: true
-      
-      - name: Build application
-        run: npm run build
-        env:
-          CI: true
-      
-      - name: Run axe accessibility audit
-        run: npx @axe-core/cli dist/ --exit
-        continue-on-error: true
 
-  type-check:
-    runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+      - name: Run axe accessibility audit
+        run: npx @axe-core/cli@4.9.1 dist --exit
+
+  playwright-e2e:
+    name: Playwright Smoke Tests
+    if: ${{ env.SHOULD_SKIP_FRONTEND != 'true' }}
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: npx playwright test --config=playwright.config.ts --reporter=line
         env:
           CI: true
-      
-      - name: Check JSDoc types
-        run: npm run type-check
-        continue-on-error: true

@@ -1,4 +1,5 @@
-7import { PILLARS, getPillarsArray } from "@/utils";
+7
+import { PILLARS, getPillarsArray } from "@/utils";
 
 const DEFAULT_PILLARS = getPillarsArray();
 const ALL_PILLAR_IDS = DEFAULT_PILLARS.map((pillar) => pillar.id);

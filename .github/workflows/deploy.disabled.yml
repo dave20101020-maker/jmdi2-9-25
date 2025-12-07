@@ -7,8 +7,8 @@ on:
       - 'src/**'
       - 'backend/**'
       - 'package.json'
-      - 'Dockerfile'
-      - '.github/workflows/deploy.yml'
+      - 'package-lock.json'
+      - '.github/workflows/deploy.disabled.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -20,51 +20,103 @@ on:
           - staging
           - production
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  NODE_VERSION: '18'
+  NODE_VERSION: '20.x'
+  FRONTEND_ARTIFACT: frontend-dist
+  SHOULD_SKIP_DEPLOY: ${{
+    (github.event_name == 'push' && (
+      contains(github.event.head_commit.message, '[skip ci]') ||
+      contains(github.event.head_commit.message, '[skip deploy]')
+    )) ||
+    (github.event_name == 'workflow_dispatch' && (
+      contains(inputs.environment, 'skip')
+    ))
+  }}
 
 jobs:
-  build:
+  build_frontend:
+    name: Build Frontend (Vite)
+    if: ${{ env.SHOULD_SKIP_DEPLOY != 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          CI: true
+
+      - name: Upload Vite dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FRONTEND_ARTIFACT }}
+          path: dist
+          retention-days: 7
+
+  docker-image:
+    name: Build & Push Docker Image
+    needs: build_frontend
+    if: ${{ env.SHOULD_SKIP_DEPLOY != 'true' && hashFiles('Dockerfile') != '' }}
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
-    
+
     permissions:
       contents: read
       packages: write
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
+
+      - name: Restore Vite dist
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.FRONTEND_ARTIFACT }}
+          path: dist
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
-      
+
       - name: Build and push Docker image
         id: build
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
@@ -73,63 +125,82 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  test-build:
+  verify-app:
+    name: Verify Application
+    needs: build_frontend
+    if: ${{ env.SHOULD_SKIP_DEPLOY != 'true' }}
     runs-on: ubuntu-latest
-    needs: build
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci && cd backend && npm ci
-        env:
-          CI: true
-      
-      - name: Lint
-        run: npm run lint && cd backend && npm run lint
-        continue-on-error: true
-      
-      - name: Build
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Install backend deps
+        run: npm ci
+        working-directory: backend
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build frontend again
         run: npm run build
         env:
           CI: true
 
+      - name: Run backend smoke tests
+        run: npm run test -- --passWithNoTests
+        working-directory: backend
+        env:
+          CI: true
+
   deploy-staging:
+    name: Deploy to Staging
+    needs:
+      - verify-app
+      - docker-image
+    if: >-
+      ${{ env.SHOULD_SKIP_DEPLOY != 'true' &&
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          hashFiles('fly.toml') != '' }}
     runs-on: ubuntu-latest
-    needs: test-build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: staging
       url: https://staging.northstar.app
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Deploy to Fly.io (Staging)
         uses: superfly/flyctl-actions/setup-flyctl@master
-      
+
       - name: Deploy
         run: flyctl deploy --remote-only --build-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_APP: northstar-staging
         continue-on-error: true
-      
+
       - name: Health check
         run: |
           for i in {1..5}; do
             curl -f https://staging.northstar.app/api/health && break || sleep 10
           done
         continue-on-error: true
-      
+
       - name: Notify Slack
         uses: slackapi/slack-github-action@v1.24.0
         with:
@@ -150,19 +221,27 @@ jobs:
         continue-on-error: true
 
   deploy-production:
+    name: Deploy to Production
+    needs:
+      - verify-app
+      - docker-image
+    if: >-
+      ${{ env.SHOULD_SKIP_DEPLOY != 'true' &&
+          github.event_name == 'workflow_dispatch' &&
+          github.ref == 'refs/heads/main' &&
+          hashFiles('fly.toml') != '' }}
     runs-on: ubuntu-latest
-    needs: test-build
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     environment:
       name: production
       url: https://northstar.app
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Create deployment
-        uses: actions/github-script@v6
+        id: deployment
+        uses: actions/github-script@v7
         with:
           script: |
             const deployment = await github.rest.repos.createDeployment({
@@ -174,44 +253,43 @@ jobs:
               auto_merge: false,
               required_contexts: []
             });
-            
             core.setOutput('deployment_id', deployment.data.id);
-      
+
       - name: Deploy to Fly.io (Production)
         uses: superfly/flyctl-actions/setup-flyctl@master
-      
+
       - name: Deploy application
         run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_APP: northstar
-      
+
       - name: Health check
         run: |
           for i in {1..10}; do
             curl -f https://northstar.app/api/health && break || sleep 15
           done
         continue-on-error: true
-      
+
       - name: Run smoke tests
         run: |
           curl -f https://northstar.app/ > /dev/null
           curl -f https://northstar.app/api/health > /dev/null
-      
+
       - name: Update deployment status
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         if: success()
         with:
           script: |
             github.rest.repos.createDeploymentStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              deployment_id: ${{ steps.deploy.outputs.deployment_id }},
+              deployment_id: ${{ steps.deployment.outputs.deployment_id }},
               state: 'success',
               environment_url: 'https://northstar.app',
               description: 'Deployment succeeded'
             });
-      
+
       - name: Notify Slack - Success
         uses: slackapi/slack-github-action@v1.24.0
         with:
@@ -232,21 +310,22 @@ jobs:
         continue-on-error: true
 
   rollback:
-    runs-on: ubuntu-latest
+    name: Rollback Production
     needs: deploy-production
     if: failure()
-    
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Rollback on failure
+      - name: Setup Flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
-      
+
       - name: Rollback to previous release
         run: flyctl releases rollback
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           FLY_APP: northstar
         continue-on-error: true
-      
+
       - name: Notify Slack - Rollback
         uses: slackapi/slack-github-action@v1.24.0
         with:

@@ -1,21 +1,10 @@
-import jwt from "jsonwebtoken";
-import User from "../models/User.js";
 import { logAuditEvent } from "./auditLogger.js";
 import { resolveEntitlements } from "../utils/entitlements.js";
 import { checkSubscription } from "./subscriptionGuard.js";
-
-const ACCESS_TOKEN_SECRET = process.env.JWT_SECRET || "dev_secret_change_me";
-const ACCESS_COOKIE_NAME = process.env.JWT_ACCESS_COOKIE_NAME || "ns_at";
-
-const getTokenFromRequest = (req) => {
-  const cookieToken = req.cookies?.[ACCESS_COOKIE_NAME];
-  if (cookieToken) return cookieToken;
-  const header = req.headers["authorization"];
-  if (header?.startsWith("Bearer ")) {
-    return header.slice(7);
-  }
-  return null;
-};
+import {
+  resolveSessionUser,
+  getTokenFromRequest,
+} from "../utils/sessionTokens.js";
 
 export const authRequired = async (req, res, next) => {
   try {
@@ -32,35 +21,32 @@ export const authRequired = async (req, res, next) => {
         .json({ success: false, error: "Authentication required" });
     }
 
-    let payload;
+    let session;
     try {
-      payload = jwt.verify(token, ACCESS_TOKEN_SECRET);
-    } catch (err) {
+      session = await resolveSessionUser(req);
+    } catch (error) {
       await logAuditEvent({
         action: "route-access",
         req,
         status: "denied",
-        description: "Invalid or expired token",
+        description: error.message || "Invalid session token",
       });
       return res
         .status(401)
         .json({ success: false, error: "Invalid or expired token" });
     }
 
-    const user = await User.findById(payload.sub || payload.id).select(
-      "-passwordHash -refreshTokens"
-    );
-    if (!user) {
+    if (!session?.user) {
       await logAuditEvent({
         action: "route-access",
         req,
         status: "denied",
-        description: "User referenced in token was not found",
-        userId: payload.sub || payload.id || null,
+        description: "Session token did not resolve to a user",
       });
       return res.status(401).json({ success: false, error: "User not found" });
     }
 
+    const user = session.user;
     const entitlements = resolveEntitlements(user);
     user.entitlements = entitlements;
     const subscription = await checkSubscription(user);
@@ -71,8 +57,11 @@ export const authRequired = async (req, res, next) => {
         user.allowedPillars = subscription.allowedPillars;
       }
     }
+
     req.user = user;
     req.entitlements = entitlements;
+    req.sessionPayload = session.payload;
+
     await logAuditEvent({
       action: "route-access",
       req,
@@ -80,7 +69,8 @@ export const authRequired = async (req, res, next) => {
       status: "success",
       description: "Authenticated request granted",
     });
-    next();
+
+    return next();
   } catch (err) {
     console.error("authRequired error", err);
     await logAuditEvent({
@@ -93,28 +83,53 @@ export const authRequired = async (req, res, next) => {
   }
 };
 
-/**
- * Middleware factory to require that the current user has access to a pillar.
- * pillarParamKey: the key in req.params or req.body where the pillar id can be found.
- */
+export const requireRole = (...allowedRoles) => {
+  if (!allowedRoles.length) {
+    throw new Error("requireRole middleware requires at least one role");
+  }
+
+  return async (req, res, next) => {
+    if (!req.user) {
+      await authRequired(req, res, () => {});
+      if (!req.user) return;
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      await logAuditEvent({
+        action: "rbac-denied",
+        req,
+        userId: req.user?._id,
+        status: "denied",
+        description: `Role ${req.user.role} missing required permissions`,
+        metadata: { requiredRoles: allowedRoles },
+      });
+      return res.status(403).json({
+        success: false,
+        error: "Insufficient permissions",
+      });
+    }
+
+    return next();
+  };
+};
+
 export const requirePillarAccess = (pillarParamKey = "pillarId") => {
-  // pillarParamKey may be a string or array of candidate keys
   const keys = Array.isArray(pillarParamKey)
     ? pillarParamKey
     : [pillarParamKey];
   return async (req, res, next) => {
     try {
-      // ensure authRequired has run or run it here
       if (!req.user) {
         await authRequired(req, res, () => {});
-        if (!req.user) return; // authRequired already sent a response
+        if (!req.user) return;
       }
 
-      // try params, body, or query for any of the candidate keys
       let pillarId = null;
       for (const key of keys) {
-        if (!pillarId)
-          pillarId = req.params?.[key] || req.body?.[key] || req.query?.[key];
+        if (!pillarId) {
+          pillarId =
+            req.params?.[key] || req.body?.[key] || req.query?.[key] || null;
+        }
       }
 
       if (!pillarId) {
@@ -136,7 +151,7 @@ export const requirePillarAccess = (pillarParamKey = "pillarId") => {
         });
       }
 
-      next();
+      return next();
     } catch (err) {
       console.error("requirePillarAccess error", err);
       return res.status(500).json({ success: false, error: "Server error" });
@@ -178,7 +193,7 @@ export const requireFeatureAccess = (featureKey) => {
         });
       }
 
-      next();
+      return next();
     } catch (err) {
       console.error("requireFeatureAccess error", err);
       return res.status(500).json({ success: false, error: "Server error" });
@@ -186,7 +201,9 @@ export const requireFeatureAccess = (featureKey) => {
   };
 };
 
-/**
- * Logout handler - clears the authentication cookie
- */
-export default { authRequired, requirePillarAccess, requireFeatureAccess };
+export default {
+  authRequired,
+  requireRole,
+  requirePillarAccess,
+  requireFeatureAccess,
+};

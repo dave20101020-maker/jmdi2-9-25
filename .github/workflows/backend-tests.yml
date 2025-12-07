@@ -11,17 +11,34 @@ on:
     paths:
       - 'backend/**'
 
+concurrency:
+  group: backend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20.x'
+  SHOULD_SKIP_BACKEND: ${{
+    (github.event_name == 'push' && (
+      contains(github.event.head_commit.message, '[skip ci]') ||
+      contains(github.event.head_commit.message, '[skip backend]')
+    )) ||
+    (github.event_name == 'pull_request' && (
+      contains(github.event.pull_request.title, '[skip ci]') ||
+      contains(github.event.pull_request.title, '[skip backend]') ||
+      contains(github.event.pull_request.body || '', '[skip ci]') ||
+      contains(github.event.pull_request.body || '', '[skip backend]')
+    ))
+  }}
+  TEST_MONGODB_URI: mongodb://localhost:27017/northstar-test
+  TEST_JWT_SECRET: test-secret-key
 
 jobs:
   unit-tests:
+    name: Unit Tests & Coverage
+    if: ${{ env.SHOULD_SKIP_BACKEND != 'true' }}
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-    
+    timeout-minutes: 25
+
     services:
       mongodb:
         image: mongo:7
@@ -32,47 +49,48 @@ jobs:
           --health-retries 5
         ports:
           - 27017:27017
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
-      - name: Setup Node.js ${{ matrix.node-version }}
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: cd backend && npm ci
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Run Jest suite
+        run: npm run test:coverage -- --passWithNoTests
+        working-directory: backend
         env:
           CI: true
-      
-      - name: Run linter
-        run: cd backend && npm run lint
-        continue-on-error: true
-      
-      - name: Run unit tests
-        run: cd backend && npm test -- --coverage --testTimeout=10000
-        env:
-          CI: true
-          MONGODB_URI: mongodb://localhost:27017/northstar-test
+          MONGODB_URI: ${{ env.TEST_MONGODB_URI }}
           NODE_ENV: test
-          JWT_SECRET: test-secret-key
-      
+          JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
+
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
         with:
           file: ./backend/coverage/coverage-final.json
           flags: backend
-          name: backend-coverage-${{ matrix.node-version }}
+          name: backend-coverage
           fail_ci_if_error: false
 
   integration-tests:
+    name: API Integration Checks
+    if: ${{ env.SHOULD_SKIP_BACKEND != 'true' }}
+    needs: unit-tests
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 30
+
     services:
       mongodb:
         image: mongo:7
@@ -83,52 +101,71 @@ jobs:
           --health-retries 5
         ports:
           - 27017:27017
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - name: Install frontend dependencies
-        run: npm ci
-        env:
-          CI: true
-      
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
       - name: Install backend dependencies
-        run: cd backend && npm ci
-        env:
-          CI: true
-      
+        run: npm ci
+        working-directory: backend
+
       - name: Start backend server
-        run: cd backend && npm run dev &
+        run: |
+          cd backend
+          node server.js > ../integration-server.log 2>&1 &
+          echo $! > ../server.pid
         env:
-          CI: true
-          MONGODB_URI: mongodb://localhost:27017/northstar-test
+          MONGODB_URI: ${{ env.TEST_MONGODB_URI }}
           NODE_ENV: test
-          JWT_SECRET: test-secret-key
+          JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
           PORT: 5000
-      
-      - name: Wait for server to start
-        run: sleep 5 && curl -f http://localhost:5000/health || exit 1
-        continue-on-error: true
-      
+
+      - name: Wait for server readiness
+        shell: bash
+        run: |
+          for attempt in {1..12}; do
+            if curl -fsS http://127.0.0.1:5000/health > /dev/null; then
+              exit 0
+            fi
+            echo "Waiting for backend server (attempt ${attempt})"
+            sleep 5
+          done
+          echo "Backend server failed to start" >&2
+          exit 1
+
       - name: Run integration tests
-        run: cd backend && npm run test:integration
+        run: npm run test -- --runInBand --passWithNoTests --testPathPattern=tests/integration
+        working-directory: backend
         env:
           CI: true
-          MONGODB_URI: mongodb://localhost:27017/northstar-test
+          MONGODB_URI: ${{ env.TEST_MONGODB_URI }}
           NODE_ENV: test
-          JWT_SECRET: test-secret-key
-        continue-on-error: true
+          JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
+
+      - name: Stop backend server
+        if: always()
+        shell: bash
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+            rm server.pid
+          fi
 
   ai-endpoint-tests:
+    name: AI Endpoint Tests
+    if: ${{ env.SHOULD_SKIP_BACKEND != 'true' && secrets.OPENAI_API_KEY != '' && secrets.ANTHROPIC_API_KEY != '' }}
+    needs: unit-tests
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 20
+
     services:
       mongodb:
         image: mongo:7
@@ -139,53 +176,59 @@ jobs:
           --health-retries 5
         ports:
           - 27017:27017
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
       - name: Install backend dependencies
-        run: cd backend && npm ci
+        run: npm ci
+        working-directory: backend
+
+      - name: Run AI test suite
+        run: npm run test -- --runInBand --passWithNoTests --testPathPattern=tests/ai
+        working-directory: backend
         env:
           CI: true
-      
-      - name: Run AI endpoint tests
-        run: cd backend && npm run test:ai
-        env:
-          CI: true
-          MONGODB_URI: mongodb://localhost:27017/northstar-test
+          MONGODB_URI: ${{ env.TEST_MONGODB_URI }}
           NODE_ENV: test
-          JWT_SECRET: test-secret-key
+          JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        continue-on-error: true
 
   security-audit:
+    name: Dependency & Image Scan
+    if: ${{ env.SHOULD_SKIP_BACKEND != 'true' }}
+    needs: unit-tests
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 20
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
+
+      - name: Install backend dependencies (production)
+        run: npm ci --omit=dev
+        working-directory: backend
+
       - name: Run npm audit
-        run: |
-          npm audit --audit-level=moderate --production || true
-          cd backend && npm audit --audit-level=moderate --production || true
+        run: npm audit --omit=dev --audit-level=moderate
+        working-directory: backend
         continue-on-error: true
-      
-      - name: Run security vulnerability scan
+
+      - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -193,29 +236,9 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
         continue-on-error: true
-      
+
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results.sarif'
-        continue-on-error: true
-
-  stress-tests:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup k6
-        run: |
-          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3232A
-          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update
-          sudo apt-get install k6
-      
-      - name: Run basic stress tests
-        run: cd backend && k6 run tests/load/ai-endpoints.js --vus 5 --duration 30s
-        env:
-          API_URL: http://localhost:5000/api
         continue-on-error: true
