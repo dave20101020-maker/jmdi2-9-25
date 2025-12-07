@@ -1,6 +1,6 @@
 /**
  * Advanced Features API Routes
- * 
+ *
  * Endpoints for:
  * - Dashboard data (habits, scores, trends, insights)
  * - Weekly reviews
@@ -8,16 +8,31 @@
  * - Habit/goal suggestions
  * - Coach escalations
  * - Response tracking and feedback
- * 
+ *
  * File: backend/routes/advancedFeatures.js
  */
 
-import express from 'express';
-import { jwtAuthMiddleware } from '../middleware/jwtAuthMiddleware.js';
-import { generateWeeklyReview, storeWeeklyReview } from '../src/ai/agents/weeklyReviewAgent.js';
-import { generateMicroActions, completeMicroAction } from '../src/ai/agents/microActionsEngine.js';
-import { getSuggestions, acceptSuggestion } from '../src/ai/agents/habitsGoalSuggester.js';
-import { analyzeEscalationNeeds, createEscalation } from '../src/ai/agents/coachEscalationSystem.js';
+import express from "express";
+import {
+  authRequired,
+  requireFeatureAccess,
+} from "../middleware/authMiddleware.js";
+import {
+  generateWeeklyReview,
+  storeWeeklyReview,
+} from "../src/ai/agents/weeklyReviewAgent.js";
+import {
+  generateMicroActions,
+  completeMicroAction,
+} from "../src/ai/agents/microActionsEngine.js";
+import {
+  getSuggestions,
+  acceptSuggestion,
+} from "../src/ai/agents/habitsGoalSuggester.js";
+import {
+  analyzeEscalationNeeds,
+  createEscalation,
+} from "../src/ai/agents/coachEscalationSystem.js";
 import {
   trackResponse,
   recordFeedback,
@@ -25,14 +40,17 @@ import {
   getQualityMetrics,
   getEscalationStats,
   generateQualityReport,
-} from '../src/ai/agents/responseTracking.js';
-import Habit from '../models/Habit.js';
-import PillarScore from '../models/PillarScore.js';
-import Entry from '../models/Entry.js';
-import asyncHandler from '../utils/asyncHandler.js';
+} from "../src/ai/agents/responseTracking.js";
+import Habit from "../models/Habit.js";
+import PillarScore from "../models/PillarScore.js";
+import Entry from "../models/Entry.js";
+import asyncHandler from "../utils/asyncHandler.js";
+import { FEATURE_KEYS } from "../utils/entitlements.js";
 
 const router = express.Router();
-router.use(jwtAuthMiddleware);
+router.use(authRequired);
+
+const getAuthenticatedUserId = (req) => req.user?._id?.toString();
 
 // =============================================================================
 // DASHBOARD ENDPOINTS
@@ -43,9 +61,10 @@ router.use(jwtAuthMiddleware);
  * Get complete dashboard data (habits, scores, trends, insights)
  */
 router.get(
-  '/dashboard',
+  "/dashboard",
+  requireFeatureAccess(FEATURE_KEYS.ADVANCED_DASHBOARD),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
 
     // Get active habits
     const habits = await Habit.find({
@@ -64,7 +83,7 @@ router.get(
 
     const entries = await Entry.find({
       userId,
-      type: 'checkin',
+      type: "checkin",
       createdAt: { $gte: thirtyDaysAgo },
     })
       .sort({ createdAt: 1 })
@@ -73,7 +92,7 @@ router.get(
     // Aggregate trend data by date
     const trendData = {};
     entries.forEach((entry) => {
-      const date = entry.createdAt.toISOString().split('T')[0];
+      const date = entry.createdAt.toISOString().split("T")[0];
       if (!trendData[date]) {
         trendData[date] = {};
       }
@@ -90,7 +109,7 @@ router.get(
     // Get recent AI insights
     const aiInsights = await Entry.find({
       userId,
-      type: 'ai-response',
+      type: "ai-response",
     })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -105,7 +124,8 @@ router.get(
         aiInsights: aiInsights.map((insight) => ({
           _id: insight._id,
           pillar: insight.pillar,
-          content: insight.metadata?.summary || insight.notes || 'AI insight provided',
+          content:
+            insight.metadata?.summary || insight.notes || "AI insight provided",
           createdAt: insight.createdAt,
         })),
       },
@@ -122,9 +142,10 @@ router.get(
  * Generate and retrieve weekly review
  */
 router.get(
-  '/weekly-review',
+  "/weekly-review",
+  requireFeatureAccess(FEATURE_KEYS.WEEKLY_REVIEW),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
 
     const review = await generateWeeklyReview(userId);
 
@@ -143,14 +164,15 @@ router.get(
  * Get history of weekly reviews
  */
 router.get(
-  '/weekly-reviews/history',
+  "/weekly-reviews/history",
+  requireFeatureAccess(FEATURE_KEYS.WEEKLY_REVIEW),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
     const limit = req.query.limit || 10;
 
     const reviews = await Entry.find({
       userId,
-      type: 'weekly-review',
+      type: "weekly-review",
     })
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
@@ -173,7 +195,8 @@ router.get(
  * Get micro-actions for a pillar
  */
 router.get(
-  '/micro-actions/:pillar',
+  "/micro-actions/:pillar",
+  requireFeatureAccess(FEATURE_KEYS.MICRO_ACTIONS),
   asyncHandler(async (req, res) => {
     const { pillar } = req.params;
 
@@ -188,9 +211,10 @@ router.get(
  * Mark a micro-action as completed
  */
 router.post(
-  '/micro-actions/:pillar/complete/:actionId',
+  "/micro-actions/:pillar/complete/:actionId",
+  requireFeatureAccess(FEATURE_KEYS.MICRO_ACTIONS),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
     const { pillar, actionId } = req.params;
 
     const result = await completeMicroAction(userId, actionId, pillar);
@@ -208,9 +232,10 @@ router.post(
  * Get personalized habit/goal suggestions
  */
 router.get(
-  '/suggestions',
+  "/suggestions",
+  requireFeatureAccess(FEATURE_KEYS.SUGGESTIONS),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
     const limit = req.query.limit || 5;
 
     const result = await getSuggestions(userId, parseInt(limit));
@@ -224,9 +249,10 @@ router.get(
  * Accept a suggestion and create habit from it
  */
 router.post(
-  '/suggestions/:suggestionId/accept',
+  "/suggestions/:suggestionId/accept",
+  requireFeatureAccess(FEATURE_KEYS.SUGGESTIONS),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
     const { suggestionId } = req.params;
     const { suggestion } = req.body;
 
@@ -245,7 +271,8 @@ router.post(
  * Analyze if user message needs escalation
  */
 router.post(
-  '/analyze-escalation',
+  "/analyze-escalation",
+  requireFeatureAccess(FEATURE_KEYS.ESCALATIONS),
   asyncHandler(async (req, res) => {
     const { message, messageHistory } = req.body;
 
@@ -263,9 +290,10 @@ router.post(
  * Create escalation and notify coaches
  */
 router.post(
-  '/escalate',
+  "/escalate",
+  requireFeatureAccess(FEATURE_KEYS.ESCALATIONS),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
     const { escalation, userMessage } = req.body;
 
     const result = await createEscalation(userId, escalation, userMessage);
@@ -283,9 +311,10 @@ router.post(
  * Track an AI response
  */
 router.post(
-  '/track-response',
+  "/track-response",
+  requireFeatureAccess(FEATURE_KEYS.RESPONSE_TRACKING),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
     const { pillar, response } = req.body;
 
     // Calculate confidence score
@@ -309,9 +338,10 @@ router.post(
  * Body: { feedback: "HELPFUL|SOMEWHAT_HELPFUL|NEUTRAL|NOT_HELPFUL|CONFUSED", comment?: "..." }
  */
 router.post(
-  '/feedback/:trackingId',
+  "/feedback/:trackingId",
+  requireFeatureAccess(FEATURE_KEYS.RESPONSE_TRACKING),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
     const { trackingId } = req.params;
     const { feedback, comment } = req.body;
 
@@ -327,12 +357,17 @@ router.post(
  * Query: ?pillar=sleep&days=30
  */
 router.get(
-  '/quality-metrics',
+  "/quality-metrics",
+  requireFeatureAccess(FEATURE_KEYS.QUALITY_REPORTS),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
     const { pillar, days } = req.query;
 
-    const result = await getQualityMetrics(userId, pillar, parseInt(days) || 30);
+    const result = await getQualityMetrics(
+      userId,
+      pillar,
+      parseInt(days) || 30
+    );
 
     res.json(result);
   })
@@ -344,9 +379,10 @@ router.get(
  * Query: ?days=30
  */
 router.get(
-  '/escalation-stats',
+  "/escalation-stats",
+  requireFeatureAccess(FEATURE_KEYS.ESCALATIONS),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
     const { days } = req.query;
 
     const result = await getEscalationStats(userId, parseInt(days) || 30);
@@ -361,9 +397,10 @@ router.get(
  * Query: ?days=30
  */
 router.get(
-  '/quality-report',
+  "/quality-report",
+  requireFeatureAccess(FEATURE_KEYS.QUALITY_REPORTS),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
     const { days } = req.query;
 
     const result = await generateQualityReport(userId, parseInt(days) || 30);
@@ -381,9 +418,10 @@ router.get(
  * Get complete wellness snapshot (dashboard + suggestions + metrics)
  */
 router.get(
-  '/wellness-snapshot',
+  "/wellness-snapshot",
+  requireFeatureAccess(FEATURE_KEYS.WELLNESS_SNAPSHOT),
   asyncHandler(async (req, res) => {
-    const userId = req.userId;
+    const userId = getAuthenticatedUserId(req);
 
     // Parallel requests
     const [dashboard, suggestions, qualityReport] = await Promise.all([

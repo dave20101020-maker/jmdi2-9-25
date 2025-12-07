@@ -1,20 +1,26 @@
-import User from '../models/User.js';
-import OnboardingProfile from '../models/OnboardingProfile.js';
-import PillarScore from '../models/PillarScore.js';
-import ActionPlan from '../models/ActionPlan.js';
-import Message from '../models/Message.js';
-import Challenge from '../models/Challenge.js';
-import Friend from '../models/Friend.js';
-import PillarCheckIn from '../models/PillarCheckIn.js';
-import Notification from '../models/Notification.js';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import User from "../models/User.js";
+import OnboardingProfile from "../models/OnboardingProfile.js";
+import PillarScore from "../models/PillarScore.js";
+import ActionPlan from "../models/ActionPlan.js";
+import Message from "../models/Message.js";
+import Challenge from "../models/Challenge.js";
+import Friend from "../models/Friend.js";
+import PillarCheckIn from "../models/PillarCheckIn.js";
+import Notification from "../models/Notification.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { logAuditEvent } from "../middleware/auditLogger.js";
+import {
+  getAllowedPillarsForTier,
+  mapTierToLegacy,
+  normalizeTier,
+} from "../utils/subscriptionAccess.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
-const COOKIE_NAME = process.env.JWT_COOKIE_NAME || 'ns_token';
-const COOKIE_SECURE = process.env.NODE_ENV === 'production';
+const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_change_me";
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+const COOKIE_NAME = process.env.JWT_COOKIE_NAME || "ns_token";
+const COOKIE_SECURE = process.env.NODE_ENV === "production";
 
 function createToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -24,9 +30,9 @@ function setTokenCookie(res, token) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: COOKIE_SECURE,
-    sameSite: COOKIE_SECURE ? 'strict' : 'lax',
+    sameSite: COOKIE_SECURE ? "strict" : "lax",
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-    path: '/',
+    path: "/",
   });
 }
 
@@ -34,41 +40,47 @@ function setTokenCookie(res, token) {
 export const register = async (req, res) => {
   try {
     const { name, username, email, password, subscriptionTier } = req.body;
-    
+
     if (!username || !email || !password) {
-      return res.status(400).json({ error: 'username, email and password are required' });
+      return res
+        .status(400)
+        .json({ error: "username, email and password are required" });
     }
 
     // Password strength check
     if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 8 characters" });
     }
 
     // Check uniqueness
-    const existing = await User.findOne({ $or: [{ email: email.toLowerCase() }, { username }] });
+    const existing = await User.findOne({
+      $or: [{ email: email.toLowerCase() }, { username }],
+    });
     if (existing) {
-      return res.status(409).json({ error: 'User with that email or username already exists' });
+      return res
+        .status(409)
+        .json({ error: "User with that email or username already exists" });
     }
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Determine allowed pillars based on subscription tier
-    const ALL_PILLARS = ['sleep','diet','exercise','physical_health','mental_health','finances','social','spirituality'];
-    const tier = subscriptionTier && ['free','basic','premium','nhs_referred'].includes(subscriptionTier) ? subscriptionTier : 'free';
-
-    let allowedPillars = [];
-    if (tier === 'free') {
-      allowedPillars = ['sleep','mental_health'];
-    } else if (tier === 'basic') {
-      allowedPillars = ALL_PILLARS.slice(0,4);
-    } else if (tier === 'premium' || tier === 'nhs_referred') {
-      allowedPillars = ALL_PILLARS.slice();
-    }
+    const normalizedTier = normalizeTier(subscriptionTier || "free");
+    const allowedPillars = getAllowedPillarsForTier(normalizedTier);
+    const legacyTier = mapTierToLegacy(normalizedTier);
+    const subscriptionState = {
+      tier: normalizedTier,
+      status: "active",
+      startedAt: new Date(),
+      trialUsed: false,
+      source: "self",
+    };
 
     // Generate verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Create user
@@ -77,11 +89,12 @@ export const register = async (req, res) => {
       username,
       email: email.toLowerCase(),
       passwordHash,
-      subscriptionTier: tier,
+      subscriptionTier: legacyTier,
+      subscription: subscriptionState,
       allowedPillars,
       verificationToken,
       verificationTokenExpires,
-      emailVerified: false
+      emailVerified: false,
     });
 
     await user.save();
@@ -102,13 +115,14 @@ export const register = async (req, res) => {
         email: user.email,
         subscriptionTier: user.subscriptionTier,
         allowedPillars: user.allowedPillars,
-        emailVerified: user.emailVerified
+        emailVerified: user.emailVerified,
       },
-      message: 'User registered successfully. Please check your email to verify your account.'
+      message:
+        "User registered successfully. Please check your email to verify your account.",
     });
   } catch (err) {
-    console.error('register error', err);
-    return res.status(500).json({ error: 'Server error during registration' });
+    console.error("register error", err);
+    return res.status(500).json({ error: "Server error during registration" });
   }
 };
 
@@ -116,32 +130,36 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { emailOrUsername, password } = req.body;
-    
+
     if (!emailOrUsername || !password) {
-      return res.status(400).json({ error: 'emailOrUsername and password required' });
+      return res
+        .status(400)
+        .json({ error: "emailOrUsername and password required" });
     }
 
     // Find user by email or username
     const user = await User.findOne({
       $or: [
         { email: emailOrUsername.toLowerCase() },
-        { username: emailOrUsername }
-      ]
+        { username: emailOrUsername },
+      ],
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
     // Check if account is active
     if (!user.isActive) {
-      return res.status(403).json({ error: 'Account is deactivated. Please contact support.' });
+      return res
+        .status(403)
+        .json({ error: "Account is deactivated. Please contact support." });
     }
 
     // Verify password
     const matches = await bcrypt.compare(password, user.passwordHash);
     if (!matches) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
     // Update last login
@@ -162,12 +180,12 @@ export const login = async (req, res) => {
         subscriptionTier: user.subscriptionTier,
         allowedPillars: user.allowedPillars,
         emailVerified: user.emailVerified,
-        settings: user.settings
-      }
+        settings: user.settings,
+      },
     });
   } catch (err) {
-    console.error('login error', err);
-    return res.status(500).json({ error: 'Server error during login' });
+    console.error("login error", err);
+    return res.status(500).json({ error: "Server error during login" });
   }
 };
 
@@ -175,19 +193,21 @@ export const login = async (req, res) => {
 export const verifyEmail = async (req, res) => {
   try {
     const { token } = req.body;
-    
+
     if (!token) {
-      return res.status(400).json({ error: 'Verification token is required' });
+      return res.status(400).json({ error: "Verification token is required" });
     }
 
     // Find user with valid token
     const user = await User.findOne({
       verificationToken: token,
-      verificationTokenExpires: { $gt: Date.now() }
+      verificationTokenExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({ error: 'Invalid or expired verification token' });
+      return res
+        .status(400)
+        .json({ error: "Invalid or expired verification token" });
     }
 
     // Mark email as verified
@@ -198,11 +218,11 @@ export const verifyEmail = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Email verified successfully'
+      message: "Email verified successfully",
     });
   } catch (err) {
-    console.error('verifyEmail error', err);
-    return res.status(500).json({ error: 'Server error during verification' });
+    console.error("verifyEmail error", err);
+    return res.status(500).json({ error: "Server error during verification" });
   }
 };
 
@@ -211,15 +231,15 @@ export const resendVerification = async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     if (user.emailVerified) {
-      return res.status(400).json({ error: 'Email is already verified' });
+      return res.status(400).json({ error: "Email is already verified" });
     }
 
     // Generate new verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     user.verificationToken = verificationToken;
@@ -230,11 +250,11 @@ export const resendVerification = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Verification email sent'
+      message: "Verification email sent",
     });
   } catch (err) {
-    console.error('resendVerification error', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error("resendVerification error", err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -242,24 +262,27 @@ export const resendVerification = async (req, res) => {
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    
+
     if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+      return res.status(400).json({ error: "Email is required" });
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    
+
     // Always return success to prevent email enumeration
     if (!user) {
       return res.status(200).json({
         success: true,
-        message: 'If that email exists, a password reset link has been sent'
+        message: "If that email exists, a password reset link has been sent",
       });
     }
 
     // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
     const resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     user.resetPasswordToken = resetPasswordToken;
@@ -270,11 +293,11 @@ export const forgotPassword = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'If that email exists, a password reset link has been sent'
+      message: "If that email exists, a password reset link has been sent",
     });
   } catch (err) {
-    console.error('forgotPassword error', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error("forgotPassword error", err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -282,26 +305,54 @@ export const forgotPassword = async (req, res) => {
 export const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
-    
+
     if (!token || !newPassword) {
-      return res.status(400).json({ error: 'Token and new password are required' });
+      await logAuditEvent({
+        action: "password-change",
+        req,
+        status: "failure",
+        description: "Password reset missing token or new password",
+        metadata: { flow: "reset" },
+      });
+      return res
+        .status(400)
+        .json({ error: "Token and new password are required" });
     }
 
     if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      await logAuditEvent({
+        action: "password-change",
+        req,
+        status: "failure",
+        description: "Password reset rejected due to length",
+        metadata: { flow: "reset" },
+      });
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 8 characters" });
     }
 
     // Hash the token to compare
-    const resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
+    const resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
     // Find user with valid token
     const user = await User.findOne({
       resetPasswordToken,
-      resetPasswordExpires: { $gt: Date.now() }
+      resetPasswordExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
+      await logAuditEvent({
+        action: "password-change",
+        req,
+        status: "failure",
+        description: "Password reset token invalid or expired",
+        metadata: { flow: "reset" },
+      });
+      return res.status(400).json({ error: "Invalid or expired reset token" });
     }
 
     // Hash new password
@@ -311,13 +362,29 @@ export const resetPassword = async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
+    await logAuditEvent({
+      action: "password-change",
+      req,
+      userId: user._id,
+      status: "success",
+      description: "Password reset completed via token",
+      metadata: { flow: "reset" },
+    });
+
     return res.status(200).json({
       success: true,
-      message: 'Password reset successfully'
+      message: "Password reset successfully",
     });
   } catch (err) {
-    console.error('resetPassword error', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error("resetPassword error", err);
+    await logAuditEvent({
+      action: "password-change",
+      req,
+      status: "failure",
+      description: err?.message || "Unhandled reset password error",
+      metadata: { flow: "reset" },
+    });
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -326,7 +393,7 @@ export const getCurrentUser = async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     return res.status(200).json({
@@ -345,12 +412,12 @@ export const getCurrentUser = async (req, res) => {
         longest_streak: user.longest_streak,
         badges: user.badges,
         createdAt: user.createdAt,
-        lastLoginAt: user.lastLoginAt
-      }
+        lastLoginAt: user.lastLoginAt,
+      },
     });
   } catch (err) {
-    console.error('getCurrentUser error', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error("getCurrentUser error", err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -359,7 +426,7 @@ export const updateCurrentUser = async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     const { name, settings } = req.body;
@@ -379,12 +446,12 @@ export const updateCurrentUser = async (req, res) => {
         name: user.name,
         username: user.username,
         email: user.email,
-        settings: user.settings
-      }
+        settings: user.settings,
+      },
     });
   } catch (err) {
-    console.error('updateCurrentUser error', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error("updateCurrentUser error", err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -393,25 +460,59 @@ export const changePassword = async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      await logAuditEvent({
+        action: "password-change",
+        req,
+        status: "denied",
+        description: "Unauthenticated password change attempt",
+      });
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Current and new password are required' });
+      await logAuditEvent({
+        action: "password-change",
+        req,
+        userId: user._id,
+        status: "failure",
+        description: "Missing current or new password values",
+      });
+      return res
+        .status(400)
+        .json({ error: "Current and new password are required" });
     }
 
     if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+      await logAuditEvent({
+        action: "password-change",
+        req,
+        userId: user._id,
+        status: "failure",
+        description: "New password did not meet length requirement",
+      });
+      return res
+        .status(400)
+        .json({ error: "New password must be at least 8 characters" });
     }
 
     // Verify current password
     const userWithPassword = await User.findById(user._id);
-    const matches = await bcrypt.compare(currentPassword, userWithPassword.passwordHash);
-    
+    const matches = await bcrypt.compare(
+      currentPassword,
+      userWithPassword.passwordHash
+    );
+
     if (!matches) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
+      await logAuditEvent({
+        action: "password-change",
+        req,
+        userId: user._id,
+        status: "denied",
+        description: "Current password verification failed",
+      });
+      return res.status(401).json({ error: "Current password is incorrect" });
     }
 
     // Hash new password
@@ -419,13 +520,28 @@ export const changePassword = async (req, res) => {
     userWithPassword.passwordHash = await bcrypt.hash(newPassword, salt);
     await userWithPassword.save();
 
+    await logAuditEvent({
+      action: "password-change",
+      req,
+      userId: user._id,
+      status: "success",
+      description: "Password changed via authenticated request",
+    });
+
     return res.status(200).json({
       success: true,
-      message: 'Password changed successfully'
+      message: "Password changed successfully",
     });
   } catch (err) {
-    console.error('changePassword error', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error("changePassword error", err);
+    await logAuditEvent({
+      action: "password-change",
+      req,
+      userId: req.user?._id,
+      status: "failure",
+      description: err?.message || "Unhandled changePassword error",
+    });
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -433,7 +549,10 @@ export const changePassword = async (req, res) => {
 export const exportUserData = async (req, res) => {
   try {
     const user = req.user;
-    if (!user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+    if (!user)
+      return res
+        .status(401)
+        .json({ success: false, error: "Not authenticated" });
 
     const uid = String(user._1d || user._id);
 
@@ -441,9 +560,15 @@ export const exportUserData = async (req, res) => {
     const onboarding = await OnboardingProfile.findOne({ userId: uid }).lean();
     const pillarScores = await PillarScore.find({ userId: uid }).lean();
     const actionPlans = await ActionPlan.find({ userId: uid }).lean();
-    const messages = await Message.find({ $or: [{ senderId: uid }, { receiverId: uid }] }).lean();
-    const challenges = await Challenge.find({ $or: [{ creatorId: uid }, { participants: uid }] }).lean();
-    const friends = await Friend.find({ $or: [{ userId: uid }, { friendId: uid }] }).lean();
+    const messages = await Message.find({
+      $or: [{ senderId: uid }, { receiverId: uid }],
+    }).lean();
+    const challenges = await Challenge.find({
+      $or: [{ creatorId: uid }, { participants: uid }],
+    }).lean();
+    const friends = await Friend.find({
+      $or: [{ userId: uid }, { friendId: uid }],
+    }).lean();
     const checkins = await PillarCheckIn.find({ userId: uid }).lean();
     const notifications = await Notification.find({ userId: uid }).lean();
 
@@ -457,16 +582,18 @@ export const exportUserData = async (req, res) => {
       challenges,
       friends,
       checkins,
-      notifications
+      notifications,
     };
 
-    const filename = `northstar_export_${uid}_${new Date().toISOString().slice(0,10)}.json`;
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Type', 'application/json');
+    const filename = `northstar_export_${uid}_${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/json");
     return res.send(JSON.stringify(bundle, null, 2));
   } catch (err) {
-    console.error('exportUserData error', err);
-    return res.status(500).json({ success: false, error: 'Server error' });
+    console.error("exportUserData error", err);
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
@@ -474,7 +601,10 @@ export const exportUserData = async (req, res) => {
 export const deleteAccount = async (req, res) => {
   try {
     const user = req.user;
-    if (!user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+    if (!user)
+      return res
+        .status(401)
+        .json({ success: false, error: "Not authenticated" });
 
     const uid = String(user._id);
 
@@ -484,7 +614,10 @@ export const deleteAccount = async (req, res) => {
     await ActionPlan.deleteMany({ userId: uid });
     await Message.deleteMany({ $or: [{ senderId: uid }, { receiverId: uid }] });
     // For challenges: remove user from participants; delete challenges they created
-    await Challenge.updateMany({ participants: uid }, { $pull: { participants: uid } });
+    await Challenge.updateMany(
+      { participants: uid },
+      { $pull: { participants: uid } }
+    );
     await Challenge.deleteMany({ creatorId: uid });
     // Remove friend records involving user
     await Friend.deleteMany({ $or: [{ userId: uid }, { friendId: uid }] });
@@ -497,8 +630,8 @@ export const deleteAccount = async (req, res) => {
 
     return res.json({ success: true });
   } catch (err) {
-    console.error('deleteAccount error', err);
-    return res.status(500).json({ success: false, error: 'Server error' });
+    console.error("deleteAccount error", err);
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
@@ -507,34 +640,38 @@ export const updateConsent = async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     const { aiConsent, consentTimestamp, consentVersion } = req.body;
 
     if (aiConsent === undefined) {
-      return res.status(400).json({ error: 'aiConsent field is required' });
+      return res.status(400).json({ error: "aiConsent field is required" });
     }
 
     // Update consent fields
     user.aiConsent = Boolean(aiConsent);
-    user.consentTimestamp = consentTimestamp ? new Date(consentTimestamp) : new Date();
-    user.consentVersion = consentVersion || '1.0';
+    user.consentTimestamp = consentTimestamp
+      ? new Date(consentTimestamp)
+      : new Date();
+    user.consentVersion = consentVersion || "1.0";
 
     await user.save();
 
     return res.status(200).json({
       success: true,
-      message: 'Consent updated successfully',
+      message: "Consent updated successfully",
       data: {
         aiConsent: user.aiConsent,
         consentTimestamp: user.consentTimestamp,
-        consentVersion: user.consentVersion
-      }
+        consentVersion: user.consentVersion,
+      },
     });
   } catch (err) {
-    console.error('updateConsent error', err);
-    return res.status(500).json({ error: 'Server error while updating consent' });
+    console.error("updateConsent error", err);
+    return res
+      .status(500)
+      .json({ error: "Server error while updating consent" });
   }
 };
 
@@ -543,7 +680,7 @@ export const getConsent = async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     return res.status(200).json({
@@ -551,12 +688,12 @@ export const getConsent = async (req, res) => {
       data: {
         aiConsent: user.aiConsent,
         consentTimestamp: user.consentTimestamp,
-        consentVersion: user.consentVersion
-      }
+        consentVersion: user.consentVersion,
+      },
     });
   } catch (err) {
-    console.error('getConsent error', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error("getConsent error", err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -573,5 +710,5 @@ export default {
   exportUserData,
   deleteAccount,
   updateConsent,
-  getConsent
+  getConsent,
 };
