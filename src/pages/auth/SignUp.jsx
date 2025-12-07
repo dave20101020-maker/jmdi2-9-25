@@ -7,16 +7,21 @@ import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-const ERROR_MESSAGES = {
-  "auth/email-already-in-use": "That email is already connected to a mission.",
-  "auth/weak-password": "Choose a stronger password (at least 6 characters).",
+const STATUS_MESSAGES = {
+  400: "Please double-check the highlighted fields.",
+  409: "That email is already connected to a mission.",
 };
 
-const FIELD_ERROR_TARGETS = {
-  "auth/email-already-in-use": "email",
-  "auth/invalid-email": "email",
-  "auth/weak-password": "password",
+const STATUS_FIELD_TARGETS = {
+  400: "email",
+  409: "email",
 };
+
+const DEFAULT_SIGNUP_ERROR =
+  "We could not create your account. Please try again.";
+
+const DEFAULT_GOOGLE_ERROR =
+  "We couldn't complete Google sign up. Try again in a moment.";
 
 const createFieldErrors = () => ({
   fullName: "",
@@ -29,25 +34,22 @@ const MIN_PASSWORD_LENGTH = 6;
 const IS_DEV = import.meta.env.DEV;
 
 function getErrorMessage(error) {
-  if (!error) return "";
-  if (ERROR_MESSAGES[error.code]) return ERROR_MESSAGES[error.code];
-  return "We could not create your account. Please try again.";
+  if (!error) return DEFAULT_SIGNUP_ERROR;
+  const serverMessage =
+    error?.body?.error ||
+    error?.body?.message ||
+    error?.message ||
+    error?.response?.data?.error;
+  if (serverMessage) return serverMessage;
+  const status = error?.status || error?.statusCode || error?.response?.status;
+  if (status && STATUS_MESSAGES[status]) {
+    return STATUS_MESSAGES[status];
+  }
+  return DEFAULT_SIGNUP_ERROR;
 }
 
-const getGoogleErrorDescription = (error) => {
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "this domain";
-  switch (error?.code) {
-    case "auth/unauthorized-domain":
-      return `Google Sign-Up is not allowed from ${origin}. Add this origin under Firebase Authentication → Settings → Authorized domains.`;
-    case "auth/popup-blocked":
-      return "Your browser blocked the Google popup. Please allow popups for this site and try again.";
-    case "auth/popup-closed-by-user":
-      return "The Google popup closed before sign-up completed. Please try again.";
-    default:
-      return getErrorMessage(error);
-  }
-};
+const getGoogleErrorDescription = (error) =>
+  getErrorMessage(error) || DEFAULT_GOOGLE_ERROR;
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -117,7 +119,7 @@ export default function SignUp() {
       });
       logSignUpDebug("email sign-up response", {
         status: 200,
-        uid: profile?.uid || null,
+        userId: profile?._id || profile?.id || profile?.email || trimmedEmail,
       });
       navigate("/dashboard", { replace: true });
     } catch (err) {
@@ -127,7 +129,8 @@ export default function SignUp() {
       });
       const presentable = getErrorMessage(err);
       setError(presentable);
-      const fieldKey = FIELD_ERROR_TARGETS[err.code];
+      const status = err?.status || err?.statusCode || err?.response?.status;
+      const fieldKey = status ? STATUS_FIELD_TARGETS[status] : null;
       if (fieldKey) {
         setFieldErrors((prev) => ({ ...prev, [fieldKey]: presentable }));
       }
@@ -141,16 +144,12 @@ export default function SignUp() {
     setOauthSubmitting(true);
     try {
       logSignUpDebug("google sign-up request", { provider: "google" });
-      const profile = await signInWithGoogle();
-      logSignUpDebug("google sign-up response", { status: 200, json: profile });
-      toast.success("Google account linked", {
+      await signInWithGoogle({ redirectPath: "/dashboard" });
+      logSignUpDebug("google sign-up redirect", { status: 200 });
+      toast.success("Opening Google", {
         description:
-          profile?.fullName ||
-          profile?.displayName ||
-          profile?.email ||
-          "Welcome aboard.",
+          "Complete the Google prompt to finish creating your account.",
       });
-      navigate("/dashboard", { replace: true });
     } catch (err) {
       logSignUpDebug("google sign-up error", {
         status: err?.status || err?.code || "unknown",

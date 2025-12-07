@@ -15,10 +15,7 @@
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
-    "test:ui": "vitest --ui",
-    "test:frontend": "jest --testMatch='**/src/tests/**/*.test.js' --env=jsdom",
-    "test:backend": "cd backend && jest --testMatch='**/tests/**/*.test.js'",
-    "test:all": "npm run test:frontend && npm run test:backend"
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@base44/sdk": "^0.1.2",
@@ -62,7 +59,6 @@
     "date-fns": "^3.6.0",
     "dayjs": "^1.11.19",
     "embla-carousel-react": "^8.5.2",
-    "firebase": "^11.4.0",
     "framer-motion": "^12.4.7",
     "google-map-react": "^2.2.5",
     "i18next": "^25.7.1",

@@ -7,20 +7,23 @@ import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-const ERROR_MESSAGES = {
-  "auth/invalid-credential": "Those credentials did not match our records.",
-  "auth/user-not-found": "No account found for that email.",
-  "auth/wrong-password": "Incorrect password. Try again or reset it.",
-  "auth/too-many-requests": "Too many attempts. Please try again in a moment.",
+const STATUS_MESSAGES = {
+  400: "Please double-check your email and password.",
+  401: "Those credentials did not match our records.",
+  403: "Your account is temporarily locked. Contact support if this continues.",
 };
 
-const FIELD_ERROR_TARGETS = {
-  "auth/invalid-email": "email",
-  "auth/invalid-credential": "email",
-  "auth/user-not-found": "email",
-  "auth/wrong-password": "password",
-  "auth/missing-password": "password",
+const STATUS_FIELD_TARGETS = {
+  400: "email",
+  401: "password",
+  403: "email",
 };
+
+const DEFAULT_LOGIN_ERROR =
+  "We couldn't verify those credentials. Please try again.";
+
+const DEFAULT_GOOGLE_ERROR =
+  "We couldn't complete Google sign in. Try again in a moment.";
 
 const createFieldErrors = () => ({ email: "", password: "" });
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -30,25 +33,24 @@ const INITIAL_STATUS = { type: null, message: "" };
 const IS_DEV = import.meta.env.DEV;
 
 function getErrorMessage(error) {
-  if (!error) return "";
-  if (ERROR_MESSAGES[error.code]) return ERROR_MESSAGES[error.code];
-  return "We could not sign you in. Please try again.";
+  if (!error) return DEFAULT_LOGIN_ERROR;
+  const serverMessage =
+    error?.body?.error ||
+    error?.body?.message ||
+    error?.message ||
+    error?.response?.data?.error;
+  if (serverMessage) return serverMessage;
+  const status = error?.status || error?.statusCode || error?.response?.status;
+  if (status && STATUS_MESSAGES[status]) {
+    return STATUS_MESSAGES[status];
+  }
+  return DEFAULT_LOGIN_ERROR;
 }
 
 function isAuthError(error) {
   if (!error) return false;
-  const status =
-    error.status || error.statusCode || error?.response?.status || null;
-  if (typeof status === "number" && [400, 401, 403].includes(status)) {
-    return true;
-  }
-  if (typeof error.code === "string") {
-    return error.code.startsWith("auth/");
-  }
-  if (typeof error === "string") {
-    return true;
-  }
-  return false;
+  const status = error?.status || error?.statusCode || error?.response?.status;
+  return typeof status === "number" && status >= 400 && status < 500;
 }
 
 function logAuthDebug(label, payload) {
@@ -57,21 +59,7 @@ function logAuthDebug(label, payload) {
 }
 
 const getGoogleErrorDescription = (error) => {
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "this domain";
-  switch (error?.code) {
-    case "auth/unauthorized-domain":
-      return `Google Sign-In is not allowed from ${origin}. Add this origin under Firebase Authentication → Settings → Authorized domains.`;
-    case "auth/popup-blocked":
-      return "Your browser blocked the Google popup. Please enable popups for this site and try again.";
-    case "auth/popup-closed-by-user":
-      return "The Google popup closed before sign-in completed. Please try again.";
-    default:
-      return (
-        getErrorMessage(error) ||
-        "We could not complete Google sign in. Try again."
-      );
-  }
+  return getErrorMessage(error) || DEFAULT_GOOGLE_ERROR;
 };
 
 export default function SignIn() {
@@ -160,7 +148,8 @@ export default function SignIn() {
       const sessionUser = await signIn(form.email, form.password);
       logAuthDebug("sign-in response", {
         status: 200,
-        uid: sessionUser?.uid || null,
+        userId:
+          sessionUser?._id || sessionUser?.id || sessionUser?.email || null,
       });
       setStatus({
         type: "success",
@@ -180,7 +169,8 @@ export default function SignIn() {
         const presentable = getErrorMessage(err);
         setStatus({ type: "error", message: presentable });
         toast.error("Sign-in failed", { description: presentable });
-        const fieldKey = FIELD_ERROR_TARGETS[err.code];
+        const status = err?.status || err?.statusCode || err?.response?.status;
+        const fieldKey = status ? STATUS_FIELD_TARGETS[status] : null;
         if (fieldKey) {
           setFieldErrors((prev) => ({ ...prev, [fieldKey]: presentable }));
         }
@@ -202,26 +192,18 @@ export default function SignIn() {
   const handleGoogle = async () => {
     clearStatus();
     setOauthSubmitting(true);
-    setStatus({ type: "loading", message: "Contacting Google..." });
+    setStatus({ type: "loading", message: "Redirecting to Google..." });
     logAuthDebug("google sign-in request", { provider: "google" });
     try {
-      const profile = await signInWithGoogle();
-      logAuthDebug("google sign-in response", {
-        status: 200,
-        json: profile,
-      });
-      toast.success("Signed in with Google", {
-        description:
-          profile?.fullName ||
-          profile?.displayName ||
-          profile?.email ||
-          "Welcome back to NorthStar.",
+      await signInWithGoogle({ redirectPath });
+      logAuthDebug("google sign-in redirect", { status: 200 });
+      toast.success("Opening Google", {
+        description: "Complete the Google prompt to finish signing in.",
       });
       setStatus({
         type: "success",
-        message: "Google authentication complete. Redirecting...",
+        message: "Google authentication flow in progress...",
       });
-      navigate(redirectPath, { replace: true });
     } catch (err) {
       logAuthDebug("google sign-in error", {
         status: err?.status || err?.code || "unknown",

@@ -1,17 +1,21 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RouteLoader from "@/components/fallbacks/RouteLoader";
 import GlobalErrorBoundary from "@/components/shared/ErrorBoundary";
-import MainLayout from "@/components/Layout/MainLayout";
 import { NAMED_ROUTES } from "@/config/routes";
 
 const lazyPage = (loader, displayName) => {
   const Component = lazy(loader);
   Component.displayName = displayName || loader.name || "LazyPage";
+  Component.preload = () => loader();
   return Component;
 };
 
+const MainLayout = lazyPage(
+  () => import("@/components/Layout/MainLayout"),
+  "MainLayout"
+);
 const DashboardPage = lazyPage(
   () => import("@/pages/Dashboard"),
   "DashboardPage"
@@ -53,6 +57,7 @@ const OnboardingPage = lazyPage(
   () => import("@/pages/Onboarding"),
   "OnboardingPage"
 );
+const CRITICAL_ROUTES = [DashboardPage, OnboardingPage];
 const MyPlansPage = lazyPage(() => import("@/pages/MyPlans"), "MyPlansPage");
 const PlanDetailPage = lazyPage(
   () => import("@/pages/PlanDetail"),
@@ -111,37 +116,70 @@ const AdminAnalyticsPage = lazyPage(
   () => import("@/pages/AdminAnalytics"),
   "AdminAnalyticsPage"
 );
-const PillarPage = lazyPage(() => import("@/pages/Pillar"), "PillarPage");
+const PillarPage = lazyPage(
+  () => import(/* webpackChunkName: "pillar-generic" */ "@/pages/Pillar"),
+  "PillarPage"
+);
 const SleepDashboardPage = lazyPage(
-  () => import("@/pages/pillars/SleepDashboard"),
+  () =>
+    import(
+      /* webpackChunkName: "pillar-sleep" */ "@/pages/pillars/SleepDashboard"
+    ),
   "SleepDashboardPage"
 );
 const DietDashboardPage = lazyPage(
-  () => import("@/pages/pillars/DietDashboard"),
+  () =>
+    import(
+      /* webpackChunkName: "pillar-diet" */ "@/pages/pillars/DietDashboard"
+    ),
   "DietDashboardPage"
 );
 const ExerciseDashboardPage = lazyPage(
-  () => import("@/pages/pillars/ExerciseDashboard"),
+  () =>
+    import(
+      /* webpackChunkName: "pillar-exercise" */
+      "@/pages/pillars/ExerciseDashboard"
+    ),
   "ExerciseDashboardPage"
 );
 const PhysicalHealthDashboardPage = lazyPage(
-  () => import("@/pages/pillars/PhysicalHealthDashboard"),
+  () =>
+    import(
+      /* webpackChunkName: "pillar-physical" */
+      "@/pages/pillars/PhysicalHealthDashboard"
+    ),
   "PhysicalHealthDashboardPage"
 );
 const MentalHealthDashboardPage = lazyPage(
-  () => import("@/pages/pillars/MentalHealthDashboard"),
+  () =>
+    import(
+      /* webpackChunkName: "pillar-mental" */
+      "@/pages/pillars/MentalHealthDashboard"
+    ),
   "MentalHealthDashboardPage"
 );
 const FinancesDashboardPage = lazyPage(
-  () => import("@/pages/pillars/FinancesDashboard"),
+  () =>
+    import(
+      /* webpackChunkName: "pillar-finances" */
+      "@/pages/pillars/FinancesDashboard"
+    ),
   "FinancesDashboardPage"
 );
 const SocialDashboardPage = lazyPage(
-  () => import("@/pages/pillars/SocialDashboard"),
+  () =>
+    import(
+      /* webpackChunkName: "pillar-social" */
+      "@/pages/pillars/SocialDashboard"
+    ),
   "SocialDashboardPage"
 );
 const SpiritualityDashboardPage = lazyPage(
-  () => import("@/pages/pillars/SpiritualityDashboard"),
+  () =>
+    import(
+      /* webpackChunkName: "pillar-spirituality" */
+      "@/pages/pillars/SpiritualityDashboard"
+    ),
   "SpiritualityDashboardPage"
 );
 const LoginPage = lazyPage(() => import("@/pages/Login"), "LoginPage");
@@ -151,6 +189,14 @@ const SignUpPage = lazyPage(() => import("@/pages/auth/SignUp"), "SignUpPage");
 const ForgotPasswordPage = lazyPage(
   () => import("@/pages/auth/ForgotPassword"),
   "ForgotPasswordPage"
+);
+const GoogleOAuthCallbackPage = lazyPage(
+  () => import("@/pages/auth/GoogleOAuthCallback"),
+  "GoogleOAuthCallbackPage"
+);
+const FacebookOAuthCallbackPage = lazyPage(
+  () => import("@/pages/auth/FacebookOAuthCallback"),
+  "FacebookOAuthCallbackPage"
 );
 const NotFoundPage = lazyPage(() => import("@/pages/NotFound"), "NotFoundPage");
 
@@ -456,6 +502,16 @@ const authRoutes = [
     path: "/forgot-password",
     Component: ForgotPasswordPage,
   },
+  {
+    key: "google-oauth-callback",
+    path: NAMED_ROUTES.GoogleOAuthCallback,
+    Component: GoogleOAuthCallbackPage,
+  },
+  {
+    key: "facebook-oauth-callback",
+    path: NAMED_ROUTES.FacebookOAuthCallback,
+    Component: FacebookOAuthCallbackPage,
+  },
 ];
 
 const normalizeNestedPath = (path) => {
@@ -487,6 +543,46 @@ const renderRoute = (
 };
 
 export default function AppRouter() {
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const preloadCriticalRoutes = () => {
+      CRITICAL_ROUTES.forEach((Component) => {
+        if (Component?.preload) {
+          Component.preload();
+        }
+      });
+    };
+
+    let idleHandle;
+    let timeoutHandle;
+
+    if (typeof window.requestIdleCallback === "function") {
+      idleHandle = window.requestIdleCallback(preloadCriticalRoutes);
+    } else {
+      timeoutHandle = window.setTimeout(preloadCriticalRoutes, 0);
+    }
+
+    return () => {
+      if (idleHandle && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleHandle);
+      }
+      if (timeoutHandle) {
+        window.clearTimeout(timeoutHandle);
+      }
+    };
+  }, []);
+
+  const mainLayoutElement = (
+    <GlobalErrorBoundary>
+      <Suspense fallback={<RouteLoader message="Aligning command deck..." />}>
+        <MainLayout />
+      </Suspense>
+    </GlobalErrorBoundary>
+  );
+
   return (
     <Routes>
       {authRoutes.map(({ key, path, Component }) => (
@@ -500,7 +596,7 @@ export default function AppRouter() {
         />
       ))}
 
-      <Route path="/" element={<MainLayout />}>
+      <Route path="/" element={mainLayoutElement}>
         <Route
           index
           element={<Navigate to={NAMED_ROUTES.Dashboard} replace />}

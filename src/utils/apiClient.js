@@ -2,10 +2,10 @@
  * Custom Backend API Client
  * Replaces the legacy SDK with direct backend endpoints
  */
-import { firebaseAuth } from "@/lib/firebaseClient";
 
 const API_PREFIX = "/api";
-const isBrowser = typeof window !== "undefined";
+const LOGIN_ROUTE = "/login";
+const REFRESH_ENDPOINT = "/auth/refresh";
 
 const rawBackendUrl = import.meta.env.VITE_BACKEND_URL
   ? String(import.meta.env.VITE_BACKEND_URL).trim()
@@ -54,27 +54,61 @@ const normalizeEndpoint = (endpoint = "") => {
   return `${API_PREFIX}${hasLeadingSlash}`;
 };
 
-const maybeAttachFirebaseToken = async (headers, options = {}) => {
-  if (!isBrowser || options.skipFirebaseAuth || !firebaseAuth?.currentUser) {
-    return headers;
+let redirectingToLogin = false;
+
+const emitApiError = (message) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new CustomEvent("api-error", { detail: message }));
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.warn("[apiClient] Unable to emit api-error event", err);
+    }
+  }
+};
+
+const redirectToLogin = () => {
+  if (typeof window === "undefined" || redirectingToLogin) {
+    return;
+  }
+  redirectingToLogin = true;
+  try {
+    window.dispatchEvent(new CustomEvent("auth-required"));
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.warn("[apiClient] Unable to emit auth-required event", err);
+    }
+  }
+  window.location.assign(LOGIN_ROUTE);
+};
+
+const isFormBody = (body) =>
+  typeof FormData !== "undefined" && body instanceof FormData;
+
+const isBinaryBody = (body) => {
+  const BlobCtor = typeof Blob !== "undefined" ? Blob : null;
+  return (BlobCtor && body instanceof BlobCtor) || body instanceof ArrayBuffer;
+};
+
+const readBody = async (response, { allowInvalidJson }) => {
+  const text = await response.text();
+  if (!text) {
+    return { data: null, rawText: "" };
   }
 
   try {
-    const token = await firebaseAuth.currentUser.getIdToken();
-    if (token && !headers.Authorization) {
-      return {
-        ...headers,
-        Authorization: `Bearer ${token}`,
-      };
-    }
+    return { data: JSON.parse(text), rawText: text };
   } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn("[apiClient] Unable to read Firebase token", error);
+    if (!allowInvalidJson) {
+      const parseError = new Error("Response was not JSON");
+      parseError.cause = error;
+      throw parseError;
     }
+    return { data: null, rawText: text };
   }
-
-  return headers;
 };
+
+const isUnauthorizedStatus = (status) => status === 401 || status === 403;
 
 class APIClient {
   constructor(baseUrl = BASE_BACKEND_URL) {
@@ -82,47 +116,139 @@ class APIClient {
       throw new Error("[apiClient] A base URL must be provided.");
     }
     this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.refreshPromise = null;
   }
 
-  async request(endpoint, options = {}) {
-    if (!this.baseUrl) {
-      throw new Error("[apiClient] Base URL is not configured.");
+  async refreshSession() {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
     }
-    const path = normalizeEndpoint(endpoint);
-    const url = `${this.baseUrl}${path}`;
-    let headers = {
-      "Content-Type": "application/json",
-      ...options.headers,
-    };
 
-    headers = await maybeAttachFirebaseToken(headers, options);
+    const url = `${this.baseUrl}${normalizeEndpoint(REFRESH_ENDPOINT)}`;
+    this.refreshPromise = (async () => {
+      let response;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch (error) {
+        console.error("[apiClient] Refresh request failed", error);
+        throw error;
+      }
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-        // Include cookies for JWT stored in httpOnly cookie on the backend
-        credentials: options.credentials || "include",
+      const { data, rawText } = await readBody(response, {
+        allowInvalidJson: true,
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        const message = error?.message || `API error: ${response.status}`;
-        try {
-          if (typeof window !== "undefined" && window.dispatchEvent) {
-            window.dispatchEvent(
-              new CustomEvent("api-error", { detail: message })
-            );
-          }
-        } catch (e) {}
-        throw new Error(message);
+        const message =
+          data?.message ||
+          data?.error ||
+          rawText ||
+          "Failed to refresh session";
+        const refreshError = new Error(message);
+        refreshError.status = response.status;
+        refreshError.body = data ?? rawText;
+        throw refreshError;
       }
 
-      return await response.json();
+      return data;
+    })()
+      .catch((error) => {
+        console.error("[apiClient] Session refresh error", error);
+        throw error;
+      })
+      .finally(() => {
+        this.refreshPromise = null;
+      });
+
+    return this.refreshPromise;
+  }
+
+  async request(endpoint, options = {}, attempt = 0) {
+    if (!this.baseUrl) {
+      throw new Error("[apiClient] Base URL is not configured.");
+    }
+
+    const path = normalizeEndpoint(endpoint);
+    const url = `${this.baseUrl}${path}`;
+    const { skipAuthRetry = false } = options;
+
+    const requestInit = {
+      method: options.method || "GET",
+      credentials: options.credentials || "include",
+      ...options,
+    };
+
+    delete requestInit.skipAuthRetry;
+
+    const headers = {
+      ...(requestInit.headers || {}),
+    };
+
+    const hasContentTypeHeader = Object.keys(headers).some(
+      (key) => key.toLowerCase() === "content-type"
+    );
+
+    if (
+      !hasContentTypeHeader &&
+      !isFormBody(requestInit.body) &&
+      !isBinaryBody(requestInit.body)
+    ) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    requestInit.headers = headers;
+
+    let response;
+    try {
+      response = await fetch(url, requestInit);
     } catch (error) {
-      console.error(`API request failed: ${endpoint}`, error);
+      console.error(`[apiClient] Network error on ${path}`, error);
       throw error;
     }
+
+    const { data, rawText } = await readBody(response, {
+      allowInvalidJson: !response.ok,
+    });
+
+    if (!response.ok) {
+      const message =
+        data?.message ||
+        data?.error ||
+        rawText ||
+        `API error: ${response.status}`;
+      const shouldRetry =
+        !skipAuthRetry &&
+        attempt === 0 &&
+        isUnauthorizedStatus(response.status);
+
+      if (shouldRetry) {
+        try {
+          await this.refreshSession();
+          return this.request(endpoint, options, attempt + 1);
+        } catch (refreshError) {
+          emitApiError("Session expired. Redirecting to login.");
+          redirectToLogin();
+          throw refreshError;
+        }
+      }
+
+      if (isUnauthorizedStatus(response.status)) {
+        emitApiError("Authentication required. Redirecting to login.");
+        redirectToLogin();
+      } else {
+        emitApiError(message);
+      }
+
+      const error = new Error(message);
+      error.status = response.status;
+      error.body = data ?? rawText;
+      throw error;
+    }
+
+    return data;
   }
 
   // Auth endpoints
@@ -136,6 +262,7 @@ class APIClient {
     return this.request("/auth/login", {
       method: "POST",
       body: JSON.stringify({ emailOrUsername: email, password }),
+      skipAuthRetry: true,
     });
   }
 
@@ -150,6 +277,34 @@ class APIClient {
     return this.request("/auth/me", {
       method: "PUT",
       body: JSON.stringify(data),
+    });
+  }
+
+  async authWithGoogle(payload) {
+    return this.request("/auth/google", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async linkGoogleAccount(payload) {
+    return this.request("/auth/google/link", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async authWithFacebook(payload) {
+    return this.request("/auth/facebook", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async linkFacebookAccount(payload) {
+    return this.request("/auth/facebook/link", {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   }
 
@@ -392,9 +547,13 @@ class APIClient {
     return this.request(`/medications/${id}`, { method: "DELETE" });
   }
 
-  // Subscription/Access endpoints
-  async getSubscription(userId) {
-    return this.request(`/subscriptions/${userId}`, { method: "GET" });
+  // Subscription endpoints
+  async getSubscription() {
+    return this.request("/subscription/me", { method: "GET" });
+  }
+
+  async startTrial() {
+    return this.request("/subscription/trial", { method: "POST" });
   }
 
   // Weekly review endpoints
@@ -803,15 +962,14 @@ class APIClient {
     });
   }
 
-  // Subscription endpoints
-  async getMySubscription() {
-    return this.request("/subscription/me", { method: "GET" });
-  }
-
-  async upgradeSubscription(tier) {
+  async upgradeSubscription(payload = { tier: "premium" }) {
+    const body =
+      typeof payload === "string"
+        ? { tier: payload }
+        : { tier: "premium", ...payload };
     return this.request("/subscription/upgrade", {
       method: "POST",
-      body: JSON.stringify({ tier }),
+      body: JSON.stringify(body),
     });
   }
 
@@ -918,4 +1076,5 @@ class APIClient {
 
 // Export singleton instance
 export const api = new APIClient();
+export { APIClient };
 export default api;

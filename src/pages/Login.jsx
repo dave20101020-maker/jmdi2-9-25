@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Chrome, Lock, Mail } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
+import FacebookSignInButton from "@/components/auth/FacebookSignInButton";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 6;
@@ -25,14 +27,13 @@ function validate(form) {
 }
 
 export default function Login() {
-  const { user, signIn, signInWithGoogle, initializing } = useAuth();
+  const { user, signIn, initializing } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState(INITIAL_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   useEffect(() => {
     if (!initializing && user) {
@@ -75,23 +76,26 @@ export default function Login() {
     }
   };
 
-  const handleGoogle = async () => {
-    if (!signInWithGoogle) return;
-    setIsGoogleSubmitting(true);
+  const handleGoogleStart = () => {
     setFormError("");
-    try {
-      await signInWithGoogle();
-      toast.success("Signed in with Google");
-      const redirect = location.state?.from?.pathname || "/dashboard";
-      navigate(redirect, { replace: true });
-    } catch (error) {
-      const message =
-        error?.message || "We could not complete Google authentication.";
-      setFormError(message);
-      toast.error("Google sign-in failed", { description: message });
-    } finally {
-      setIsGoogleSubmitting(false);
-    }
+  };
+
+  const handleGoogleError = (error) => {
+    const message =
+      error?.message || "We could not start Google authentication.";
+    setFormError(message);
+    toast.error("Google sign-in failed", { description: message });
+  };
+
+  const handleFacebookStart = () => {
+    setFormError("");
+  };
+
+  const handleFacebookError = (error) => {
+    const message =
+      error?.message || "We could not start Facebook authentication.";
+    setFormError(message);
+    toast.error("Facebook sign-in failed", { description: message });
   };
 
   if (initializing) {
@@ -165,34 +169,32 @@ export default function Login() {
             size="lg"
             fullWidth
             loading={isSubmitting}
-            disabled={isSubmitting || isGoogleSubmitting}
+            disabled={isSubmitting}
             data-testid="login-submit-button"
           >
             {isSubmitting ? "Signing in..." : "Sign in"}
           </NSButton>
         </form>
 
-        {signInWithGoogle && (
-          <>
-            <div className="ns-auth-divider">
-              <span>or</span>
-            </div>
-            <NSButton
-              type="button"
-              variant="outline"
-              size="lg"
-              fullWidth
-              onClick={handleGoogle}
-              disabled={isSubmitting || isGoogleSubmitting}
-              loading={isGoogleSubmitting}
-              className="ns-google-button"
-              leadingIcon={<Chrome className="w-4 h-4" />}
-              data-testid="login-google-button"
-            >
-              Continue with Google
-            </NSButton>
-          </>
-        )}
+        <div className="ns-auth-divider">
+          <span>or</span>
+        </div>
+        <div className="flex flex-col gap-3 w-full">
+          <GoogleSignInButton
+            fullWidth
+            disabled={isSubmitting}
+            onStart={handleGoogleStart}
+            onError={handleGoogleError}
+            data-testid="login-google-button"
+          />
+          <FacebookSignInButton
+            fullWidth
+            disabled={isSubmitting}
+            onStart={handleFacebookStart}
+            onError={handleFacebookError}
+            data-testid="login-facebook-button"
+          />
+        </div>
       </div>
     </AuthLayout>
   );

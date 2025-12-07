@@ -37,6 +37,8 @@ export const NAMED_ROUTES = Object.freeze({
   Meditation: "/meditation",
   Achievements: "/achievements",
   AdminDashboard: "/admin",
+  GoogleOAuthCallback: "/auth/google/callback",
+  FacebookOAuthCallback: "/auth/facebook/callback",
 });
 
 const normalizedLookup = Object.entries(NAMED_ROUTES).reduce(

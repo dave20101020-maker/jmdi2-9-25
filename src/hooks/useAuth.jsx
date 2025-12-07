@@ -1,6 +1,7 @@
 import { useContext } from "react";
-import AuthContext from "@/lib/firebaseAuth/context";
-export { AuthProvider } from "@/lib/firebaseAuth/AuthContext";
+import AuthContext, { AuthProvider } from "@/context/AuthContext";
+
+export { AuthProvider };
 
 export function useAuth() {
   return useContext(AuthContext);

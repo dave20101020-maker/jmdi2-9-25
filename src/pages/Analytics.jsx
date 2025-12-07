@@ -38,6 +38,7 @@ import NSButton from "@/components/ui/NSButton";
 import NSInput from "@/components/ui/NSInput";
 import AIThinkingOverlay from "@/ai/AIThinkingOverlay";
 import HelpTooltip from "@/components/shared/HelpTooltip";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { toast } from "sonner";
 
 const PILLARS = [
@@ -563,14 +564,7 @@ export default function Analytics() {
     initialData: [],
   });
 
-  const { data: subscription } = useQuery({
-    queryKey: ["subscription"],
-    queryFn: async () => {
-      const subs = await api.getSubscription({ userId: user?.email });
-      return subs[0] || null;
-    },
-    enabled: !!user,
-  });
+  const { subscription, hasPremiumAccess } = useSubscriptionStatus();
 
   const { data: recentMoods = [] } = useQuery({
     queryKey: ["recentMoods"],
@@ -579,11 +573,7 @@ export default function Analytics() {
     initialData: [],
   });
 
-  const isPremium =
-    subscription?.tier === "Premium" && subscription?.status === "active";
-  const isTrial =
-    subscription?.tier === "Trial" && subscription?.status === "trial";
-  const hasFullAccess = isPremium || isTrial;
+  const hasFullAccess = hasPremiumAccess;
 
   const selectedPillarsIds = user?.selected_pillars || [];
   const accessiblePillars = hasFullAccess

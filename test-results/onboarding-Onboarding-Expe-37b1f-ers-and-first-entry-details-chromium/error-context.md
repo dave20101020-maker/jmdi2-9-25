@@ -1,0 +1,73 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - complementary [ref=e6]:
+      - generic [ref=e7]:
+        - paragraph [ref=e8]: NORTHSTAR
+        - heading "Command Center" [level=2] [ref=e9]
+      - navigation "Primary" [ref=e10]:
+        - link "Dashboard" [ref=e11] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Onboarding" [ref=e12] [cursor=pointer]:
+          - /url: /onboarding
+        - link "Pricing" [ref=e13] [cursor=pointer]:
+          - /url: /pricing
+        - link "Settings" [ref=e14] [cursor=pointer]:
+          - /url: /settings
+      - generic "Life pillars" [ref=e15]:
+        - paragraph [ref=e16]: Pillars
+        - link "Sleep ↗" [ref=e17] [cursor=pointer]:
+          - /url: /pillar/sleep
+          - generic [ref=e20]: Sleep
+          - generic [ref=e21]: ↗
+        - link "Diet ↗" [ref=e22] [cursor=pointer]:
+          - /url: /pillar/diet
+          - generic [ref=e25]: Diet
+          - generic [ref=e26]: ↗
+        - link "Exercise ↗" [ref=e27] [cursor=pointer]:
+          - /url: /pillar/exercise
+          - generic [ref=e30]: Exercise
+          - generic [ref=e31]: ↗
+        - link "Physical Health ↗" [ref=e32] [cursor=pointer]:
+          - /url: /pillar/physical_health
+          - generic [ref=e35]: Physical Health
+          - generic [ref=e36]: ↗
+        - link "Mental Health ↗" [ref=e37] [cursor=pointer]:
+          - /url: /pillar/mental_health
+          - generic [ref=e40]: Mental Health
+          - generic [ref=e41]: ↗
+        - link "Finances ↗" [ref=e42] [cursor=pointer]:
+          - /url: /pillar/finances
+          - generic [ref=e45]: Finances
+          - generic [ref=e46]: ↗
+        - link "Social ↗" [ref=e47] [cursor=pointer]:
+          - /url: /pillar/social
+          - generic [ref=e50]: Social
+          - generic [ref=e51]: ↗
+        - link "Spirituality ↗" [ref=e52] [cursor=pointer]:
+          - /url: /pillar/spirituality
+          - generic [ref=e55]: Spirituality
+          - generic [ref=e56]: ↗
+      - generic [ref=e57]:
+        - paragraph [ref=e58]: Need to switch accounts?
+        - link "Sign in" [ref=e61] [cursor=pointer]:
+          - /url: /sign-in
+    - generic [ref=e62]:
+      - banner [ref=e63]:
+        - generic [ref=e64]:
+          - paragraph [ref=e65]: Mission
+          - paragraph [ref=e66]: Mission Control · NorthStar
+        - generic [ref=e67]:
+          - link "Login" [ref=e70] [cursor=pointer]:
+            - /url: /sign-in
+          - link "Get Started" [ref=e73] [cursor=pointer]:
+            - /url: /sign-up
+      - main [ref=e74]:
+        - status [ref=e75]:
+          - generic [ref=e78]:
+            - paragraph [ref=e79]: NorthStar
+            - paragraph [ref=e80]: Verifying your mission credentials...
+  - region "Notifications alt+T"
+```

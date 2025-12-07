@@ -6,6 +6,7 @@ import cors from "cors";
 import morgan from "morgan";
 import path from "path";
 import mongoose from "mongoose";
+import cookieParser from "cookie-parser";
 import logger from "./utils/logger.js";
 import aiRoutes from "./routes/ai.js";
 import orchestratorRoutes from "./routes/aiRoutes.js";
@@ -77,6 +78,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 

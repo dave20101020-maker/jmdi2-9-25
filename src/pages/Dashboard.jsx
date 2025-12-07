@@ -1,6 +1,6 @@
 import CoachPanel from "@/components/ai/CoachPanel";
 import { api } from "@/utils/apiClient";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { PILLARS, getPillarsArray, createPageUrl } from "@/utils";
@@ -15,19 +15,27 @@ import {
   Smile,
   CheckCircle2,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import ScoreOrb from "@/components/shared/ScoreOrb";
 import DailySummary from "@/components/shared/DailySummary";
 import AIInsights from "@/ai/AIInsights";
+import {
+  buildAdaptiveCoachContext,
+  buildAdaptiveCoachProfile,
+} from "@/ai/adaptive";
 import ActiveItemsWidget from "@/components/shared/ActiveItemsWidget";
 import GuidedTour from "@/ai/GuidedTour";
 import AuthGuard from "@/components/shared/AuthGuard";
 import StreakDisplay from "@/components/shared/StreakDisplay";
 import MilestoneCelebration from "@/components/shared/MilestoneCelebration";
 import { useStreak } from "@/hooks/useStreak";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AIErrorBoundary from "@/components/AIErrorBoundary";
 import { LifeOrbitVisualizer } from "@/components/visuals/LifeOrbitVisualizer";
+import { computeComBRecommendations, createComBInput } from "@/engines/com-b";
+
+/** @typedef {import("@/engines/com-b").PillarMetric} PillarMetric */
 
 // This constant is necessary for iterating over all pillars in the UI and filtering
 const PILLARS_ARRAY = getPillarsArray();
@@ -96,10 +104,16 @@ const ORBIT_PILLAR_COLORS = Object.freeze({
 
 function DashboardContent({ user }) {
   const queryClient = useQueryClient();
-  const [subscription, setSubscription] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const [celebrationMilestone, setCelebrationMilestone] = useState(null);
   const today = format(new Date(), "yyyy-MM-dd");
+  const {
+    subscription,
+    hasPremiumAccess,
+    isTrial,
+    daysRemaining,
+    isLoading: subscriptionLoading,
+  } = useSubscriptionStatus();
 
   const getFirstName = (value) => {
     if (typeof value !== "string") return null;
@@ -127,19 +141,10 @@ function DashboardContent({ user }) {
   const streak = useStreak(entries, user);
 
   useEffect(() => {
-    async function getUserAndSubscription() {
-      if (!user) return;
+    async function refreshUserState() {
+      if (!user || subscriptionLoading) return;
 
-      // Fetch subscription first to determine premium status for freezes
-      const subs = await api.getSubscription({ userId: user.email });
-      let currentSubscription = null;
-      if (subs.length > 0) {
-        currentSubscription = subs[0];
-        setSubscription(currentSubscription); // Update state for other parts of the component
-      }
-      const isPremiumAccess =
-        currentSubscription?.tier === "Premium" &&
-        currentSubscription?.status === "active";
+      const isPremiumAccess = hasPremiumAccess;
 
       // Show tour for new users who haven't seen it
       if (!user.tour_completed && user.onboarding_completed) {
@@ -205,8 +210,16 @@ function DashboardContent({ user }) {
         queryClient.invalidateQueries(["auth-user"]);
       }
     }
-    getUserAndSubscription();
-  }, [user, today, queryClient, showTour, streak.currentStreak]);
+    refreshUserState();
+  }, [
+    user,
+    today,
+    queryClient,
+    showTour,
+    streak.currentStreak,
+    hasPremiumAccess,
+    subscriptionLoading,
+  ]);
 
   const { data: plans = [], isLoading: plansLoading } = useQuery({
     queryKey: ["lifePlans", user?.email],
@@ -287,14 +300,12 @@ function DashboardContent({ user }) {
     entries.some((e) => e.pillar === pillarId && e.date === today)
   );
 
-  const isPremium =
-    subscription?.tier === "Premium" && subscription?.status === "active";
-  const isTrial =
-    subscription?.tier === "Trial" && subscription?.status === "trial";
-  const hasFullAccess = isPremium || isTrial;
+  const hasFullAccess = hasPremiumAccess;
 
   // Use server-provided allowedPillars when available; fall back to legacy selected_pillars
-  const allowedPillarsIds = Array.isArray(user?.allowedPillars)
+  const allowedPillarsIds = Array.isArray(subscription?.allowedPillars)
+    ? subscription.allowedPillars
+    : Array.isArray(user?.allowedPillars)
     ? user.allowedPillars
     : user?.selected_pillars || [];
   const accessiblePillars = hasFullAccess
@@ -347,6 +358,179 @@ function DashboardContent({ user }) {
     weekAgoStr
   );
   const weeklyChange = accessibleLifeScore - accessibleWeekAgoLifeScore;
+
+  const comBScores = useMemo(() => {
+    const fallback = { motivation: 58, opportunity: 55, capability: 57 };
+    const profile = user?.behavior_profile || user?.behaviorProfile || {};
+    const onboardingProfile = user?.onboarding_profile || {};
+    const stored = user?.com_b_scores || user?.comB || {};
+    const parseScore = (value, fallbackValue) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : fallbackValue;
+    };
+
+    return {
+      motivation: parseScore(
+        stored.motivation ??
+          profile.motivation ??
+          onboardingProfile.motivation ??
+          user?.motivation_score,
+        fallback.motivation
+      ),
+      opportunity: parseScore(
+        stored.opportunity ??
+          profile.opportunity ??
+          onboardingProfile.opportunity ??
+          user?.opportunity_score ??
+          profile.environment,
+        fallback.opportunity
+      ),
+      capability: parseScore(
+        stored.capability ??
+          profile.capability ??
+          onboardingProfile.capability ??
+          user?.capability_score ??
+          profile.skill,
+        fallback.capability
+      ),
+    };
+  }, [user]);
+
+  const latestEntryByPillar = useMemo(() => {
+    const map = {};
+    entries.forEach((entry) => {
+      if (!entry?.pillar || !entry.date) return;
+      const existing = map[entry.pillar];
+      if (!existing || entry.date > existing.date) {
+        map[entry.pillar] = entry;
+      }
+    });
+    return map;
+  }, [entries]);
+
+  const habitConsistencyByPillar = useMemo(() => {
+    const map = {};
+    habits.forEach((habit) => {
+      const pillarId = habit?.pillar || habit?.pillarId;
+      if (!pillarId) return;
+      const value =
+        typeof habit?.consistency === "number"
+          ? habit.consistency
+          : typeof habit?.completionRate === "number"
+          ? habit.completionRate
+          : typeof habit?.progress === "number"
+          ? habit.progress
+          : habit?.streak
+          ? Math.min(100, (habit.streak / 21) * 100)
+          : 0;
+      if (!map[pillarId]) {
+        map[pillarId] = { total: 0, count: 0 };
+      }
+      map[pillarId].total += value;
+      map[pillarId].count += 1;
+    });
+    return Object.keys(map).reduce((acc, pillarId) => {
+      const stats = map[pillarId];
+      acc[pillarId] = Math.round(stats.total / stats.count || 0);
+      return acc;
+    }, {});
+  }, [habits]);
+
+  const comBPillarMetrics = useMemo(() => {
+    const now = new Date();
+    return accessiblePillarArray.map((pillar) => {
+      /** @type {PillarMetric} */
+      const metric = {
+        id: pillar.id,
+        name: pillar.name,
+        score: pillarScoreMap[pillar.id]?.score ?? pillar.score ?? 0,
+        trend:
+          typeof pillarScoreMap[pillar.id]?.trendScore === "number"
+            ? pillarScoreMap[pillar.id].trendScore
+            : undefined,
+        trendLabel:
+          pillarScoreMap[pillar.id]?.trendLabel ||
+          pillarScoreMap[pillar.id]?.trend,
+        lastEntryDays: null,
+        habitConsistency: habitConsistencyByPillar[pillar.id] ?? null,
+        blockers: pillarScoreMap[pillar.id]?.blockers || [],
+        focus: pillarScoreMap[pillar.id]?.focus,
+      };
+
+      const latestEntry = latestEntryByPillar[pillar.id];
+      if (latestEntry?.date) {
+        const difference = differenceInCalendarDays(
+          now,
+          new Date(latestEntry.date)
+        );
+        metric.lastEntryDays = Number.isFinite(difference)
+          ? Math.max(0, Math.min(365, difference))
+          : null;
+      }
+
+      return metric;
+    });
+  }, [
+    accessiblePillarArray,
+    habitConsistencyByPillar,
+    latestEntryByPillar,
+    pillarScoreMap,
+  ]);
+
+  const comBEngineInput = useMemo(() => {
+    if (!comBPillarMetrics.length) return null;
+    return createComBInput({
+      motivation: comBScores.motivation,
+      opportunity: comBScores.opportunity,
+      capability: comBScores.capability,
+      pillarMetrics: comBPillarMetrics,
+      focusPillarId: recommendation?.pillarId,
+    });
+  }, [
+    comBScores.motivation,
+    comBScores.opportunity,
+    comBScores.capability,
+    comBPillarMetrics,
+    recommendation?.pillarId,
+  ]);
+
+  const comBInsights = useMemo(() => {
+    if (!comBEngineInput) return null;
+    return computeComBRecommendations(comBEngineInput, {
+      limit: hasFullAccess ? 4 : 2,
+      focusPillarId: recommendation?.pillarId,
+    });
+  }, [comBEngineInput, hasFullAccess, recommendation?.pillarId]);
+
+  const comBPrimaryFocus = comBInsights?.primaryFocus || null;
+  const comBRecommendedActions = comBInsights?.recommendedActions || [];
+  const comBDeficits = comBInsights?.deficits || null;
+
+  const adaptiveCoachProfile = useMemo(() => {
+    if (!user) return null;
+    return buildAdaptiveCoachProfile({
+      user,
+      comBInsights,
+      accessiblePillars: accessiblePillarArray,
+    });
+  }, [user, comBInsights, accessiblePillarArray]);
+
+  const adaptiveCoachContext = useMemo(
+    () => buildAdaptiveCoachContext(adaptiveCoachProfile),
+    [adaptiveCoachProfile]
+  );
+
+  const coachPanelBody = useMemo(() => {
+    const payload = {
+      prompt:
+        "Give a short coaching recommendation for today and 3 concrete action items.",
+      userContext: { email: user?.email },
+    };
+    if (adaptiveCoachContext) {
+      payload.adaptiveContext = adaptiveCoachContext;
+    }
+    return payload;
+  }, [user?.email, adaptiveCoachContext]);
 
   const handleTourComplete = async () => {
     setShowTour(false);
@@ -468,18 +652,214 @@ function DashboardContent({ user }) {
           </div>
         )}
 
-        {isTrial && subscription?.trialEndDate && (
+        {comBPrimaryFocus && comBRecommendedActions.length > 0 && (
+          <section className="ns-card mb-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-white/40">
+                  COM-B Guidance
+                </p>
+                <h2 className="text-2xl font-semibold text-white mt-2">
+                  {PILLARS[comBPrimaryFocus.pillarId]?.label ||
+                    comBPrimaryFocus.pillarId}
+                </h2>
+                {comBPrimaryFocus.reasoning && (
+                  <p className="text-white/70 text-sm mt-2 max-w-2xl">
+                    {comBPrimaryFocus.reasoning}
+                  </p>
+                )}
+              </div>
+              {comBDeficits && (
+                <div className="bg-white/5 rounded-2xl px-4 py-3 min-w-[220px]">
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/40">
+                    Gap Radar
+                  </p>
+                  <div className="flex items-end justify-between gap-4 mt-3">
+                    {["motivation", "opportunity", "capability"].map((key) => {
+                      const gapValue =
+                        typeof comBDeficits[key] === "number"
+                          ? Math.max(0, Math.round(comBDeficits[key] * 100))
+                          : null;
+                      return (
+                        <div key={key} className="text-center">
+                          <div className="text-white text-lg font-semibold">
+                            {gapValue !== null ? `${gapValue}%` : "--"}
+                          </div>
+                          <div className="text-xs uppercase tracking-[0.2em] text-white/50">
+                            {key.slice(0, 3)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {comBRecommendedActions.map((action) => (
+                <div
+                  key={action.id}
+                  className="bg-white/5 border border-white/5 rounded-2xl p-4"
+                >
+                  <div className="flex items-center justify-between text-xs text-white/50">
+                    <span>
+                      {PILLARS[action.pillarId]?.label || action.pillarId}
+                    </span>
+                    {action.intensity && (
+                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/60">
+                        {action.intensity}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-white font-semibold mt-1">
+                    {action.label || action.title}
+                  </div>
+                  {(action.description || action.rationale) && (
+                    <p className="text-white/70 text-sm mt-1">
+                      {action.description || action.rationale}
+                    </p>
+                  )}
+                  {action.microActions?.length > 0 && (
+                    <ul className="mt-3 space-y-2">
+                      {action.microActions.slice(0, 2).map((micro) => (
+                        <li
+                          key={micro.id}
+                          className="flex items-start gap-2 text-sm text-white/70"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-[#4CC9F0] mt-0.5 shrink-0" />
+                          <span>
+                            {micro.label || micro.description || micro.action}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {adaptiveCoachProfile && (
+          <section className="ns-card mb-6 border border-white/10 bg-gradient-to-br from-[#0A1628]/80 to-[#111b34]/80">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-white/40">
+                  Adaptive Coach Persona
+                </p>
+                <h2 className="text-2xl font-semibold text-white mt-2">
+                  {adaptiveCoachProfile.persona}
+                </h2>
+                {adaptiveCoachProfile.personaTagline && (
+                  <p className="text-white/60 text-sm mt-1">
+                    {adaptiveCoachProfile.personaTagline}
+                  </p>
+                )}
+                {adaptiveCoachProfile.summary && (
+                  <p className="text-white/70 text-sm mt-2 max-w-2xl">
+                    {adaptiveCoachProfile.summary}
+                  </p>
+                )}
+              </div>
+              <div className="bg-white/5 rounded-2xl px-4 py-3 min-w-[220px]">
+                <p className="text-xs uppercase tracking-[0.3em] text-white/40">
+                  Primary Focus
+                </p>
+                <div className="text-white font-semibold text-lg mt-1">
+                  {adaptiveCoachProfile.focusAreaLabel}
+                </div>
+                <p className="text-white/60 text-xs mt-1">
+                  Gap pressure:&#160;
+                  {Math.round(
+                    (adaptiveCoachProfile.comBDeficits?.[
+                      adaptiveCoachProfile.focusArea
+                    ] || 0) * 100
+                  )}
+                  %
+                </p>
+              </div>
+            </div>
+            {adaptiveCoachProfile.priorityPillars?.length > 0 && (
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                {adaptiveCoachProfile.priorityPillars.map((pillar) => (
+                  <div
+                    key={pillar.id}
+                    className="bg-white/5 border border-white/5 rounded-2xl p-4"
+                  >
+                    <div className="flex items-center justify-between text-xs text-white/50">
+                      <span>{pillar.name}</span>
+                      {pillar.intensity && (
+                        <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/60">
+                          {pillar.intensity}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-white font-semibold mt-1">
+                      Focus: {pillar.focusArea}
+                    </div>
+                    {pillar.summary && (
+                      <p className="text-white/70 text-sm mt-1">
+                        {pillar.summary}
+                      </p>
+                    )}
+                    {pillar.alert?.severityLabel && (
+                      <p className="text-xs text-white/50 mt-2">
+                        Psychometric: {pillar.alert.label} (
+                        {pillar.alert.severityLabel})
+                      </p>
+                    )}
+                    {pillar.microActions?.length > 0 && (
+                      <ul className="mt-2 text-xs text-white/60 space-y-1">
+                        {pillar.microActions.slice(0, 2).map((micro) => (
+                          <li key={micro.id}>
+                            • {micro.label || micro.description}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {adaptiveCoachProfile.alerts?.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/60">
+                {adaptiveCoachProfile.alerts.map((alert) => (
+                  <span
+                    key={alert.id}
+                    className="px-3 py-1 rounded-full bg-white/5 border border-white/10"
+                  >
+                    {alert.label}: {alert.severityLabel || "elevated"}
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {isTrial && (
           <div className="bg-gradient-to-r from-green-500/20 to-emerald-600/20 backdrop-blur-md border border-green-500/40 rounded-2xl p-4 mb-6 mt-6 text-center">
             <p className="text-white text-sm">
               🎉 Free Trial:{" "}
               <span className="font-bold text-green-400">
-                {Math.ceil(
-                  (new Date(subscription.trialEndDate) - new Date()) /
-                    (1000 * 60 * 60 * 24)
-                )}{" "}
+                {typeof daysRemaining === "number"
+                  ? daysRemaining
+                  : subscription?.trialEndsAt
+                  ? Math.max(
+                      0,
+                      Math.ceil(
+                        (new Date(subscription.trialEndsAt) - new Date()) /
+                          (1000 * 60 * 60 * 24)
+                      )
+                    )
+                  : 0}{" "}
                 days left
               </span>
             </p>
+            {subscription?.trialEndsAt && (
+              <p className="text-xs text-white/60 mt-1">
+                Ends {format(new Date(subscription.trialEndsAt), "PPP")}
+              </p>
+            )}
           </div>
         )}
 
@@ -550,11 +930,7 @@ function DashboardContent({ user }) {
           <CoachPanel
             label="Talk to NorthStar"
             path="coach"
-            body={{
-              prompt:
-                "Give a short coaching recommendation for today and 3 concrete action items.",
-              userContext: { email: user?.email },
-            }}
+            body={coachPanelBody}
           />
           <div className="mt-2 text-right">
             <Link
@@ -865,6 +1241,17 @@ DashboardContent.propTypes = {
     raw: PropTypes.shape({
       displayName: PropTypes.string,
     }),
+    behavior_profile: PropTypes.object,
+    behaviorProfile: PropTypes.object,
+    onboarding_profile: PropTypes.object,
+    com_b_scores: PropTypes.object,
+    comB: PropTypes.object,
+    motivation_score: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    opportunity_score: PropTypes.oneOfType([
+      PropTypes.number,
+      PropTypes.string,
+    ]),
+    capability_score: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     tour_completed: PropTypes.bool,
     onboarding_completed: PropTypes.bool,
     streak_milestones_awarded: PropTypes.object,
