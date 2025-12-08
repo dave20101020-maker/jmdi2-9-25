@@ -1,26 +1,5 @@
-import React from 'react';
-import { DndContext, rectSortingStrategy } from '@dnd-kit/core';
-import { SortableContext, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import SleepSummaryCard from '../components/dashboard/SleepSummaryCard.jsx';
-import HabitChecklist from '../components/dashboard/HabitChecklist.jsx';
-import PillarProgressGrid from '../components/dashboard/PillarProgressGrid.jsx';
-import WeeklyTrendsCard from '../components/dashboard/WeeklyTrendsCard.jsx';
-import DashboardModuleSettings from '../components/dashboard/DashboardModuleSettings.jsx';
-import { useDashboardModules } from '../hooks/useDashboardModules.js';
-
-function SortableModule({ id, children }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
-  return (
-    <div ref={setNodeRef} style={style} className="group">
-      <div className="flex -mt-2 -ml-2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button className="cursor-grab text-white/40 text-sm" {...attributes} {...listeners}>⋮ Drag</button>
-      </div>
-      {children}
-    </div>
-  );
-}
+import React from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 const componentMap = {
   SleepSummaryCard,
@@ -73,66 +52,44 @@ export default function Dashboard() {
             <SortableContext items={visible.map(v => v.id)} strategy={rectSortingStrategy}>
               {visible.map(mod => {
                 const Comp = componentMap[mod.component];
-                if (!Comp) return null;
+              export default function Dashboard() {
+                const { demoMode } = useAuth();
+
+                const mockData = {
+                  sleepScore: 78,
+                  readiness: 72,
+                  habitsCompleted: 5,
+                };
+
                 return (
-                  <SortableModule key={mod.id} id={mod.id}>
-                    <Comp />
-                  </SortableModule>
+                  <div className="p-6 text-white">
+                    <h1 className="text-3xl font-bold mb-4">Mission Control · NorthStar</h1>
+
+                    {demoMode && (
+                      <div className="mb-6 p-4 rounded-lg bg-yellow-500 text-black font-semibold">
+                        DEMO MODE — Sample data is shown
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                      <div className="bg-[#0f172a] rounded-xl p-6 shadow-lg">
+                        <h2 className="text-xl font-semibold mb-2">Sleep Score</h2>
+                        <p className="text-4xl font-bold text-blue-400">{mockData.sleepScore}</p>
+                      </div>
+
+                      <div className="bg-[#0f172a] rounded-xl p-6 shadow-lg">
+                        <h2 className="text-xl font-semibold mb-2">Daily Readiness</h2>
+                        <p className="text-4xl font-bold text-green-400">{mockData.readiness}</p>
+                      </div>
+
+                      <div className="bg-[#0f172a] rounded-xl p-6 shadow-lg">
+                        <h2 className="text-xl font-semibold mb-2">Habits Completed</h2>
+                        <p className="text-4xl font-bold text-yellow-400">{mockData.habitsCompleted}</p>
+                      </div>
+                    </div>
+                  </div>
                 );
-              })}
-            </SortableContext>
-          </DndContext>
-        </div>
-
-        <DashboardModuleSettings open={openSettings} onClose={() => setOpenSettings(false)} modules={modules} setModules={setModules} />
-      </div>
-    </div>
-  );
-}import React from 'react';
-import { DndContext, rectSortingStrategy } from '@dnd-kit/core';
-  social: "#ec4899",
-  diet: "#84cc16",
-  spiritual: "#6366f1",
-});
-
-function DashboardContent({ user }) {
-  import React from "react";
-  import { useAuth } from "@/hooks/useAuth";
-
-  export default function Dashboard() {
-    const { demoMode } = useAuth();
-
-    const mockData = {
-      sleepScore: 78,
-      readiness: 72,
-      habitsCompleted: 5,
-    };
-
-    return (
-      <div className="p-6 text-white">
-        <h1 className="text-3xl font-bold mb-4">Mission Control · NorthStar</h1>
-
-        {demoMode && (
-          <div className="mb-6 p-4 rounded-lg bg-yellow-500 text-black font-semibold">
-            DEMO MODE — Sample data is shown
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          <div className="bg-[#0f172a] rounded-xl p-6 shadow-lg">
-            <h2 className="text-xl font-semibold mb-2">Sleep Score</h2>
-            <p className="text-4xl font-bold text-blue-400">{mockData.sleepScore}</p>
-          </div>
-
-          <div className="bg-[#0f172a] rounded-xl p-6 shadow-lg">
-            <h2 className="text-xl font-semibold mb-2">Daily Readiness</h2>
-            <p className="text-4xl font-bold text-green-400">{mockData.readiness}</p>
-          </div>
-
-          <div className="bg-[#0f172a] rounded-xl p-6 shadow-lg">
-            <h2 className="text-xl font-semibold mb-2">Habits Completed</h2>
-            <p className="text-4xl font-bold text-yellow-400">{mockData.habitsCompleted}</p>
-          </div>
+              }
         </div>
       </div>
     );
