@@ -33,11 +33,26 @@ if (!isCodespacesTarget) {
   hmrConfig.port = devPort;
 }
 
+// Backend proxy setup: route /api to backend during dev
+const backendUrl = process.env.VITE_BACKEND_URL || process.env.BACKEND_URL || "http://localhost:5000";
+
 const serverConfig = {
   host: true,
   port: devPort,
   strictPort: true,
-  proxy: {},
+  proxy: {
+    "/api": {
+      target: backendUrl,
+      changeOrigin: true,
+      secure: false,
+      ws: false,
+      configure: (proxy) => {
+        proxy.on("error", (err) => {
+          console.warn(`[vite-proxy] backend error: ${err?.message || err}`);
+        });
+      },
+    },
+  },
   hmr: {
     ...hmrConfig,
     clientPort: 443,

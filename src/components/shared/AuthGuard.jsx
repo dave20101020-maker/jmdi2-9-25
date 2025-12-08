@@ -21,12 +21,12 @@ export default function AuthGuard({ children }) {
         setUser(currentUser);
         setRetryCount(0);
       } else {
-        navigate("/login", { replace: true });
+        navigate("/sign-in", { replace: true });
       }
     } catch (err) {
       console.error("Auth check failed:", err);
       if (err?.status === 401 || err?.status === 403) {
-        navigate("/login", { replace: true });
+        navigate("/sign-in", { replace: true });
         return;
       }
       setError(err.message || "Authentication failed");
@@ -60,7 +60,7 @@ export default function AuthGuard({ children }) {
   };
 
   const handleSignIn = () => {
-    navigate("/login");
+    navigate("/sign-in");
   };
 
   if (loading) {

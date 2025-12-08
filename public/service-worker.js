@@ -1,6 +1,7 @@
-const STATIC_CACHE = "northstar-static-v1";
-const RUNTIME_CACHE = "northstar-runtime-v1";
-const API_CACHE = "northstar-api-v1";
+// Disabled caching for debugging navigation/auth issues
+const STATIC_CACHE = "northstar-static-dev-disabled";
+const RUNTIME_CACHE = "northstar-runtime-dev-disabled";
+const API_CACHE = "northstar-api-dev-disabled";
 
 const ASSETS_TO_CACHE = ["/", "/index.html", "/manifest.json", "/favicon.ico"];
 
@@ -31,20 +32,11 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// During debugging, always hit the network to avoid stale shell
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  const url = new URL(request.url);
-
-  if (request.method !== "GET") {
-    return;
-  }
-
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(networkFirst(request));
-    return;
-  }
-
-  event.respondWith(cacheFirst(request));
+  if (request.method !== "GET") return;
+  event.respondWith(fetch(request).catch(() => caches.match(request)));
 });
 
 self.addEventListener("sync", (event) => {

@@ -603,7 +603,7 @@ export default function Coach() {
 USER CONTEXT:
 - Current ${pillar.name} score: ${context.currentScore}/100 (${
         context.trendLabel
-  } trend, ${context.trend > 0 ? "+" : ""}${context.trend} vs last week)
+      } trend, ${context.trend > 0 ? "+" : ""}${context.trend} vs last week)
 - Last 7 days average: ${context.last7DaysAvg}/100
 - Recent entries: ${
         context.recentEntries.length > 0
@@ -635,41 +635,6 @@ ${
     : "None yet"
 }
 
-function formatAdaptiveContextSection(context, targetPillarId) {
-  if (!context) return "";
-  const priorityLine = (context.priorityPillars || [])
-    .map((pillar) => {
-      const descriptor = pillar.summary || `focus on ${pillar.focusArea}`;
-      return `${pillar.name}: ${descriptor}`;
-    })
-    .join("; ");
-  const alertLine = (context.watchouts || [])
-    .map((alert) => `${alert.label} (${alert.severity || "elevated"})`)
-    .join("; ");
-  const target = (context.priorityPillars || []).find(
-    (pillar) => pillar.id === targetPillarId
-  );
-  const lines = [
-    "ADAPTIVE CONTEXT:",
-    `- Persona: ${context.persona}${
-      context.personaTagline ? ` — ${context.personaTagline}` : ""
-    }`,
-  ];
-  if (context.focusAreaLabel) {
-    lines.push(`- COM-B focus: ${context.focusAreaLabel}`);
-  }
-  if (priorityLine) {
-    lines.push(`- Priority pillars: ${priorityLine}`);
-  }
-  if (alertLine) {
-    lines.push(`- Psychometric alerts: ${alertLine}`);
-  }
-  if (target?.summary) {
-    lines.push(`- Current pillar insight: ${target.summary}`);
-  }
-  return lines.join("\n");
-}
-
 CONVERSATION HISTORY:
 ${previousInteractions
   .slice(0, 3)
@@ -677,6 +642,42 @@ ${previousInteractions
     (i) => `User: ${i.userMessage}\nYou: ${i.aiResponse.substring(0, 200)}...`
   )
   .join("\n\n")}`;
+
+      function formatAdaptiveContextSection(context, targetPillarId) {
+        if (!context) return "";
+        const priorityLine = (context.priorityPillars || [])
+          .map((pillar) => {
+            const descriptor =
+              pillar.summary || "focus on " + (pillar.focusArea || "");
+            return pillar.name + ": " + descriptor;
+          })
+          .join("; ");
+        const alertLine = (context.watchouts || [])
+          .map((alert) => `${alert.label} (${alert.severity || "elevated"})`)
+          .join("; ");
+        const target = (context.priorityPillars || []).find(
+          (pillar) => pillar.id === targetPillarId
+        );
+        const lines = [
+          "ADAPTIVE CONTEXT:",
+          `- Persona: ${context.persona}${
+            context.personaTagline ? ` — ${context.personaTagline}` : ""
+          }`,
+        ];
+        if (context.focusAreaLabel) {
+          lines.push(`- COM-B focus: ${context.focusAreaLabel}`);
+        }
+        if (priorityLine) {
+          lines.push(`- Priority pillars: ${priorityLine}`);
+        }
+        if (alertLine) {
+          lines.push(`- Psychometric alerts: ${alertLine}`);
+        }
+        if (target?.summary) {
+          lines.push(`- Current pillar insight: ${target.summary}`);
+        }
+        return lines.join("\n");
+      }
 
       const adaptiveContextSnippet = formatAdaptiveContextSection(
         adaptiveCoachContext,

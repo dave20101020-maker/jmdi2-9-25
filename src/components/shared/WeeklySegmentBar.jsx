@@ -1,37 +1,37 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Calendar } from "lucide-react";
+import { Calendar, CheckCircle2 } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
 
-export default function WeeklySegmentBar({ 
+export default function WeeklySegmentBar({
   dailyData = {}, // { 'yyyy-MM-dd': value }
   dailyGoal = 30,
   weeklyGoal = 210,
   color = "#FF5733",
   label = "This Week",
   unit = "min",
-  emptyLabel = "Rest day"
+  emptyLabel = "Rest day",
 }) {
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(weekStart, i);
-    const dateStr = format(date, 'yyyy-MM-dd');
+    const dateStr = format(date, "yyyy-MM-dd");
     const value = dailyData[dateStr] || 0;
     const goalMet = value >= dailyGoal;
-    
+
     return {
       date,
       dateStr,
       value,
       goalMet,
-      dayName: format(date, 'EEE'),
-      isToday: dateStr === format(new Date(), 'yyyy-MM-dd')
+      dayName: format(date, "EEE"),
+      isToday: dateStr === format(new Date(), "yyyy-MM-dd"),
     };
   });
 
   const totalWeek = Object.values(dailyData).reduce((sum, v) => sum + v, 0);
   const weekProgress = (totalWeek / weeklyGoal) * 100;
-  const daysCompleted = weekDays.filter(d => d.goalMet).length;
+  const daysCompleted = weekDays.filter((d) => d.goalMet).length;
 
   return (
     <div className="space-y-4">
@@ -42,7 +42,7 @@ export default function WeeklySegmentBar({
           <span className="text-white font-bold">{label}</span>
         </div>
         <div className="text-right">
-          <motion.div 
+          <motion.div
             className="text-xl font-bold"
             style={{ color }}
             key={totalWeek}
@@ -61,12 +61,11 @@ export default function WeeklySegmentBar({
       {/* Weekly segments */}
       <div className="grid grid-cols-7 gap-2">
         {weekDays.map((day, idx) => {
-          const heightPercentage = dailyGoal > 0 
-            ? Math.min(100, (day.value / dailyGoal) * 100) 
-            : 0;
+          const heightPercentage =
+            dailyGoal > 0 ? Math.min(100, (day.value / dailyGoal) * 100) : 0;
 
           return (
-            <motion.div 
+            <motion.div
               key={day.dateStr}
               className="relative group cursor-default"
               initial={{ opacity: 0, y: 20 }}
@@ -75,26 +74,30 @@ export default function WeeklySegmentBar({
               whileHover={{ scale: 1.05 }}
             >
               {/* Day label */}
-              <div className={`text-center text-xs mb-1.5 font-medium ${
-                day.isToday ? 'text-white' : 'text-white/60'
-              }`}>
+              <div
+                className={`text-center text-xs mb-1.5 font-medium ${
+                  day.isToday ? "text-white" : "text-white/60"
+                }`}
+              >
                 {day.dayName}
               </div>
 
               {/* Bar */}
-              <div 
+              <div
                 className="relative h-24 bg-white/10 rounded-lg overflow-hidden flex flex-col justify-end"
                 style={{
-                  border: day.isToday ? `2px solid ${color}` : '1px solid rgba(255,255,255,0.1)'
+                  border: day.isToday
+                    ? `2px solid ${color}`
+                    : "1px solid rgba(255,255,255,0.1)",
                 }}
               >
-                <motion.div 
+                <motion.div
                   className="w-full rounded-t-lg relative"
-                  style={{ 
-                    background: day.goalMet 
+                  style={{
+                    background: day.goalMet
                       ? `linear-gradient(to top, ${color}, ${color}CC)`
                       : `linear-gradient(to top, ${color}60, ${color}40)`,
-                    boxShadow: day.goalMet ? `0 0 10px ${color}60` : 'none'
+                    boxShadow: day.goalMet ? `0 0 10px ${color}60` : "none",
                   }}
                   initial={{ height: 0 }}
                   animate={{ height: `${heightPercentage}%` }}
@@ -102,27 +105,25 @@ export default function WeeklySegmentBar({
                     type: "spring",
                     stiffness: 100,
                     damping: 20,
-                    delay: idx * 0.05 + 0.2
+                    delay: idx * 0.05 + 0.2,
                   }}
                 >
                   {/* Goal indicator line */}
                   {heightPercentage > 0 && (
-                    <div 
-                      className="absolute top-0 left-0 right-0 h-0.5 bg-white/40"
-                    />
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/40" />
                   )}
                 </motion.div>
 
                 {/* Goal met checkmark */}
                 {day.goalMet && (
-                  <motion.div 
+                  <motion.div
                     className="absolute top-1 left-1/2 transform -translate-x-1/2"
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
-                    transition={{ 
+                    transition={{
                       delay: idx * 0.05 + 0.4,
                       type: "spring",
-                      stiffness: 400
+                      stiffness: 400,
                     }}
                   >
                     <CheckCircle2 className="w-4 h-4 text-white drop-shadow-lg" />
@@ -131,17 +132,21 @@ export default function WeeklySegmentBar({
 
                 {/* Today indicator */}
                 {day.isToday && (
-                  <motion.div 
+                  <motion.div
                     className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 rounded-full"
                     style={{ backgroundColor: color }}
-                    animate={{ 
+                    animate={{
                       scale: [1, 1.3, 1],
-                      boxShadow: [`0 0 0 ${color}`, `0 0 10px ${color}`, `0 0 0 ${color}`]
+                      boxShadow: [
+                        `0 0 0 ${color}`,
+                        `0 0 10px ${color}`,
+                        `0 0 0 ${color}`,
+                      ],
                     }}
-                    transition={{ 
+                    transition={{
                       duration: 2,
                       repeat: Infinity,
-                      ease: "easeInOut"
+                      ease: "easeInOut",
                     }}
                   />
                 )}
@@ -149,9 +154,11 @@ export default function WeeklySegmentBar({
                 {/* Hover tooltip */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-sm">
                   <div className="text-center">
-                    <div className="text-white font-bold text-sm">{day.value} {unit}</div>
+                    <div className="text-white font-bold text-sm">
+                      {day.value} {unit}
+                    </div>
                     <div className="text-white/60 text-xs">
-                      {day.goalMet ? '✓ Goal met' : emptyLabel}
+                      {day.goalMet ? "✓ Goal met" : emptyLabel}
                     </div>
                   </div>
                 </div>
@@ -159,7 +166,7 @@ export default function WeeklySegmentBar({
 
               {/* Date */}
               <div className="text-center text-xs text-white/40 mt-1">
-                {format(day.date, 'd')}
+                {format(day.date, "d")}
               </div>
             </motion.div>
           );
@@ -170,22 +177,24 @@ export default function WeeklySegmentBar({
       <div className="pt-2 border-t border-white/10">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-white/60 text-xs">Weekly Goal</span>
-          <span className="text-white/60 text-xs">{Math.round(weekProgress)}%</span>
+          <span className="text-white/60 text-xs">
+            {Math.round(weekProgress)}%
+          </span>
         </div>
         <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-          <motion.div 
+          <motion.div
             className="h-full rounded-full"
-            style={{ 
+            style={{
               background: `linear-gradient(to right, ${color}, ${color}CC)`,
-              boxShadow: `0 0 8px ${color}60`
+              boxShadow: `0 0 8px ${color}60`,
             }}
             initial={{ width: 0 }}
             animate={{ width: `${Math.min(100, weekProgress)}%` }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 80, 
+            transition={{
+              type: "spring",
+              stiffness: 80,
               damping: 20,
-              delay: 0.5
+              delay: 0.5,
             }}
           />
         </div>

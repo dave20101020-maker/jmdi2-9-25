@@ -31,6 +31,9 @@ const normalizePath = (value) => {
 export default function MainLayout() {
   const location = useLocation();
   const currentPath = normalizePath(location.pathname);
+  const DEMO_MODE =
+    (import.meta.env.VITE_DEMO_MODE || "").toLowerCase() === "true" ||
+    import.meta.env.VITE_DISABLE_PROTECTION === "true";
 
   const isRouteActive = (path, { exact } = {}) => {
     const normalized = normalizePath(path);
@@ -106,6 +109,14 @@ export default function MainLayout() {
 
       <div className="ns-content">
         <header className="ns-topbar">
+          {DEMO_MODE && (
+            <div className="fixed top-0 left-0 right-0 z-[70] flex items-center justify-center px-3 py-2 bg-yellow-500/10 border-b border-yellow-400/30 backdrop-blur-md">
+              <p className="text-xs sm:text-sm text-yellow-300 font-medium tracking-wide">
+                Demo Mode Active — authentication is temporarily disabled for
+                navigation. Remember to turn it off before launch.
+              </p>
+            </div>
+          )}
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-white/50 mb-1">
               Mission

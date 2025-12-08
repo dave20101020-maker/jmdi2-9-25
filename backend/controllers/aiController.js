@@ -1,22 +1,61 @@
-import OpenAI from 'openai';
-import User from '../models/User.js';
-import OnboardingProfile from '../models/OnboardingProfile.js';
-import PillarCheckIn from '../models/PillarCheckIn.js';
+import OpenAI from "openai";
+import User from "../models/User.js";
+import OnboardingProfile from "../models/OnboardingProfile.js";
+import PillarCheckIn from "../models/PillarCheckIn.js";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy initialization of OpenAI client
+let openai = null;
+const getOpenAIClient = () => {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+};
 
 // Per-pillar short configs (system role + preferred tone)
 const pillarConfigs = {
-  sleep: { system: 'You are an expert sleep coach. Provide actionable, sleep-hygiene focused advice.', tone: 'gentle' },
-  diet: { system: 'You are a nutrition coach. Provide practical, evidence-based nutrition tips.', tone: 'practical' },
-  exercise: { system: 'You are a fitness coach. Give safe, motivating exercise recommendations.', tone: 'energetic' },
-  physical_health: { system: 'You are a physical health advisor. Focus on preventive care and recovery.', tone: 'calm' },
-  mental_health: { system: 'You are a mental health coach. Offer grounding, resilience-building guidance.', tone: 'compassionate' },
-  finances: { system: 'You are a personal finance coach. Provide clear budgeting and saving actions.', tone: 'direct' },
-  social: { system: 'You are a social wellbeing coach. Recommend ways to strengthen relationships.', tone: 'warm' },
-  spirituality: { system: 'You are a purpose & meaning coach. Help the user connect actions to values.', tone: 'reflective' },
+  sleep: {
+    system:
+      "You are an expert sleep coach. Provide actionable, sleep-hygiene focused advice.",
+    tone: "gentle",
+  },
+  diet: {
+    system:
+      "You are a nutrition coach. Provide practical, evidence-based nutrition tips.",
+    tone: "practical",
+  },
+  exercise: {
+    system:
+      "You are a fitness coach. Give safe, motivating exercise recommendations.",
+    tone: "energetic",
+  },
+  physical_health: {
+    system:
+      "You are a physical health advisor. Focus on preventive care and recovery.",
+    tone: "calm",
+  },
+  mental_health: {
+    system:
+      "You are a mental health coach. Offer grounding, resilience-building guidance.",
+    tone: "compassionate",
+  },
+  finances: {
+    system:
+      "You are a personal finance coach. Provide clear budgeting and saving actions.",
+    tone: "direct",
+  },
+  social: {
+    system:
+      "You are a social wellbeing coach. Recommend ways to strengthen relationships.",
+    tone: "warm",
+  },
+  spirituality: {
+    system:
+      "You are a purpose & meaning coach. Help the user connect actions to values.",
+    tone: "reflective",
+  },
 };
 
 /**
@@ -24,20 +63,28 @@ const pillarConfigs = {
  */
 const getNorthStarRecommendation = async (user) => {
   // user: user document (with _id and allowedPillars) or userId string
-  let userId = typeof user === 'string' ? user : String(user._id);
-  const authUser = typeof user === 'object' ? user : null;
+  let userId = typeof user === "string" ? user : String(user._id);
+  const authUser = typeof user === "object" ? user : null;
 
   // Calculate priority scores using helper
   const priorities = await calculatePriorityScores(userId, authUser);
 
   if (!priorities || priorities.length === 0) {
-    const allowed = (authUser && Array.isArray(authUser.allowedPillars)) ? authUser.allowedPillars : [];
-    return { primaryPillars: allowed.slice(0,2), reason: 'No data available; defaulting to plan defaults.' };
+    const allowed =
+      authUser && Array.isArray(authUser.allowedPillars)
+        ? authUser.allowedPillars
+        : [];
+    return {
+      primaryPillars: allowed.slice(0, 2),
+      reason: "No data available; defaulting to plan defaults.",
+    };
   }
 
   // pick top pillar
   const top = priorities[0];
-  const reason = `Priority score ${Math.round(top.score)} — based on recent trend, recent average score and onboarding COM-B inputs.`;
+  const reason = `Priority score ${Math.round(
+    top.score
+  )} — based on recent trend, recent average score and onboarding COM-B inputs.`;
   return { primaryPillars: [top.pillarId], reason };
 };
 
@@ -53,23 +100,50 @@ const getNorthStarRecommendation = async (user) => {
 export const calculatePriorityScores = async (userId, userDoc = null) => {
   try {
     const uid = String(userId);
-    const onboarding = await OnboardingProfile.findOne({ userId: uid }).lean().catch(()=>null);
+    const onboarding = await OnboardingProfile.findOne({ userId: uid })
+      .lean()
+      .catch(() => null);
 
     // Determine allowed pillars
-    const allowed = (userDoc && Array.isArray(userDoc.allowedPillars)) ? userDoc.allowedPillars : ['sleep','diet','exercise','physical_health','mental_health','finances','social','spirituality'];
+    const allowed =
+      userDoc && Array.isArray(userDoc.allowedPillars)
+        ? userDoc.allowedPillars
+        : [
+            "sleep",
+            "diet",
+            "exercise",
+            "physical_health",
+            "mental_health",
+            "finances",
+            "social",
+            "spirituality",
+          ];
 
     const results = [];
     for (const pillar of allowed) {
       // COM-B components
-      const cb = (onboarding && onboarding.com_b && onboarding.com_b[pillar]) ? onboarding.com_b[pillar] : { capability:5, opportunity:5, motivation:5 };
-      const comSum = (cb.capability || 0) + (cb.opportunity || 0) + (cb.motivation || 0); // 0-30
+      const cb =
+        onboarding && onboarding.com_b && onboarding.com_b[pillar]
+          ? onboarding.com_b[pillar]
+          : { capability: 5, opportunity: 5, motivation: 5 };
+      const comSum =
+        (cb.capability || 0) + (cb.opportunity || 0) + (cb.motivation || 0); // 0-30
 
       // Recent check-ins (last 7 days)
       const since = new Date();
       since.setDate(since.getDate() - 7);
-      const entries = await PillarCheckIn.find({ userId: uid, pillarId: pillar, createdAt: { $gte: since } }).lean();
-      const values = entries.map(e => (typeof e.value === 'number' ? e.value : 0)); // 0-10
-      const avgVal = values.length > 0 ? (values.reduce((a,b)=>a+b,0)/values.length) : null; // 0-10 or null
+      const entries = await PillarCheckIn.find({
+        userId: uid,
+        pillarId: pillar,
+        createdAt: { $gte: since },
+      }).lean();
+      const values = entries.map((e) =>
+        typeof e.value === "number" ? e.value : 0
+      ); // 0-10
+      const avgVal =
+        values.length > 0
+          ? values.reduce((a, b) => a + b, 0) / values.length
+          : null; // 0-10 or null
       const avgScore = avgVal !== null ? avgVal * 10 : 50; // scale to 0-100, default 50
 
       // Base priority: higher when COM-B sum is lower and avgScore is lower
@@ -89,10 +163,10 @@ export const calculatePriorityScores = async (userId, userDoc = null) => {
     }
 
     // sort descending
-    results.sort((a,b) => b.score - a.score);
+    results.sort((a, b) => b.score - a.score);
     return results;
   } catch (err) {
-    console.error('calculatePriorityScores error', err);
+    console.error("calculatePriorityScores error", err);
     return [];
   }
 };
@@ -106,45 +180,78 @@ export const coachAgent = async (req, res) => {
   try {
     const { prompt, userContext = {}, pillarFocus } = req.body;
 
-    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+    if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
     // If no pillarFocus provided, ask orchestrator to pick 1-2 pillars
-    let chosen = { primaryPillars: [], reason: 'user-specified' };
+    let chosen = { primaryPillars: [], reason: "user-specified" };
     if (!pillarFocus) {
       // require authenticated user
-      const user = req.user || (req.body.userId ? await User.findById(req.body.userId) : null);
+      const user =
+        req.user ||
+        (req.body.userId ? await User.findById(req.body.userId) : null);
       chosen = await getNorthStarRecommendation(user || req.body.userId);
     } else {
-      chosen.primaryPillars = Array.isArray(pillarFocus) ? pillarFocus.slice(0,2) : [pillarFocus];
+      chosen.primaryPillars = Array.isArray(pillarFocus)
+        ? pillarFocus.slice(0, 2)
+        : [pillarFocus];
     }
 
-    const focus = chosen.primaryPillars[0] || 'general';
-    const config = pillarConfigs[focus] || { system: 'You are an empathetic wellness coach.', tone: 'supportive' };
+    const focus = chosen.primaryPillars[0] || "general";
+    const config = pillarConfigs[focus] || {
+      system: "You are an empathetic wellness coach.",
+      tone: "supportive",
+    };
 
     const messages = [
-      { role: 'system', content: config.system },
-      { role: 'system', content: `Tone: ${config.tone}` },
-      { role: 'user', content: `Context: ${JSON.stringify(userContext)}. User: ${prompt}. Focus: ${focus}. Reason for focus: ${chosen.reason || ''}. Return JSON with coaching, encouragement, actionItems (array), nextSteps.` }
+      { role: "system", content: config.system },
+      { role: "system", content: `Tone: ${config.tone}` },
+      {
+        role: "user",
+        content: `Context: ${JSON.stringify(
+          userContext
+        )}. User: ${prompt}. Focus: ${focus}. Reason for focus: ${
+          chosen.reason || ""
+        }. Return JSON with coaching, encouragement, actionItems (array), nextSteps.`,
+      },
     ];
 
-    const response = await openai.beta.messages.create({
-      model: 'gpt-4-turbo',
+    const response = await getOpenAIClient().beta.messages.create({
+      model: "gpt-4-turbo",
       max_tokens: 1024,
       messages,
-      betas: ['openai-beta.json-mode-latest'],
+      betas: ["openai-beta.json-mode-latest"],
     });
 
     const content = response.content[0];
-    if (content.type !== 'text') throw new Error('Unexpected response type from OpenAI');
+    if (content.type !== "text")
+      throw new Error("Unexpected response type from OpenAI");
 
     let coachingData;
-    try { coachingData = JSON.parse(content.text); }
-    catch { coachingData = { coaching: content.text, encouragement: 'You are making progress!', actionItems: [], nextSteps: 'Continue your wellness journey.' }; }
+    try {
+      coachingData = JSON.parse(content.text);
+    } catch {
+      coachingData = {
+        coaching: content.text,
+        encouragement: "You are making progress!",
+        actionItems: [],
+        nextSteps: "Continue your wellness journey.",
+      };
+    }
 
-    res.json({ success: true, agent: 'coach', timestamp: new Date().toISOString(), data: { focus, chosen, coaching: coachingData } });
+    res.json({
+      success: true,
+      agent: "coach",
+      timestamp: new Date().toISOString(),
+      data: { focus, chosen, coaching: coachingData },
+    });
   } catch (error) {
-    console.error('Coach agent error:', error);
-    res.status(500).json({ error: 'Failed to process coaching request', message: error.message });
+    console.error("Coach agent error:", error);
+    res
+      .status(500)
+      .json({
+        error: "Failed to process coaching request",
+        message: error.message,
+      });
   }
 };
 
@@ -158,24 +265,26 @@ export const dailyPlanAgent = async (req, res) => {
     const { prompt, userGoals = [], timeAvailable = 16 } = req.body;
 
     if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
+      return res.status(400).json({ error: "Prompt is required" });
     }
 
-    const response = await openai.beta.messages.create({
-      model: 'gpt-4-turbo',
+    const response = await getOpenAIClient().beta.messages.create({
+      model: "gpt-4-turbo",
       max_tokens: 1500,
       messages: [
         {
-          role: 'user',
-          content: `You are an expert productivity and wellness planner. Create a structured daily plan based on: "${prompt}". User has ${timeAvailable} hours of available time. Goals: ${JSON.stringify(userGoals)}. Return a JSON object with: morningRoutine (array of tasks with times), mainTasks (prioritized array with durations), eveningRoutine (array of tasks), estimatedTime (total hours needed), and energyManagement (tips for maintaining energy).`,
+          role: "user",
+          content: `You are an expert productivity and wellness planner. Create a structured daily plan based on: "${prompt}". User has ${timeAvailable} hours of available time. Goals: ${JSON.stringify(
+            userGoals
+          )}. Return a JSON object with: morningRoutine (array of tasks with times), mainTasks (prioritized array with durations), eveningRoutine (array of tasks), estimatedTime (total hours needed), and energyManagement (tips for maintaining energy).`,
         },
       ],
-      betas: ['openai-beta.json-mode-latest'],
+      betas: ["openai-beta.json-mode-latest"],
     });
 
     const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type from OpenAI');
+    if (content.type !== "text") {
+      throw new Error("Unexpected response type from OpenAI");
     }
 
     let planData;
@@ -183,24 +292,28 @@ export const dailyPlanAgent = async (req, res) => {
       planData = JSON.parse(content.text);
     } catch {
       planData = {
-        morningRoutine: ['6:00 AM - Wake up', '6:30 AM - Exercise', '7:30 AM - Breakfast'],
+        morningRoutine: [
+          "6:00 AM - Wake up",
+          "6:30 AM - Exercise",
+          "7:30 AM - Breakfast",
+        ],
         mainTasks: [{ task: prompt, duration: timeAvailable / 2 }],
-        eveningRoutine: ['Evening wind-down', 'Prepare for tomorrow'],
+        eveningRoutine: ["Evening wind-down", "Prepare for tomorrow"],
         estimatedTime: timeAvailable,
-        energyManagement: 'Take regular breaks and stay hydrated',
+        energyManagement: "Take regular breaks and stay hydrated",
       };
     }
 
     res.json({
       success: true,
-      agent: 'dailyPlan',
+      agent: "dailyPlan",
       timestamp: new Date().toISOString(),
       data: planData,
     });
   } catch (error) {
-    console.error('Daily plan agent error:', error);
+    console.error("Daily plan agent error:", error);
     res.status(500).json({
-      error: 'Failed to create daily plan',
+      error: "Failed to create daily plan",
       message: error.message,
     });
   }
@@ -215,32 +328,64 @@ export const pillarAnalysisAgent = async (req, res) => {
   try {
     const { prompt, currentScores = {}, focusAreas = [], pillar } = req.body;
 
-    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+    if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
     // require a specific pillar for pillar-analysis
     const target = pillar;
-    if (!target) return res.status(400).json({ error: 'pillar is required for pillar-analysis' });
-    const config = pillarConfigs[target] || { system: 'You are a holistic wellness analyst.', tone: 'neutral' };
+    if (!target)
+      return res
+        .status(400)
+        .json({ error: "pillar is required for pillar-analysis" });
+    const config = pillarConfigs[target] || {
+      system: "You are a holistic wellness analyst.",
+      tone: "neutral",
+    };
 
     const messages = [
-      { role: 'system', content: config.system },
-      { role: 'system', content: `Tone: ${config.tone}` },
-      { role: 'user', content: `Pillar: ${target}. Current score: ${currentScores[target] || 0}. Context: ${prompt}. Focus areas: ${JSON.stringify(focusAreas)}. Return JSON with pillarAnalysis (single pillar), recommendations (array), strengths (array), improvements (array).` }
+      { role: "system", content: config.system },
+      { role: "system", content: `Tone: ${config.tone}` },
+      {
+        role: "user",
+        content: `Pillar: ${target}. Current score: ${
+          currentScores[target] || 0
+        }. Context: ${prompt}. Focus areas: ${JSON.stringify(
+          focusAreas
+        )}. Return JSON with pillarAnalysis (single pillar), recommendations (array), strengths (array), improvements (array).`,
+      },
     ];
 
-    const response = await openai.beta.messages.create({ model: 'gpt-4-turbo', max_tokens: 1200, messages, betas: ['openai-beta.json-mode-latest'] });
+    const response = await getOpenAIClient().beta.messages.create({
+      model: "gpt-4-turbo",
+      max_tokens: 1200,
+      messages,
+      betas: ["openai-beta.json-mode-latest"],
+    });
     const content = response.content[0];
-    if (content.type !== 'text') throw new Error('Unexpected response type from OpenAI');
+    if (content.type !== "text")
+      throw new Error("Unexpected response type from OpenAI");
 
     let analysisData;
-    try { analysisData = JSON.parse(content.text); }
-    catch { analysisData = { pillarAnalysis: { [target]: content.text }, recommendations: [], strengths: [], improvements: [] }; }
+    try {
+      analysisData = JSON.parse(content.text);
+    } catch {
+      analysisData = {
+        pillarAnalysis: { [target]: content.text },
+        recommendations: [],
+        strengths: [],
+        improvements: [],
+      };
+    }
 
-    res.json({ success: true, agent: 'pillarAnalysis', timestamp: new Date().toISOString(), data: analysisData });
+    res.json({
+      success: true,
+      agent: "pillarAnalysis",
+      timestamp: new Date().toISOString(),
+      data: analysisData,
+    });
   } catch (error) {
-    console.error('Pillar analysis agent error:', error);
+    console.error("Pillar analysis agent error:", error);
     res.status(500).json({
-      error: 'Failed to analyze pillars',
+      error: "Failed to analyze pillars",
       message: error.message,
     });
   }
@@ -256,24 +401,28 @@ export const weeklyReflectionAgent = async (req, res) => {
     const { prompt, weeklyData = {}, pillarScores = {} } = req.body;
 
     if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
+      return res.status(400).json({ error: "Prompt is required" });
     }
 
-    const response = await openai.beta.messages.create({
-      model: 'gpt-4-turbo',
+    const response = await getOpenAIClient().beta.messages.create({
+      model: "gpt-4-turbo",
       max_tokens: 1500,
       messages: [
         {
-          role: 'user',
-          content: `You are a reflective wellness coach. Generate a comprehensive weekly reflection based on the user's week: "${prompt}". Weekly data: ${JSON.stringify(weeklyData)}. Pillar scores: ${JSON.stringify(pillarScores)}. Return a JSON object with: 1) weeklyInsights (summary of the week), 2) keyAccomplishments (array of wins), 3) lessonsLearned (array of insights), 4) nextWeekGoals (array of goals for next week), 5) motivationalMessage (encouraging message).`,
+          role: "user",
+          content: `You are a reflective wellness coach. Generate a comprehensive weekly reflection based on the user's week: "${prompt}". Weekly data: ${JSON.stringify(
+            weeklyData
+          )}. Pillar scores: ${JSON.stringify(
+            pillarScores
+          )}. Return a JSON object with: 1) weeklyInsights (summary of the week), 2) keyAccomplishments (array of wins), 3) lessonsLearned (array of insights), 4) nextWeekGoals (array of goals for next week), 5) motivationalMessage (encouraging message).`,
         },
       ],
-      betas: ['openai-beta.json-mode-latest'],
+      betas: ["openai-beta.json-mode-latest"],
     });
 
     const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type from OpenAI');
+    if (content.type !== "text") {
+      throw new Error("Unexpected response type from OpenAI");
     }
 
     let reflectionData;
@@ -281,24 +430,33 @@ export const weeklyReflectionAgent = async (req, res) => {
       reflectionData = JSON.parse(content.text);
     } catch {
       reflectionData = {
-        weeklyInsights: 'You had a productive week with good progress.',
-        keyAccomplishments: ['Completed daily tasks', 'Maintained healthy habits'],
-        lessonsLearned: ['Consistency is key', 'Small steps lead to big changes'],
-        nextWeekGoals: ['Build on this week\'s momentum', 'Focus on areas needing improvement'],
-        motivationalMessage: 'You are doing great! Keep up the excellent work.',
+        weeklyInsights: "You had a productive week with good progress.",
+        keyAccomplishments: [
+          "Completed daily tasks",
+          "Maintained healthy habits",
+        ],
+        lessonsLearned: [
+          "Consistency is key",
+          "Small steps lead to big changes",
+        ],
+        nextWeekGoals: [
+          "Build on this week's momentum",
+          "Focus on areas needing improvement",
+        ],
+        motivationalMessage: "You are doing great! Keep up the excellent work.",
       };
     }
 
     res.json({
       success: true,
-      agent: 'weeklyReflection',
+      agent: "weeklyReflection",
       timestamp: new Date().toISOString(),
       data: reflectionData,
     });
   } catch (error) {
-    console.error('Weekly reflection agent error:', error);
+    console.error("Weekly reflection agent error:", error);
     res.status(500).json({
-      error: 'Failed to generate weekly reflection',
+      error: "Failed to generate weekly reflection",
       message: error.message,
     });
   }
@@ -315,57 +473,105 @@ export const buildWeeklyReport = async (userId) => {
     prevSince.setDate(now.getDate() - 14);
 
     // fetch last 7 days and previous 7 days
-    const recent = await PillarCheckIn.find({ userId: uid, createdAt: { $gte: since } }).lean();
-    const prev = await PillarCheckIn.find({ userId: uid, createdAt: { $gte: prevSince, $lt: since } }).lean();
+    const recent = await PillarCheckIn.find({
+      userId: uid,
+      createdAt: { $gte: since },
+    }).lean();
+    const prev = await PillarCheckIn.find({
+      userId: uid,
+      createdAt: { $gte: prevSince, $lt: since },
+    }).lean();
 
-    const pillars = ['sleep','diet','exercise','physical_health','mental_health','finances','social','spirituality'];
+    const pillars = [
+      "sleep",
+      "diet",
+      "exercise",
+      "physical_health",
+      "mental_health",
+      "finances",
+      "social",
+      "spirituality",
+    ];
     const summary = {};
     const improvements = [];
     const declines = [];
 
     for (const p of pillars) {
-      const recentVals = recent.filter(r => r.pillarId === p).map(r => r.value);
-      const prevVals = prev.filter(r => r.pillarId === p).map(r => r.value);
-      const recentAvg = recentVals.length ? (recentVals.reduce((a,b)=>a+b,0)/recentVals.length) : null;
-      const prevAvg = prevVals.length ? (prevVals.reduce((a,b)=>a+b,0)/prevVals.length) : null;
-      const recentScore = recentAvg !== null ? Math.round(recentAvg*10) : null;
-      const prevScore = prevAvg !== null ? Math.round(prevAvg*10) : null;
+      const recentVals = recent
+        .filter((r) => r.pillarId === p)
+        .map((r) => r.value);
+      const prevVals = prev.filter((r) => r.pillarId === p).map((r) => r.value);
+      const recentAvg = recentVals.length
+        ? recentVals.reduce((a, b) => a + b, 0) / recentVals.length
+        : null;
+      const prevAvg = prevVals.length
+        ? prevVals.reduce((a, b) => a + b, 0) / prevVals.length
+        : null;
+      const recentScore =
+        recentAvg !== null ? Math.round(recentAvg * 10) : null;
+      const prevScore = prevAvg !== null ? Math.round(prevAvg * 10) : null;
       summary[p] = { recentAvg: recentAvg, recentScore, prevAvg, prevScore };
       if (recentAvg !== null && prevAvg !== null) {
         const diff = (recentAvg - prevAvg) * 10;
-        if (diff >= 5) improvements.push({ pillar: p, change: Math.round(diff) });
+        if (diff >= 5)
+          improvements.push({ pillar: p, change: Math.round(diff) });
         if (diff <= -5) declines.push({ pillar: p, change: Math.round(diff) });
       }
     }
 
     // Determine biggest improvement and weakest pillar (lowest recent score)
-    const biggestImprovement = improvements.sort((a,b)=>b.change-a.change)[0] || null;
-    const weakest = pillars.map(p=>({ pillar: p, score: summary[p].recentScore || 0 })).sort((a,b)=>a.score-b.score)[0];
+    const biggestImprovement =
+      improvements.sort((a, b) => b.change - a.change)[0] || null;
+    const weakest = pillars
+      .map((p) => ({ pillar: p, score: summary[p].recentScore || 0 }))
+      .sort((a, b) => a.score - b.score)[0];
 
     // Call AI to generate actions if possible
     let actions = [];
-    let aiSummary = '';
+    let aiSummary = "";
     try {
       if (openai && process.env.OPENAI_API_KEY) {
-        const prompt = `Weekly report data for user:\nPillar averages (0-100): ${JSON.stringify(Object.fromEntries(pillars.map(p=>[p, summary[p].recentScore || 0])))}\nBiggest improvement: ${biggestImprovement ? biggestImprovement.pillar + ' ('+biggestImprovement.change+')' : 'none'}\nWeakest pillar: ${weakest.pillar} (${weakest.score})\nProvide a short email-style summary and 3 recommended actions as a JSON object { title, summary, improvements, declines, actions }`;
-        const response = await openai.beta.messages.create({ model: 'gpt-4-turbo', max_tokens: 800, messages: [{ role: 'user', content: prompt }], betas: ['openai-beta.json-mode-latest'] });
+        const prompt = `Weekly report data for user:\nPillar averages (0-100): ${JSON.stringify(
+          Object.fromEntries(
+            pillars.map((p) => [p, summary[p].recentScore || 0])
+          )
+        )}\nBiggest improvement: ${
+          biggestImprovement
+            ? biggestImprovement.pillar + " (" + biggestImprovement.change + ")"
+            : "none"
+        }\nWeakest pillar: ${weakest.pillar} (${
+          weakest.score
+        })\nProvide a short email-style summary and 3 recommended actions as a JSON object { title, summary, improvements, declines, actions }`;
+        const response = await getOpenAIClient().beta.messages.create({
+          model: "gpt-4-turbo",
+          max_tokens: 800,
+          messages: [{ role: "user", content: prompt }],
+          betas: ["openai-beta.json-mode-latest"],
+        });
         const content = response.content[0];
-        if (content?.type === 'text') {
-          try { const parsed = JSON.parse(content.text); aiSummary = parsed.summary || ''; actions = parsed.actions || []; }
-          catch { aiSummary = content.text || ''; }
+        if (content?.type === "text") {
+          try {
+            const parsed = JSON.parse(content.text);
+            aiSummary = parsed.summary || "";
+            actions = parsed.actions || [];
+          } catch {
+            aiSummary = content.text || "";
+          }
         }
       }
     } catch (err) {
-      console.debug('AI weekly report generation failed', err);
+      console.debug("AI weekly report generation failed", err);
     }
 
     // Fallback summary if AI not available
     if (!aiSummary) {
-      aiSummary = `Here's your 7-day summary. Biggest improvement: ${biggestImprovement ? biggestImprovement.pillar : 'N/A'}. Weakest pillar: ${weakest.pillar}.`;
+      aiSummary = `Here's your 7-day summary. Biggest improvement: ${
+        biggestImprovement ? biggestImprovement.pillar : "N/A"
+      }. Weakest pillar: ${weakest.pillar}.`;
       actions = [
-        'Log a quick daily check-in for your weakest pillar',
-        'Try one small, specific action related to the biggest improvement to keep momentum',
-        'Set a micro-goal for the week and track progress daily'
+        "Log a quick daily check-in for your weakest pillar",
+        "Try one small, specific action related to the biggest improvement to keep momentum",
+        "Set a micro-goal for the week and track progress daily",
       ];
     }
 
@@ -375,10 +581,10 @@ export const buildWeeklyReport = async (userId) => {
       improvements,
       declines,
       actions,
-      raw: { summary }
+      raw: { summary },
     };
   } catch (err) {
-    console.error('buildWeeklyReport error', err);
+    console.error("buildWeeklyReport error", err);
     return null;
   }
 };
@@ -386,12 +592,18 @@ export const buildWeeklyReport = async (userId) => {
 export const weeklyReportAgent = async (req, res) => {
   try {
     const user = req.user;
-    if (!user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+    if (!user)
+      return res
+        .status(401)
+        .json({ success: false, error: "Not authenticated" });
     const report = await buildWeeklyReport(user._id);
-    if (!report) return res.status(500).json({ success: false, error: 'Failed to build report' });
+    if (!report)
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to build report" });
     return res.json({ success: true, data: report });
   } catch (err) {
-    console.error('weeklyReportAgent error', err);
-    return res.status(500).json({ success: false, error: 'Server error' });
+    console.error("weeklyReportAgent error", err);
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 };

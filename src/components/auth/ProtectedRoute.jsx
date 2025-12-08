@@ -1,3 +1,4 @@
+import React from "react";
 import { Navigate, Outlet, useLocation, Link } from "react-router-dom";
 import NSButton from "@/components/ui/NSButton";
 import ConnectionIssue from "@/components/fallbacks/ConnectionIssue";
@@ -5,10 +6,33 @@ import RouteLoader from "@/components/fallbacks/RouteLoader";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ProtectedRoute({ children, redirectTo = "/sign-in" }) {
+  const DISABLE_PROTECTION = import.meta.env.VITE_DISABLE_PROTECTION === "true";
+  const DEMO_MODE =
+    (import.meta.env.VITE_DEMO_MODE || "").toLowerCase() === "true";
+  const DEMO_INIT_TIMEOUT_MS = Number(
+    import.meta.env.VITE_DEMO_INIT_TIMEOUT_MS || 3000
+  );
   const { user, initializing, error } = useAuth();
   const location = useLocation();
   const redirectTarget = redirectTo || "/sign-in";
   const shouldStoreReturnPath = location.pathname !== redirectTarget;
+
+  // Demo mode: skip auth checks and render immediately
+  if (DISABLE_PROTECTION || DEMO_MODE) {
+    return children || <Outlet />;
+  }
+
+  // In case initialization hangs due to backend issues, allow a timed bypass in demo builds
+  if (initializing && DEMO_INIT_TIMEOUT_MS > 0) {
+    const [expired, setExpired] = React.useState(false);
+    React.useEffect(() => {
+      const t = setTimeout(() => setExpired(true), DEMO_INIT_TIMEOUT_MS);
+      return () => clearTimeout(t);
+    }, [DEMO_INIT_TIMEOUT_MS]);
+    if (expired) {
+      return children || <Outlet />;
+    }
+  }
 
   const errorStatus =
     error?.status || error?.statusCode || error?.response?.status || null;

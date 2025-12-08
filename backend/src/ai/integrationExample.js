@@ -1,23 +1,24 @@
 /**
  * AI System Integration Example
- * 
+ *
  * This file demonstrates how to integrate the multi-agent AI system
  * into your Express routes and controllers.
  */
 
-import express from 'express';
-import { 
-  executeAgentRequest, 
+import express from "express";
+import Entry from "../../models/Entry.js";
+import {
+  executeAgentRequest,
   executeStreamingAgentRequest,
   executeWorkflow,
-  listAvailableAgents 
-} from './orchestrator/agentOrchestrator.js';
-import { 
-  buildUserContext, 
+  listAvailableAgents,
+} from "./orchestrator/agentOrchestrator.js";
+import {
+  buildUserContext,
   analyzeMoodTrends,
-  getPillarActivity 
-} from './orchestrator/contextManager.js';
-import { checkAPIKeys, MODELS, getRecommendedModel } from './modelRouter.js';
+  getPillarActivity,
+} from "./orchestrator/contextManager.js";
+import { checkAPIKeys, getRecommendedModel } from "./modelRouter.js";
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ const checkAIService = (req, res, next) => {
   if (!keys.openai && !keys.anthropic) {
     return res.status(503).json({
       success: false,
-      error: 'AI service is not configured. Please contact administrator.',
+      error: "AI service is not configured. Please contact administrator.",
     });
   }
   next();
@@ -37,15 +38,15 @@ const checkAIService = (req, res, next) => {
  * GET /api/ai/status
  * Check AI service status and available agents
  */
-router.get('/status', (req, res) => {
+router.get("/status", (req, res) => {
   const keys = checkAPIKeys();
   const agents = listAvailableAgents();
 
   res.json({
     success: true,
     status: {
-      openai: keys.openai ? 'configured' : 'missing',
-      anthropic: keys.anthropic ? 'configured' : 'missing',
+      openai: keys.openai ? "configured" : "missing",
+      anthropic: keys.anthropic ? "configured" : "missing",
     },
     agents,
   });
@@ -55,7 +56,7 @@ router.get('/status', (req, res) => {
  * GET /api/ai/agents
  * List all available coaching agents
  */
-router.get('/agents', checkAIService, (req, res) => {
+router.get("/agents", checkAIService, (req, res) => {
   const agents = listAvailableAgents();
   res.json({
     success: true,
@@ -66,7 +67,7 @@ router.get('/agents', checkAIService, (req, res) => {
 /**
  * POST /api/ai/coach
  * Send a message to the AI coach
- * 
+ *
  * Body:
  * {
  *   message: "I need help with sleep",
@@ -74,7 +75,7 @@ router.get('/agents', checkAIService, (req, res) => {
  *   stream?: false
  * }
  */
-router.post('/coach', checkAIService, async (req, res) => {
+router.post("/coach", checkAIService, async (req, res) => {
   try {
     const { message, agentType, stream = false } = req.body;
     const userId = req.user?.id;
@@ -82,7 +83,7 @@ router.post('/coach', checkAIService, async (req, res) => {
     if (!message) {
       return res.status(400).json({
         success: false,
-        error: 'Message is required',
+        error: "Message is required",
       });
     }
 
@@ -103,9 +104,9 @@ router.post('/coach', checkAIService, async (req, res) => {
 
     // Handle streaming response
     if (stream) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
 
       for await (const chunk of executeStreamingAgentRequest({
         userMessage: message,
@@ -115,7 +116,7 @@ router.post('/coach', checkAIService, async (req, res) => {
         res.write(`data: ${JSON.stringify(chunk)}\n\n`);
       }
 
-      res.write('data: [DONE]\n\n');
+      res.write("data: [DONE]\n\n");
       res.end();
       return;
     }
@@ -142,11 +143,12 @@ router.post('/coach', checkAIService, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('AI coach error:', error);
+    console.error("AI coach error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to process AI request',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      error: "Failed to process AI request",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -155,7 +157,7 @@ router.post('/coach', checkAIService, async (req, res) => {
  * POST /api/ai/insights
  * Get comprehensive wellness insights
  */
-router.post('/insights', checkAIService, async (req, res) => {
+router.post("/insights", checkAIService, async (req, res) => {
   try {
     const userId = req.user?.id;
     const { pillar } = req.body;
@@ -184,27 +186,27 @@ router.post('/insights', checkAIService, async (req, res) => {
     // Execute workflow for comprehensive insights
     const workflow = [
       {
-        name: 'Overall Assessment',
-        agentType: 'general',
-        task: pillar 
-          ? `Analyze the user's progress in ${pillar}` 
-          : 'Provide an overall wellness assessment',
+        name: "Overall Assessment",
+        agentType: "general",
+        task: pillar
+          ? `Analyze the user's progress in ${pillar}`
+          : "Provide an overall wellness assessment",
       },
     ];
 
     // Add specialized agent if focusing on specific pillar
-    if (pillar === 'sleep') {
+    if (pillar === "sleep") {
       workflow.push({
-        name: 'Sleep Analysis',
-        agentType: 'sleep',
-        task: 'Analyze sleep patterns and provide specific recommendations',
+        name: "Sleep Analysis",
+        agentType: "sleep",
+        task: "Analyze sleep patterns and provide specific recommendations",
         useContext: true,
       });
-    } else if (pillar === 'mental_health') {
+    } else if (pillar === "mental_health") {
       workflow.push({
-        name: 'Mental Health Check',
-        agentType: 'mentalHealth',
-        task: 'Assess emotional well-being and suggest coping strategies',
+        name: "Mental Health Check",
+        agentType: "mentalHealth",
+        task: "Assess emotional well-being and suggest coping strategies",
         useContext: true,
       });
     }
@@ -217,10 +219,10 @@ router.post('/insights', checkAIService, async (req, res) => {
       details: result.results,
     });
   } catch (error) {
-    console.error('Insights error:', error);
+    console.error("Insights error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to generate insights',
+      error: "Failed to generate insights",
     });
   }
 });
@@ -229,7 +231,7 @@ router.post('/insights', checkAIService, async (req, res) => {
  * POST /api/ai/daily-checkin
  * Generate personalized daily check-in
  */
-router.post('/daily-checkin', checkAIService, async (req, res) => {
+router.post("/daily-checkin", checkAIService, async (req, res) => {
   try {
     const userId = req.user?.id;
 
@@ -242,12 +244,20 @@ router.post('/daily-checkin', checkAIService, async (req, res) => {
 
     // Get current day info
     const now = new Date();
-    const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
+    const dayOfWeek = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ][now.getDay()];
 
     // Use general coach to create check-in
     const response = await executeAgentRequest({
       userMessage: `Generate a brief daily check-in message for ${dayOfWeek}`,
-      agentType: 'general',
+      agentType: "general",
       context,
       options: {
         temperature: 0.8,
@@ -261,10 +271,10 @@ router.post('/daily-checkin', checkAIService, async (req, res) => {
       day: dayOfWeek,
     });
   } catch (error) {
-    console.error('Daily check-in error:', error);
+    console.error("Daily check-in error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to generate daily check-in',
+      error: "Failed to generate daily check-in",
     });
   }
 });
@@ -273,11 +283,11 @@ router.post('/daily-checkin', checkAIService, async (req, res) => {
  * POST /api/ai/recommend-model
  * Get recommended AI model for a task
  */
-router.post('/recommend-model', (req, res) => {
+router.post("/recommend-model", (req, res) => {
   const { taskType } = req.body;
-  
+
   const model = getRecommendedModel(taskType);
-  
+
   res.json({
     success: true,
     taskType,
@@ -305,8 +315,8 @@ export async function createEntryWithAIInsights(req, res) {
     });
 
     // Generate AI insights asynchronously (don't wait)
-    generateAIInsights(userId, entry).catch(err => 
-      console.error('AI insights error:', err)
+    generateAIInsights(userId, entry).catch((err) =>
+      console.error("AI insights error:", err)
     );
 
     res.json({
@@ -330,9 +340,9 @@ async function generateAIInsights(userId, entry) {
   });
 
   // Determine which agent based on pillar
-  let agentType = 'general';
-  if (entry.pillar === 'sleep') agentType = 'sleep';
-  if (entry.pillar === 'mental_health') agentType = 'mentalHealth';
+  let agentType = "general";
+  if (entry.pillar === "sleep") agentType = "sleep";
+  if (entry.pillar === "mental_health") agentType = "mentalHealth";
 
   const response = await executeAgentRequest({
     userMessage: `Based on this journal entry, provide brief insights: "${entry.content}"`,

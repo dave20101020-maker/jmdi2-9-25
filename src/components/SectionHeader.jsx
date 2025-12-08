@@ -1,5 +1,5 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { cn } from "@/utils";
 
 /**
  * SectionHeader - Reusable section header component
@@ -16,53 +16,58 @@ export const SectionHeader = ({
   subtitle,
   icon,
   action,
-  variant = 'default',
-  size = 'md',
+  variant = "default",
+  size = "md",
   divider = false,
   className,
   children,
 }) => {
   const sizeClasses = {
     sm: {
-      title: 'text-lg font-semibold',
-      subtitle: 'text-sm',
-      spacing: 'mb-3',
+      title: "text-lg font-semibold",
+      subtitle: "text-sm",
+      spacing: "mb-3",
     },
     md: {
-      title: 'text-2xl font-bold',
-      subtitle: 'text-base',
-      spacing: 'mb-4',
+      title: "text-2xl font-bold",
+      subtitle: "text-base",
+      spacing: "mb-4",
     },
     lg: {
-      title: 'text-3xl font-bold',
-      subtitle: 'text-lg',
-      spacing: 'mb-6',
+      title: "text-3xl font-bold",
+      subtitle: "text-lg",
+      spacing: "mb-6",
     },
   };
 
   const variantClasses = {
     default: {
-      title: 'text-gray-900 dark:text-gray-50',
-      subtitle: 'text-gray-600 dark:text-gray-400',
+      title: "text-gray-900 dark:text-gray-50",
+      subtitle: "text-gray-600 dark:text-gray-400",
     },
     primary: {
-      title: 'text-blue-600 dark:text-blue-400',
-      subtitle: 'text-blue-500 dark:text-blue-300',
+      title: "text-blue-600 dark:text-blue-400",
+      subtitle: "text-blue-500 dark:text-blue-300",
     },
     accent: {
-      title: 'text-purple-600 dark:text-purple-400',
-      subtitle: 'text-purple-500 dark:text-purple-300',
+      title: "text-purple-600 dark:text-purple-400",
+      subtitle: "text-purple-500 dark:text-purple-300",
     },
   };
 
-  const { title: titleSize, subtitle: subtitleSize, spacing } = sizeClasses[size];
-  const { title: titleColor, subtitle: subtitleColor } = variantClasses[variant];
+  const {
+    title: titleSize,
+    subtitle: subtitleSize,
+    spacing,
+  } = sizeClasses[size];
+  const { title: titleColor, subtitle: subtitleColor } =
+    variantClasses[variant];
 
   return (
     <div
       className={cn(
         spacing,
-        divider && 'pb-4 border-b border-gray-200 dark:border-gray-700',
+        divider && "pb-4 border-b border-gray-200 dark:border-gray-700",
         className
       )}
     >
@@ -71,35 +76,31 @@ export const SectionHeader = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1">
             {icon && (
-              <span className={cn(
-                'flex-shrink-0',
-                size === 'sm' ? 'text-xl' : size === 'md' ? 'text-2xl' : 'text-3xl'
-              )}>
+              <span
+                className={cn(
+                  "flex-shrink-0",
+                  size === "sm"
+                    ? "text-xl"
+                    : size === "md"
+                    ? "text-2xl"
+                    : "text-3xl"
+                )}
+              >
                 {icon}
               </span>
             )}
-            <h2 className={cn(titleSize, titleColor, 'truncate')}>
-              {title}
-            </h2>
+            <h2 className={cn(titleSize, titleColor, "truncate")}>{title}</h2>
           </div>
           {subtitle && (
-            <p className={cn(subtitleSize, subtitleColor, 'mt-1')}>
+            <p className={cn(subtitleSize, subtitleColor, "mt-1")}>
               {subtitle}
             </p>
           )}
-          {children && (
-            <div className="mt-3">
-              {children}
-            </div>
-          )}
+          {children && <div className="mt-3">{children}</div>}
         </div>
 
         {/* Right side: Action button/element */}
-        {action && (
-          <div className="flex-shrink-0">
-            {action}
-          </div>
-        )}
+        {action && <div className="flex-shrink-0">{action}</div>}
       </div>
     </div>
   );

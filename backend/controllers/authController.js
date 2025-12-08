@@ -92,7 +92,7 @@ const generateUniqueUsername = async (seed) => {
   while (attempt < 50) {
     const suffix = attempt === 0 ? "" : `${Math.floor(Math.random() * 10000)}`;
     const candidate = `${normalized}${suffix}`.slice(0, 24) || `pilot${Date.now()}`;
-    // eslint-disable-next-line no-await-in-loop
+     
     const exists = await User.exists({ username: candidate });
     if (!exists) return candidate;
     attempt += 1;

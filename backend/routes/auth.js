@@ -6,12 +6,11 @@ import {
   getCurrentUser,
   refreshSession,
   logoutUser,
-  googleOAuthLogin,
-  linkGoogleAccount,
-  facebookOAuthLogin,
+  startGoogleOAuth,
+  handleGoogleOAuthCallback,
   startFacebookOAuth,
-  facebookOAuthCallback,
-  linkFacebookAccount,
+  handleFacebookOAuthCallback,
+  startNhsOAuth,
 } from "../controllers/authController.js";
 import { authRequired } from "../middleware/authMiddleware.js";
 
@@ -29,14 +28,13 @@ const authLimiter = rateLimit({
 
 router.post("/register", authLimiter, registerUser);
 router.post("/login", authLimiter, loginUser);
-router.post("/google", authLimiter, googleOAuthLogin);
+router.get("/google", startGoogleOAuth);
+router.get("/google/callback", handleGoogleOAuthCallback);
 router.get("/facebook", startFacebookOAuth);
-router.get("/facebook/callback", facebookOAuthCallback);
-router.post("/facebook", authLimiter, facebookOAuthLogin);
+router.get("/facebook/callback", handleFacebookOAuthCallback);
+router.get("/nhs", startNhsOAuth);
 router.post("/logout", logoutUser);
 router.post("/refresh", refreshSession);
 router.get("/me", authRequired, getCurrentUser);
-router.post("/google/link", authRequired, linkGoogleAccount);
-router.post("/facebook/link", authRequired, linkFacebookAccount);
 
 export default router;

@@ -10,35 +10,24 @@ const REFRESH_ENDPOINT = "/auth/refresh";
 const rawBackendUrl = import.meta.env.VITE_BACKEND_URL
   ? String(import.meta.env.VITE_BACKEND_URL).trim()
   : "";
-const fallbackHint =
-  (import.meta.env.VITE_API_URL || "").trim() ||
-  (typeof window !== "undefined" && window.location?.origin
+const detectedOrigin =
+  typeof window !== "undefined" && window.location?.origin
     ? window.location.origin
-    : "");
+    : "";
+const legacyApiUrl = (import.meta.env.VITE_API_URL || "").trim();
 
-if (!rawBackendUrl) {
-  if (fallbackHint) {
-    console.error(
-      `[apiClient] Missing VITE_BACKEND_URL. A fallback host was detected (${fallbackHint}) but will not be used.`
-    );
-  } else {
-    console.error(
-      "[apiClient] Missing VITE_BACKEND_URL and no fallback host is available."
-    );
-  }
-  throw new Error(
-    "VITE_BACKEND_URL is required for API calls. Update src/.env.development with your backend origin."
+// Graceful fallback: if VITE_BACKEND_URL is missing, use current origin.
+let BASE_BACKEND_URL = rawBackendUrl.replace(/\/$/, "");
+if (!BASE_BACKEND_URL) {
+  BASE_BACKEND_URL = detectedOrigin.replace(/\/$/, "");
+  console.warn(
+    `[apiClient] VITE_BACKEND_URL not set. Falling back to current origin (${BASE_BACKEND_URL}).`
   );
 }
 
-const BASE_BACKEND_URL = rawBackendUrl.replace(/\/$/, "");
-
-if (
-  import.meta.env.VITE_API_URL &&
-  import.meta.env.VITE_API_URL !== rawBackendUrl
-) {
+if (legacyApiUrl && legacyApiUrl !== rawBackendUrl) {
   console.info(
-    `[apiClient] Using VITE_BACKEND_URL (${BASE_BACKEND_URL}) and ignoring legacy VITE_API_URL.`
+    `[apiClient] Using VITE_BACKEND_URL (${BASE_BACKEND_URL}) and ignoring legacy VITE_API_URL (${legacyApiUrl}).`
   );
 }
 
@@ -959,6 +948,28 @@ class APIClient {
     return this.request("/onboarding", {
       method: "POST",
       body: JSON.stringify(profile),
+    });
+  }
+
+  async getOnboardingTemplate() {
+    return this.request("/onboarding/template", { method: "GET" });
+  }
+
+  async getPsychologyProfile() {
+    return this.request("/onboarding/psychology", { method: "GET" });
+  }
+
+  async submitPsychologyProfile(payload) {
+    return this.request("/onboarding/psychology", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async completeOnboarding(payload) {
+    return this.request("/onboarding/complete", {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   }
 

@@ -1,6 +1,6 @@
 import { api } from "@/utils/apiClient";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl, getPillarsArray } from "@/utils";
 import {
@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Calendar,
   Sparkles,
-  Plus,
   X,
   Loader2,
   TrendingUp,
@@ -33,12 +32,7 @@ import {
   type SmartGoalProps,
   type UserProps,
 } from "@/models";
-import {
-  arrayFromPayload,
-  objectFromPayload,
-  parseArrayAs,
-  parseAs,
-} from "@/models/runtime";
+import { arrayFromPayload, parseArrayAs, parseAs } from "@/models/runtime";
 import { sanitizeText } from "@/utils/security";
 
 const PILLAR_QUESTIONS = {

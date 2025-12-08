@@ -2,10 +2,10 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * PHASE 11: Voice Input System - Microphone to Text for Mobile
  * ═══════════════════════════════════════════════════════════════════════════
- * 
+ *
  * Enables speech-to-text input for mobile users across iOS and Android.
  * Supports voice entries, checkins, and messaging via microphone.
- * 
+ *
  * Features:
  * - Web Speech API for real-time transcription
  * - Fallback to OpenAI Whisper API for accuracy
@@ -18,7 +18,7 @@
 
 // ⚠️ SECURITY: All AI API calls routed through backend only
 // Frontend never imports AI SDKs or has access to API keys
-import { apiClient } from "../api/client.js";
+import { apiClient } from "@/api/client";
 
 // Voice input configuration
 const voiceConfig = {
@@ -41,7 +41,7 @@ const voiceConfig = {
 /**
  * React component for voice input
  * Can be used in habit entries, checkins, messaging
- * 
+ *
  * @param {Object} props
  * @param {Function} props.onTranscriptionComplete - Callback with transcribed text
  * @param {string} props.placeholder - Input placeholder
@@ -208,13 +208,15 @@ export const VoiceInput = ({
                       confidenceScore > 80
                         ? "bg-green-500"
                         : confidenceScore > 60
-                          ? "bg-yellow-500"
-                          : "bg-red-500"
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
                     }`}
                     style={{ width: `${confidenceScore}%` }}
                   ></div>
                 </div>
-                <span className="text-sm text-gray-600">{confidenceScore}%</span>
+                <span className="text-sm text-gray-600">
+                  {confidenceScore}%
+                </span>
               </div>
             )}
           </div>

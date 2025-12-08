@@ -169,3 +169,14 @@
   color: var(--ns-color-gold, #f4d06f);
   font-weight: 600;
 }
+
+/* Ensure top navigation stays clickable above incidental overlays */
+.ns-topbar {
+  position: relative;
+  z-index: 60; /* above z-50 overlays used by modals/backdrops */
+}
+
+/* Non-interactive global backdrop layers should not intercept clicks */
+.ns-app-surface__content .ns-backdrop-noninteractive {
+  pointer-events: none;
+}

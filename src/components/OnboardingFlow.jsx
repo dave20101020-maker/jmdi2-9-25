@@ -6,6 +6,9 @@
  * 2. Goals Selection
  * 3. Health Screens
  * 4. Mental Health Screens
+ * 5. Psychometric Assessments
+ * 6. Psychology Intake
+ * 7. Consent Review
  *
  * Usage:
  *   <OnboardingFlow onComplete={() => navigate('/dashboard')} />
@@ -13,9 +16,165 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
-import api from "../api/client";
+import { ChevronLeft, ChevronRight, Check, X } from "lucide-react";
+import { api } from "@/utils/apiClient";
 import { getAssessmentDefinitions, scoreAssessment } from "@/assessments";
+
+const createDefaultPsychologyState = () => ({
+  physiology: {
+    heightCm: "",
+    weightKg: "",
+    age: "",
+    sex: "",
+  },
+  sleepChronotype: {
+    type: "",
+    chronotypeScore: null,
+    preferredSleepWindow: {
+      start: "",
+      end: "",
+    },
+    wakeTime: "",
+    windDownTime: "",
+  },
+  comBProfile: {
+    capability: null,
+    opportunity: null,
+    motivation: null,
+    limitingBeliefs: [],
+    accelerators: [],
+    frictionPoints: [],
+    narrativeSummary: "",
+  },
+  cognitiveDistortions: {
+    totalScore: null,
+    severity: "",
+    endorsedPatterns: [],
+    copingStatements: [],
+    notes: "",
+  },
+  stressIndex: {
+    score: null,
+    severity: "",
+    topTriggers: [],
+    regulationCapacity: null,
+    recoveryAssets: [],
+    notes: "",
+  },
+  moodBaseline: {
+    average: null,
+    variability: null,
+    descriptors: [],
+    supportiveFactors: [],
+    challengeAreas: [],
+    notes: "",
+  },
+  habitAdherence: {
+    profile: "",
+    adherenceScore: null,
+    consistency: null,
+    frictionPoints: [],
+    enablingFactors: [],
+    notes: "",
+  },
+  dopamineReward: {
+    calibrationScore: null,
+    sensitivityLevel: "",
+    rewardDrivers: [],
+    cautionFlags: [],
+    notes: "",
+  },
+  overwhelmThreshold: {
+    thresholdScore: null,
+    riskLevel: "",
+    earlySignals: [],
+    recoveryStrategies: [],
+    notes: "",
+  },
+  responses: {},
+});
+
+const mergePsychologyState = (defaults, incoming) => {
+  if (!incoming) {
+    return defaults;
+  }
+
+  const mergeValue = (base, value) => {
+    if (Array.isArray(value)) {
+      return [...value];
+    }
+    if (value && typeof value === "object") {
+      const next = Array.isArray(base) ? [] : { ...base };
+      Object.entries(value).forEach(([key, nested]) => {
+        next[key] = mergeValue(base?.[key], nested);
+      });
+      return next;
+    }
+    return value;
+  };
+
+  const result = mergeValue(defaults, incoming);
+  return result;
+};
+
+const getNestedValue = (object, path) => {
+  if (!object || !path) return undefined;
+  return path.split(".").reduce((acc, segment) => {
+    if (acc === undefined || acc === null) return undefined;
+    return acc[segment];
+  }, object);
+};
+
+const setNestedValue = (source, path, value) => {
+  const segments = path.split(".");
+  const clone = { ...source };
+  let cursor = clone;
+  let sourceCursor = source || {};
+
+  segments.forEach((segment, index) => {
+    if (index === segments.length - 1) {
+      cursor[segment] = Array.isArray(value) ? [...value] : value;
+      return;
+    }
+
+    const nextSource =
+      sourceCursor && typeof sourceCursor === "object"
+        ? sourceCursor[segment]
+        : undefined;
+
+    const nextValue = Array.isArray(nextSource)
+      ? [...nextSource]
+      : nextSource && typeof nextSource === "object"
+      ? { ...nextSource }
+      : {};
+
+    cursor[segment] = nextValue;
+    cursor = cursor[segment];
+    sourceCursor =
+      nextSource && typeof nextSource === "object" ? nextSource : {};
+  });
+
+  return clone;
+};
+
+const toNumberOrNull = (value) => {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const normalizeOptions = (options = []) =>
+  options.map((option) => {
+    if (typeof option === "string") {
+      return { value: option, label: option };
+    }
+    return {
+      value: option?.value ?? option?.label ?? "",
+      label: option?.label ?? option?.value ?? "",
+    };
+  });
 
 const STEPS = [
   "Demographics",
@@ -23,6 +182,8 @@ const STEPS = [
   "Health",
   "Mental Health",
   "Assessments",
+  "Psychology",
+  "Consents",
 ];
 
 export default function OnboardingFlow({ onComplete }) {
@@ -41,7 +202,13 @@ export default function OnboardingFlow({ onComplete }) {
       responses: {},
       results: {},
     },
+    consents: {},
   });
+  const [psychologyData, setPsychologyData] = useState(() =>
+    createDefaultPsychologyState()
+  );
+  const [tagInputs, setTagInputs] = useState({});
+  const [consentWarning, setConsentWarning] = useState(false);
 
   const assessmentDefinitions = useMemo(() => getAssessmentDefinitions(), []);
 
@@ -50,27 +217,92 @@ export default function OnboardingFlow({ onComplete }) {
   // ============================================================================
 
   useEffect(() => {
-    const loadTemplate = async () => {
+    let isMounted = true;
+
+    const load = async () => {
       try {
-        const response = await fetch("/api/onboarding/template", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+        const templatePromise = api.getOnboardingTemplate();
+        const psychologyPromise = api.getPsychologyProfile().catch((error) => {
+          if (error?.status === 451 && isMounted) {
+            setConsentWarning(true);
+            return null;
+          }
+          if (error?.status === 404) {
+            return null;
+          }
+          throw error;
         });
-        const data = await response.json();
-        if (data.ok) {
-          setTemplate(data.template);
+
+        const [templatePayload, psychologyPayload] = await Promise.all([
+          templatePromise,
+          psychologyPromise,
+        ]);
+
+        if (!isMounted) return;
+
+        if (templatePayload?.ok) {
+          setTemplate(templatePayload.template);
+        } else if (templatePayload && !templatePayload?.ok) {
+          setError("Failed to load onboarding template");
+        }
+
+        if (psychologyPayload?.psychologyProfile) {
+          setPsychologyData(
+            mergePsychologyState(
+              createDefaultPsychologyState(),
+              psychologyPayload.psychologyProfile
+            )
+          );
         }
       } catch (err) {
-        setError("Failed to load onboarding template");
+        if (!isMounted) return;
         console.error(err);
+        setError("Failed to load onboarding data");
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    loadTemplate();
+    load();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  useEffect(() => {
+    const requirements = template?.consents?.requirements;
+    if (!requirements?.length) {
+      return;
+    }
+
+    setFormData((prev) => {
+      const nextConsents = { ...(prev.consents || {}) };
+      let mutated = false;
+
+      requirements.forEach((requirement) => {
+        if (!nextConsents[requirement.id]) {
+          mutated = true;
+          nextConsents[requirement.id] = {
+            accepted: false,
+            version: requirement.version,
+            timestamp: null,
+          };
+        }
+      });
+
+      if (!mutated) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        consents: nextConsents,
+      };
+    });
+  }, [template]);
 
   // ============================================================================
   // Update Form Data
@@ -165,6 +397,172 @@ export default function OnboardingFlow({ onComplete }) {
     });
   };
 
+  const applyPsychologyUpdateInternal = (state, path, value) => {
+    const nextState = setNestedValue(state, path, value);
+    const responses = { ...(state.responses || {}) };
+    responses[path] = Array.isArray(value) ? [...value] : value;
+    nextState.responses = responses;
+    return nextState;
+  };
+
+  const setPsychologyValue = (path, value) => {
+    setPsychologyData((prev) =>
+      applyPsychologyUpdateInternal(prev, path, value)
+    );
+  };
+
+  const handleToggleMultiSelect = (path, optionValue) => {
+    setPsychologyData((prev) => {
+      const existing = getNestedValue(prev, path) || [];
+      const nextArray = existing.includes(optionValue)
+        ? existing.filter((item) => item !== optionValue)
+        : [...existing, optionValue];
+      return applyPsychologyUpdateInternal(prev, path, nextArray);
+    });
+  };
+
+  const handleTagInputChange = (path, value) => {
+    setTagInputs((prev) => ({ ...prev, [path]: value }));
+  };
+
+  const handleAddTag = (path) => {
+    const candidate = (tagInputs[path] || "").trim();
+    if (!candidate) return;
+
+    setPsychologyData((prev) => {
+      const existing = getNestedValue(prev, path) || [];
+      if (existing.includes(candidate)) {
+        return prev;
+      }
+      const nextArray = [...existing, candidate];
+      return applyPsychologyUpdateInternal(prev, path, nextArray);
+    });
+
+    setTagInputs((prev) => ({ ...prev, [path]: "" }));
+  };
+
+  const handleRemoveTag = (path, tag) => {
+    setPsychologyData((prev) => {
+      const existing = getNestedValue(prev, path) || [];
+      const nextArray = existing.filter((item) => item !== tag);
+      return applyPsychologyUpdateInternal(prev, path, nextArray);
+    });
+  };
+
+  const handleConsentToggle = (consentId, accepted, version) => {
+    setFormData((prev) => {
+      const consents = { ...(prev.consents || {}) };
+      consents[consentId] = {
+        ...(consents[consentId] || {}),
+        accepted,
+        version,
+        timestamp: accepted ? new Date().toISOString() : null,
+      };
+
+      return {
+        ...prev,
+        consents,
+      };
+    });
+  };
+
+  const buildPsychologyPayload = () => {
+    const preferredWindow =
+      psychologyData.sleepChronotype?.preferredSleepWindow || {};
+
+    return {
+      physiology: {
+        heightCm: toNumberOrNull(psychologyData.physiology?.heightCm),
+        weightKg: toNumberOrNull(psychologyData.physiology?.weightKg),
+        age: toNumberOrNull(psychologyData.physiology?.age),
+        sex: psychologyData.physiology?.sex || null,
+        notes: psychologyData.physiology?.notes || null,
+      },
+      sleepChronotype: {
+        type: psychologyData.sleepChronotype?.type || null,
+        chronotypeScore: toNumberOrNull(
+          psychologyData.sleepChronotype?.chronotypeScore
+        ),
+        preferredSleepWindow: {
+          start: preferredWindow.start || null,
+          end: preferredWindow.end || null,
+        },
+        wakeTime: psychologyData.sleepChronotype?.wakeTime || null,
+        windDownTime: psychologyData.sleepChronotype?.windDownTime || null,
+        notes: psychologyData.sleepChronotype?.notes || null,
+      },
+      comBProfile: {
+        capability: toNumberOrNull(psychologyData.comBProfile?.capability),
+        opportunity: toNumberOrNull(psychologyData.comBProfile?.opportunity),
+        motivation: toNumberOrNull(psychologyData.comBProfile?.motivation),
+        limitingBeliefs: psychologyData.comBProfile?.limitingBeliefs || [],
+        accelerators: psychologyData.comBProfile?.accelerators || [],
+        frictionPoints: psychologyData.comBProfile?.frictionPoints || [],
+        narrativeSummary: psychologyData.comBProfile?.narrativeSummary || null,
+      },
+      cognitiveDistortions: {
+        totalScore: toNumberOrNull(
+          psychologyData.cognitiveDistortions?.totalScore
+        ),
+        severity: psychologyData.cognitiveDistortions?.severity || null,
+        endorsedPatterns:
+          psychologyData.cognitiveDistortions?.endorsedPatterns || [],
+        copingStatements:
+          psychologyData.cognitiveDistortions?.copingStatements || [],
+        notes: psychologyData.cognitiveDistortions?.notes || null,
+      },
+      stressIndex: {
+        score: toNumberOrNull(psychologyData.stressIndex?.score),
+        severity: psychologyData.stressIndex?.severity || null,
+        topTriggers: psychologyData.stressIndex?.topTriggers || [],
+        regulationCapacity: toNumberOrNull(
+          psychologyData.stressIndex?.regulationCapacity
+        ),
+        recoveryAssets: psychologyData.stressIndex?.recoveryAssets || [],
+        notes: psychologyData.stressIndex?.notes || null,
+      },
+      moodBaseline: {
+        average: toNumberOrNull(psychologyData.moodBaseline?.average),
+        variability: toNumberOrNull(psychologyData.moodBaseline?.variability),
+        descriptors: psychologyData.moodBaseline?.descriptors || [],
+        supportiveFactors: psychologyData.moodBaseline?.supportiveFactors || [],
+        challengeAreas: psychologyData.moodBaseline?.challengeAreas || [],
+        notes: psychologyData.moodBaseline?.notes || null,
+      },
+      habitAdherence: {
+        profile: psychologyData.habitAdherence?.profile || null,
+        adherenceScore: toNumberOrNull(
+          psychologyData.habitAdherence?.adherenceScore
+        ),
+        consistency: toNumberOrNull(psychologyData.habitAdherence?.consistency),
+        frictionPoints: psychologyData.habitAdherence?.frictionPoints || [],
+        enablingFactors: psychologyData.habitAdherence?.enablingFactors || [],
+        notes: psychologyData.habitAdherence?.notes || null,
+      },
+      dopamineReward: {
+        calibrationScore: toNumberOrNull(
+          psychologyData.dopamineReward?.calibrationScore
+        ),
+        sensitivityLevel:
+          psychologyData.dopamineReward?.sensitivityLevel || null,
+        rewardDrivers: psychologyData.dopamineReward?.rewardDrivers || [],
+        cautionFlags: psychologyData.dopamineReward?.cautionFlags || [],
+        notes: psychologyData.dopamineReward?.notes || null,
+      },
+      overwhelmThreshold: {
+        thresholdScore: toNumberOrNull(
+          psychologyData.overwhelmThreshold?.thresholdScore
+        ),
+        riskLevel: psychologyData.overwhelmThreshold?.riskLevel || null,
+        earlySignals: psychologyData.overwhelmThreshold?.earlySignals || [],
+        recoveryStrategies:
+          psychologyData.overwhelmThreshold?.recoveryStrategies || [],
+        notes: psychologyData.overwhelmThreshold?.notes || null,
+      },
+      responses: psychologyData.responses || {},
+    };
+  };
+
   // ============================================================================
   // Validation
   // ============================================================================
@@ -193,6 +591,37 @@ export default function OnboardingFlow({ onComplete }) {
         );
       });
     }
+    if (currentStep === 5) {
+      const requiredFields = [
+        "physiology.heightCm",
+        "physiology.weightKg",
+        "physiology.age",
+        "physiology.sex",
+        "comBProfile.capability",
+        "comBProfile.opportunity",
+        "comBProfile.motivation",
+      ];
+
+      return requiredFields.every((path) => {
+        const value = getNestedValue(psychologyData, path);
+        if (value === null || value === undefined) {
+          return false;
+        }
+        if (typeof value === "string") {
+          return value.trim() !== "";
+        }
+        return true;
+      });
+    }
+    if (currentStep === 6) {
+      const requirements = template?.consents?.requirements || [];
+      if (!requirements.length) {
+        return true;
+      }
+      return requirements.every(
+        (requirement) => formData.consents?.[requirement.id]?.accepted
+      );
+    }
     return true;
   };
 
@@ -205,27 +634,43 @@ export default function OnboardingFlow({ onComplete }) {
       setSubmitting(true);
       setError(null);
 
-      const response = await fetch("/api/onboarding/complete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(formData),
-      });
+      const psychologyPayload = buildPsychologyPayload();
 
-      const data = await response.json();
+      try {
+        await api.submitPsychologyProfile(psychologyPayload);
+      } catch (psychologyError) {
+        if (psychologyError?.status === 451) {
+          setConsentWarning(true);
+          setError(
+            "Please accept the GDPR and clinical acknowledgements before submitting sensitive assessments."
+          );
+          return;
+        }
+        throw psychologyError;
+      }
 
-      if (data.ok) {
+      const payload = {
+        demographics: formData.demographics,
+        selectedGoals: formData.selectedGoals,
+        healthScreens: formData.healthScreens,
+        mentalHealthScreens: formData.mentalHealthScreens,
+        assessments: formData.assessments,
+        consents: formData.consents,
+      };
+
+      const response = await api.completeOnboarding(payload);
+
+      if (response?.ok) {
+        setConsentWarning(false);
         if (onComplete) {
           onComplete();
         }
       } else {
-        setError(data.error || "Failed to complete onboarding");
+        setError(response?.error || "Failed to complete onboarding");
       }
     } catch (err) {
-      setError("Error submitting onboarding");
       console.error(err);
+      setError(err?.message || "Error submitting onboarding");
     } finally {
       setSubmitting(false);
     }
@@ -273,6 +718,8 @@ export default function OnboardingFlow({ onComplete }) {
         {currentStep === 2 && renderHealthScreens()}
         {currentStep === 3 && renderMentalHealthScreens()}
         {currentStep === 4 && renderAssessments()}
+        {currentStep === 5 && renderPsychologyFlow()}
+        {currentStep === 6 && renderConsents()}
       </motion.div>
     );
   };
@@ -526,7 +973,7 @@ export default function OnboardingFlow({ onComplete }) {
                     100
                 )
               : 0;
-          const domainLabel = assessment.domain.replace(/[-_]/g, " ");
+          const domainLabel = (assessment.domain || "").replace(/[-_]/g, " ");
 
           return (
             <div
@@ -603,6 +1050,332 @@ export default function OnboardingFlow({ onComplete }) {
                   );
                 })}
               </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderPsychologyField = (field) => {
+    if (!field?.name) return null;
+
+    const { name, label, type, helperText, min, max, unit, required } = field;
+
+    const normalizedOptions = normalizeOptions(field.options || []);
+    const rawValue = getNestedValue(psychologyData, name);
+
+    if (type === "number") {
+      return (
+        <div key={name} className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            {label}
+            {required && <span className="text-red-500"> *</span>}
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={rawValue ?? ""}
+              min={min}
+              max={max}
+              onChange={(event) => setPsychologyValue(name, event.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            />
+            {unit && <span className="text-sm text-gray-500">{unit}</span>}
+          </div>
+          {helperText && <p className="text-xs text-gray-500">{helperText}</p>}
+        </div>
+      );
+    }
+
+    if (type === "slider") {
+      const sliderMin = typeof min === "number" ? min : 0;
+      const sliderMax = typeof max === "number" ? max : 100;
+      const numericValue =
+        typeof rawValue === "number"
+          ? rawValue
+          : toNumberOrNull(rawValue) ?? sliderMin;
+
+      return (
+        <div key={name} className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            {label}
+            {required && <span className="text-red-500"> *</span>}
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={sliderMin}
+              max={sliderMax}
+              value={numericValue}
+              onChange={(event) =>
+                setPsychologyValue(name, Number(event.target.value))
+              }
+              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+            />
+            <span className="text-sm text-gray-600 w-10 text-right">
+              {numericValue}
+            </span>
+          </div>
+          {helperText && <p className="text-xs text-gray-500">{helperText}</p>}
+        </div>
+      );
+    }
+
+    if (type === "select") {
+      return (
+        <div key={name} className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            {label}
+            {required && <span className="text-red-500"> *</span>}
+          </label>
+          <select
+            value={rawValue || ""}
+            onChange={(event) => setPsychologyValue(name, event.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
+          >
+            <option value="">Select option</option>
+            {normalizedOptions.map((option) => (
+              <option key={`${name}-${option.value}`} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {helperText && <p className="text-xs text-gray-500">{helperText}</p>}
+        </div>
+      );
+    }
+
+    if (type === "multi-select") {
+      const selections = Array.isArray(rawValue) ? rawValue : [];
+      return (
+        <div key={name} className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            {label}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {normalizedOptions.map((option) => {
+              const active = selections.includes(option.value);
+              return (
+                <button
+                  type="button"
+                  key={`${name}-${option.value}`}
+                  onClick={() => handleToggleMultiSelect(name, option.value)}
+                  className={`px-3 py-2 text-sm rounded-lg border transition ${
+                    active
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                      : "bg-white border-gray-200 hover:border-gray-400"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+          {helperText && <p className="text-xs text-gray-500">{helperText}</p>}
+        </div>
+      );
+    }
+
+    if (type === "tags") {
+      const tags = Array.isArray(rawValue) ? rawValue : [];
+      const inputValue = tagInputs[name] || "";
+
+      return (
+        <div key={name} className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            {label}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span
+                key={`${name}-${tag}`}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-sm"
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveTag(name, tag)}
+                  className="text-indigo-500 hover:text-indigo-700"
+                >
+                  <X size={14} />
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(event) =>
+                handleTagInputChange(name, event.target.value)
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === ",") {
+                  event.preventDefault();
+                  handleAddTag(name);
+                }
+              }}
+              placeholder="Type and press Enter"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            />
+            <button
+              type="button"
+              onClick={() => handleAddTag(name)}
+              className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              Add
+            </button>
+          </div>
+          {helperText && <p className="text-xs text-gray-500">{helperText}</p>}
+        </div>
+      );
+    }
+
+    if (type === "time") {
+      return (
+        <div key={name} className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            {label}
+          </label>
+          <input
+            type="time"
+            value={rawValue || ""}
+            onChange={(event) => setPsychologyValue(name, event.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
+          />
+          {helperText && <p className="text-xs text-gray-500">{helperText}</p>}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  const renderPsychologyFlow = () => {
+    const sections = template?.psychologyFlow?.sections || [];
+
+    if (!sections.length) {
+      return (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg text-sm">
+          Psychology intake configuration is unavailable. Please contact
+          support.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-8">
+        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-indigo-900">
+          <p className="font-semibold">
+            {template?.psychologyFlow?.title || "Psychology"}
+          </p>
+          <p className="text-sm text-indigo-700 mt-1">
+            {template?.psychologyFlow?.description}
+          </p>
+          {consentWarning && (
+            <p className="text-xs text-red-600 mt-3">
+              Accept the GDPR and clinical acknowledgements to store this
+              intake.
+            </p>
+          )}
+        </div>
+
+        {sections.map((section) => (
+          <div
+            key={section.id}
+            className="border border-gray-200 rounded-2xl p-5 bg-white shadow-sm space-y-4"
+          >
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {section.label}
+              </h3>
+              {section.helperText && (
+                <p className="text-sm text-gray-600 mt-1">
+                  {section.helperText}
+                </p>
+              )}
+            </div>
+            <div className="grid gap-5 md:grid-cols-2">
+              {section.fields.map((field) => renderPsychologyField(field))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderConsents = () => {
+    const requirements = template?.consents?.requirements || [];
+
+    if (!requirements.length) {
+      return (
+        <div className="bg-gray-50 border border-gray-200 text-gray-600 p-4 rounded-lg text-sm">
+          No additional consents required.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-indigo-900">
+          <p className="font-semibold">Legal acknowledgements</p>
+          <p className="text-sm text-indigo-700 mt-1">
+            Review and accept so NorthStar can activate personalized support.
+          </p>
+        </div>
+        {requirements.map((requirement) => {
+          const consentState = formData.consents?.[requirement.id] || {};
+          const accepted = !!consentState.accepted;
+
+          return (
+            <div
+              key={requirement.id}
+              className={`border rounded-2xl p-5 shadow-sm transition ${
+                accepted
+                  ? "border-green-300 bg-green-50"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-[0.35em] text-gray-400">
+                    {requirement.id}
+                  </p>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {requirement.title}
+                  </h3>
+                  <p className="text-sm text-gray-600">{requirement.summary}</p>
+                  {Array.isArray(requirement.bulletPoints) &&
+                    requirement.bulletPoints.length > 0 && (
+                      <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                        {requirement.bulletPoints.map((bullet, index) => (
+                          <li key={`${requirement.id}-bullet-${index}`}>
+                            {bullet}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                </div>
+                <label className="inline-flex items-center gap-3 text-sm font-medium text-gray-900">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    checked={accepted}
+                    onChange={(event) =>
+                      handleConsentToggle(
+                        requirement.id,
+                        event.target.checked,
+                        requirement.version
+                      )
+                    }
+                  />
+                  I agree
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Version {requirement.version}
+              </p>
             </div>
           );
         })}

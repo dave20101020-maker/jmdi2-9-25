@@ -1,9 +1,9 @@
 /**
  * Daily Checkin Modal
- * 
+ *
  * Lightweight micro-questionnaire modal for daily progress tracking.
  * Pillar-specific questions, conditional logic, smart UI.
- * 
+ *
  * Usage:
  *   <DailyCheckinModal
  *     isOpen={isOpen}
@@ -13,12 +13,17 @@
  *   />
  */
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, ChevronLeft } from 'lucide-react';
-import aiClient from '../api/aiClient';
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, ChevronRight, ChevronLeft } from "lucide-react";
+import aiClient from "@/api/aiClient";
 
-export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit }) {
+export default function DailyCheckinModal({
+  isOpen,
+  pillar,
+  onClose,
+  onSubmit,
+}) {
   const [questions, setQuestions] = useState([]);
   const [responses, setResponses] = useState({});
   const [currentStep, setCurrentStep] = useState(0);
@@ -38,8 +43,8 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
         setLoading(true);
         const response = await fetch(`/api/checkin/${pillar}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         });
 
         const data = await response.json();
@@ -55,7 +60,7 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
           setCurrentStep(0);
         }
       } catch (err) {
-        setError('Failed to load checkin questions');
+        setError("Failed to load checkin questions");
         console.error(err);
       } finally {
         setLoading(false);
@@ -70,10 +75,10 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
   // ============================================================================
 
   const getVisibleQuestions = () => {
-    return questions.filter(q => {
+    return questions.filter((q) => {
       if (!q.conditional) return true;
       const conditionalResponse = responses[q.conditional];
-      if (typeof conditionalResponse === 'boolean') {
+      if (typeof conditionalResponse === "boolean") {
         return conditionalResponse === true;
       }
       return true;
@@ -89,9 +94,9 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
   // ============================================================================
 
   const handleResponse = (questionId, value) => {
-    setResponses(prev => ({
+    setResponses((prev) => ({
       ...prev,
-      [questionId]: value
+      [questionId]: value,
     }));
   };
 
@@ -101,13 +106,13 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
 
   const handleNext = () => {
     if (currentStep < visibleQuestions.length - 1) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep((prev) => prev + 1);
     }
   };
 
   const handlePrevious = () => {
     if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep((prev) => prev - 1);
     }
   };
 
@@ -123,12 +128,12 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
       setError(null);
 
       const response = await fetch(`/api/checkin/${pillar}`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({ responses })
+        body: JSON.stringify({ responses }),
       });
 
       const data = await response.json();
@@ -143,10 +148,10 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
           onClose();
         }, 1200);
       } else {
-        setError(data.error || 'Failed to submit checkin');
+        setError(data.error || "Failed to submit checkin");
       }
     } catch (err) {
-      setError('Error submitting checkin');
+      setError("Error submitting checkin");
       console.error(err);
     } finally {
       setSubmitting(false);
@@ -163,7 +168,7 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
     const value = responses[currentQuestion.id];
 
     switch (currentQuestion.type) {
-      case 'number':
+      case "number":
         return (
           <div className="space-y-4">
             {currentQuestion.range && (
@@ -176,25 +181,27 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
               type="range"
               min={currentQuestion.range?.[0] || 0}
               max={currentQuestion.range?.[1] || 100}
-              value={value || (currentQuestion.range?.[0] || 0)}
-              onChange={(e) => handleResponse(currentQuestion.id, parseInt(e.target.value))}
+              value={value || currentQuestion.range?.[0] || 0}
+              onChange={(e) =>
+                handleResponse(currentQuestion.id, parseInt(e.target.value))
+              }
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
             />
             <div className="text-center text-2xl font-bold text-indigo-600">
-              {value || (currentQuestion.range?.[0] || 0)}
+              {value || currentQuestion.range?.[0] || 0}
             </div>
           </div>
         );
 
-      case 'boolean':
+      case "boolean":
         return (
           <div className="flex gap-3">
             <button
               onClick={() => handleResponse(currentQuestion.id, true)}
               className={`flex-1 py-3 px-4 rounded-lg font-medium transition ${
                 value === true
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
               Yes
@@ -203,8 +210,8 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
               onClick={() => handleResponse(currentQuestion.id, false)}
               className={`flex-1 py-3 px-4 rounded-lg font-medium transition ${
                 value === false
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
               No
@@ -212,17 +219,17 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
           </div>
         );
 
-      case 'select':
+      case "select":
         return (
           <div className="space-y-2">
-            {currentQuestion.options?.map(option => (
+            {currentQuestion.options?.map((option) => (
               <button
                 key={option}
                 onClick={() => handleResponse(currentQuestion.id, option)}
                 className={`w-full py-2 px-3 text-left rounded-lg border transition ${
                   value === option
-                    ? 'border-indigo-600 bg-indigo-50 text-indigo-600'
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? "border-indigo-600 bg-indigo-50 text-indigo-600"
+                    : "border-gray-300 hover:border-gray-400"
                 }`}
               >
                 {option}
@@ -231,13 +238,13 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
           </div>
         );
 
-      case 'text':
+      case "text":
       default:
         return (
           <input
             type="text"
             placeholder="Your answer..."
-            value={value || ''}
+            value={value || ""}
             onChange={(e) => handleResponse(currentQuestion.id, e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
           />
@@ -269,7 +276,7 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 15, stiffness: 300 }}
+            transition={{ type: "spring", damping: 15, stiffness: 300 }}
             className="fixed inset-0 flex items-center justify-center z-50 p-4"
           >
             <div className="bg-white rounded-xl shadow-lg max-w-md w-full max-h-[90vh] flex flex-col">
@@ -280,7 +287,7 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
                     Daily Check-in
                   </h2>
                   <p className="text-sm text-gray-500 capitalize mt-1">
-                    {pillar.replace('-', ' ')}
+                    {pillar.replace("-", " ")}
                   </p>
                 </div>
                 <button
@@ -307,7 +314,11 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
                       className="h-full bg-indigo-600"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
-                      transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 100,
+                        damping: 20,
+                      }}
                     />
                   </div>
                 </div>
@@ -319,7 +330,9 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
                   <div className="flex items-center justify-center h-48">
                     <div className="text-center">
                       <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-2" />
-                      <p className="text-gray-500 text-sm">Loading questions...</p>
+                      <p className="text-gray-500 text-sm">
+                        Loading questions...
+                      </p>
                     </div>
                   </div>
                 ) : error ? (
@@ -328,8 +341,12 @@ export default function DailyCheckinModal({ isOpen, pillar, onClose, onSubmit })
                   </div>
                 ) : visibleQuestions.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-600 mb-2">You've already completed your check-in today!</p>
-                    <p className="text-sm text-gray-500">Great job staying consistent.</p>
+                    <p className="text-gray-600 mb-2">
+                      You've already completed your check-in today!
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Great job staying consistent.
+                    </p>
                   </div>
                 ) : currentQuestion ? (
                   <motion.div

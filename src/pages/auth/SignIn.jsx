@@ -220,7 +220,22 @@ export default function SignIn() {
     }
   };
 
-  if (initializing) {
+  const DEMO_MODE =
+    (import.meta.env.VITE_DEMO_MODE || "").toLowerCase() === "true";
+  const DEMO_INIT_TIMEOUT_MS = Number(
+    import.meta.env.VITE_DEMO_INIT_TIMEOUT_MS || 3000
+  );
+
+  const [initExpired, setInitExpired] = useState(false);
+  useEffect(() => {
+    if (!initializing) return;
+    if (!DEMO_MODE && !(import.meta.env.VITE_DISABLE_PROTECTION === "true"))
+      return;
+    const t = setTimeout(() => setInitExpired(true), DEMO_INIT_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [initializing, DEMO_MODE, DEMO_INIT_TIMEOUT_MS]);
+
+  if (initializing && !initExpired) {
     return (
       <AuthLayout
         eyebrow="Initializing"

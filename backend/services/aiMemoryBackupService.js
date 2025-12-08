@@ -2,116 +2,136 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * AI Memory Backups & Cloud Storage
  * ═══════════════════════════════════════════════════════════════════════════
- * 
+ *
  * Automatic cloud backups, encryption, versioning, and recovery
+ * Backend service for managing AI memory persistence and disaster recovery
  */
 
-// backend/services/aiMemoryBackupService.js
-const crypto = require('crypto');
-const AWS = require('aws-sdk');
-const cron = require('node-cron');
+const crypto = require("crypto");
+const fs = require("fs").promises;
+const path = require("path");
 
+/**
+ * AI Memory Backup Service
+ * Handles backup, restore, and encryption of AI memory/context data
+ */
 class AIMemoryBackupService {
-  constructor(awsConfig) {
-    this.s3 = new AWS.S3(awsConfig);
-    this.bucket = process.env.AWS_S3_BUCKET || 'northstar-ai-backups';
-    this.encryptionKey = process.env.BACKUP_ENCRYPTION_KEY;
+  constructor(config = {}) {
+    this.backupDir =
+      config.backupDir || path.join(process.cwd(), "backups", "ai-memory");
+    this.encryptionKey =
+      config.encryptionKey ||
+      process.env.BACKUP_ENCRYPTION_KEY ||
+      "default-key-change-in-production";
+    this.retentionDays = config.retentionDays || 90;
+    this.maxBackupsPerUser = config.maxBackupsPerUser || 30;
     this.isScheduled = false;
+
+    // Ensure backup directory exists
+    this._ensureBackupDirectory();
   }
 
   /**
-   * Encrypt sensitive data
+   * Ensure backup directory exists
+   */
+  async _ensureBackupDirectory() {
+    try {
+      await fs.mkdir(this.backupDir, { recursive: true });
+    } catch (error) {
+      console.error("Failed to create backup directory:", error);
+    }
+  }
+
+  /**
+   * Encrypt sensitive data using AES-256-CBC
    */
   encrypt(data) {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(
-      'aes-256-cbc',
-      crypto.scryptSync(this.encryptionKey, 'salt', 32),
-      iv
-    );
+    try {
+      const iv = crypto.randomBytes(16);
+      const key = crypto.scryptSync(this.encryptionKey, "salt", 32);
+      const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
 
-    let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
-    encrypted += cipher.final('hex');
+      let encrypted = cipher.update(JSON.stringify(data), "utf8", "hex");
+      encrypted += cipher.final("hex");
 
-    return {
-      iv: iv.toString('hex'),
-      data: encrypted,
-    };
+      return {
+        iv: iv.toString("hex"),
+        data: encrypted,
+        version: "1.0",
+      };
+    } catch (error) {
+      console.error("Encryption failed:", error);
+      throw new Error("Failed to encrypt data");
+    }
   }
 
   /**
    * Decrypt sensitive data
    */
   decrypt(encrypted) {
-    const decipher = crypto.createDecipheriv(
-      'aes-256-cbc',
-      crypto.scryptSync(this.encryptionKey, 'salt', 32),
-      Buffer.from(encrypted.iv, 'hex')
-    );
+    try {
+      const key = crypto.scryptSync(this.encryptionKey, "salt", 32);
+      const decipher = crypto.createDecipheriv(
+        "aes-256-cbc",
+        key,
+        Buffer.from(encrypted.iv, "hex")
+      );
 
-    let decrypted = decipher.update(encrypted.data, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
+      let decrypted = decipher.update(encrypted.data, "hex", "utf8");
+      decrypted += decipher.final("utf8");
 
-    return JSON.parse(decrypted);
+      return JSON.parse(decrypted);
+    } catch (error) {
+      console.error("Decryption failed:", error);
+      throw new Error("Failed to decrypt data");
+    }
   }
 
   /**
    * Create backup of user's AI memory/context
    */
-  async createMemoryBackup(userId) {
+  async createMemoryBackup(userId, memoryData) {
     try {
-      const Memory = require('../models/Memory');
-      const User = require('../models/User');
-
-      // Get user AI context
-      const memories = await Memory.find({ userId }).lean();
-      const user = await User.findById(userId).select('name email').lean();
-
+      const timestamp = Date.now();
       const backupData = {
         userId,
-        user,
-        memories,
-        createdAt: new Date(),
-        version: '1.0',
-      };
-
-      // Encrypt sensitive memory data
-      const encrypted = this.encrypt(backupData);
-
-      // Upload to S3
-      const key = `ai-backups/${userId}/${Date.now()}-backup.enc`;
-      const params = {
-        Bucket: this.bucket,
-        Key: key,
-        Body: JSON.stringify(encrypted),
-        ContentType: 'application/json',
-        ServerSideEncryption: 'AES256',
-        Metadata: {
-          userId,
-          timestamp: new Date().toISOString(),
+        memories: memoryData || [],
+        createdAt: new Date().toISOString(),
+        version: "1.0",
+        metadata: {
+          count: memoryData?.length || 0,
+          timestamp,
         },
       };
 
-      const result = await this.s3.upload(params).promise();
+      // Encrypt the backup data
+      const encrypted = this.encrypt(backupData);
 
-      // Log backup
-      const BackupLog = require('../models/BackupLog');
-      await BackupLog.create({
-        userId,
-        backupKey: key,
-        s3Url: result.Location,
-        size: JSON.stringify(encrypted).length,
-        status: 'completed',
-      });
+      // Create user-specific backup directory
+      const userBackupDir = path.join(this.backupDir, userId.toString());
+      await fs.mkdir(userBackupDir, { recursive: true });
 
-      console.log(`AI memory backup created for user ${userId}`);
+      // Save encrypted backup to file
+      const backupFileName = `backup-${timestamp}.enc.json`;
+      const backupPath = path.join(userBackupDir, backupFileName);
+      await fs.writeFile(backupPath, JSON.stringify(encrypted, null, 2));
+
+      // Cleanup old backups
+      await this.cleanupOldBackups(userId);
+
+      console.log(
+        `AI memory backup created for user ${userId}: ${backupFileName}`
+      );
+
       return {
         success: true,
-        backupId: key,
+        backupId: backupFileName,
+        path: backupPath,
         timestamp: new Date(),
+        size: JSON.stringify(encrypted).length,
       };
     } catch (error) {
-      console.error('Failed to create memory backup:', error);
+      console.error("Failed to create memory backup:", error);
       throw error;
     }
   }
@@ -121,66 +141,83 @@ class AIMemoryBackupService {
    */
   async getBackupHistory(userId, limit = 10) {
     try {
-      const BackupLog = require('../models/BackupLog');
-      const backups = await BackupLog.find({ userId })
-        .sort({ createdAt: -1 })
-        .limit(limit)
-        .lean();
+      const userBackupDir = path.join(this.backupDir, userId.toString());
+
+      try {
+        await fs.access(userBackupDir);
+      } catch {
+        return []; // No backups exist
+      }
+
+      const files = await fs.readdir(userBackupDir);
+      const backupFiles = files
+        .filter((f) => f.startsWith("backup-") && f.endsWith(".enc.json"))
+        .sort()
+        .reverse()
+        .slice(0, limit);
+
+      const backups = await Promise.all(
+        backupFiles.map(async (fileName) => {
+          const filePath = path.join(userBackupDir, fileName);
+          const stats = await fs.stat(filePath);
+
+          return {
+            fileName,
+            path: filePath,
+            size: stats.size,
+            createdAt: stats.mtime,
+            timestamp: parseInt(
+              fileName.match(/backup-(\d+)\.enc\.json/)?.[1] || "0"
+            ),
+          };
+        })
+      );
 
       return backups;
     } catch (error) {
-      console.error('Failed to get backup history:', error);
-      throw error;
+      console.error("Failed to get backup history:", error);
+      return [];
     }
   }
 
   /**
    * Restore from backup
    */
-  async restoreFromBackup(userId, backupKey) {
+  async restoreFromBackup(userId, backupFileName) {
     try {
-      // Get backup from S3
-      const params = {
-        Bucket: this.bucket,
-        Key: backupKey,
-      };
-
-      const data = await this.s3.getObject(params).promise();
-      const encrypted = JSON.parse(data.Body.toString('utf-8'));
-
-      // Decrypt
-      const backupData = this.decrypt(encrypted);
-
-      // Verify user match
-      if (backupData.userId !== userId) {
-        throw new Error('Backup user ID does not match');
-      }
-
-      // Restore memories
-      const Memory = require('../models/Memory');
-      await Memory.deleteMany({ userId });
-      await Memory.insertMany(
-        backupData.memories.map((m) => ({
-          ...m,
-          userId,
-        }))
+      const backupPath = path.join(
+        this.backupDir,
+        userId.toString(),
+        backupFileName
       );
 
-      // Log restoration
-      const RestoreLog = require('../models/RestoreLog');
-      await RestoreLog.create({
-        userId,
-        backupKey,
-        status: 'completed',
-      });
+      // Read encrypted backup
+      const encryptedData = await fs.readFile(backupPath, "utf8");
+      const encrypted = JSON.parse(encryptedData);
 
-      console.log(`AI memory restored for user ${userId} from backup ${backupKey}`);
+      // Decrypt and verify
+      const backupData = this.decrypt(encrypted);
+
+      if (
+        backupData.userId !== userId &&
+        backupData.userId !== userId.toString()
+      ) {
+        throw new Error("Backup user ID does not match");
+      }
+
+      console.log(
+        `AI memory restored for user ${userId} from backup ${backupFileName}`
+      );
+
       return {
         success: true,
-        restoredMemories: backupData.memories.length,
+        userId: backupData.userId,
+        memories: backupData.memories || [],
+        restoredCount: backupData.memories?.length || 0,
+        backupDate: backupData.createdAt,
       };
     } catch (error) {
-      console.error('Failed to restore from backup:', error);
+      console.error("Failed to restore from backup:", error);
       throw error;
     }
   }
@@ -190,100 +227,78 @@ class AIMemoryBackupService {
    */
   async listBackups(userId) {
     try {
-      const params = {
-        Bucket: this.bucket,
-        Prefix: `ai-backups/${userId}/`,
-      };
-
-      const data = await this.s3.listObjectsV2(params).promise();
-
-      return (data.Contents || []).map((item) => ({
-        key: item.Key,
-        size: item.Size,
-        lastModified: item.LastModified,
-      }));
+      return await this.getBackupHistory(userId, this.maxBackupsPerUser);
     } catch (error) {
-      console.error('Failed to list backups:', error);
-      throw error;
+      console.error("Failed to list backups:", error);
+      return [];
     }
   }
 
   /**
-   * Delete old backups (retention: 90 days)
+   * Delete old backups based on retention policy
    */
-  async cleanupOldBackups(userId, retentionDays = 90) {
+  async cleanupOldBackups(userId) {
     try {
-      const backups = await this.listBackups(userId);
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+      const userBackupDir = path.join(this.backupDir, userId.toString());
 
-      for (const backup of backups) {
-        if (backup.lastModified < cutoffDate) {
-          await this.s3
-            .deleteObject({
-              Bucket: this.bucket,
-              Key: backup.key,
-            })
-            .promise();
-
-          console.log(`Deleted old backup: ${backup.key}`);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to cleanup old backups:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Schedule daily backups
-   */
-  scheduleAutomaticBackups() {
-    if (this.isScheduled) return;
-
-    // Run daily at 2 AM
-    cron.schedule('0 2 * * *', async () => {
-      console.log('Running automatic AI memory backups...');
       try {
-        const User = require('../models/User');
-        const users = await User.find({
-          'preferences.autoBackup': true,
-        }).select('_id');
-
-        let successCount = 0;
-        let errorCount = 0;
-
-        for (const user of users) {
-          try {
-            await this.createMemoryBackup(user._id);
-            await this.cleanupOldBackups(user._id);
-            successCount++;
-          } catch (error) {
-            console.error(`Failed to backup user ${user._id}:`, error);
-            errorCount++;
-          }
-        }
-
-        console.log(
-          `Automatic backups completed: ${successCount} successful, ${errorCount} failed`
-        );
-      } catch (error) {
-        console.error('Error in automatic backup schedule:', error);
+        await fs.access(userBackupDir);
+      } catch {
+        return; // No backups to clean
       }
-    });
 
-    this.isScheduled = true;
-    console.log('AI memory backup scheduler started');
+      const files = await fs.readdir(userBackupDir);
+      const backupFiles = files.filter(
+        (f) => f.startsWith("backup-") && f.endsWith(".enc.json")
+      );
+
+      // Delete backups older than retention period
+      const cutoffDate = Date.now() - this.retentionDays * 24 * 60 * 60 * 1000;
+
+      for (const fileName of backupFiles) {
+        const timestamp = parseInt(
+          fileName.match(/backup-(\d+)\.enc\.json/)?.[1] || "0"
+        );
+
+        if (timestamp < cutoffDate) {
+          const filePath = path.join(userBackupDir, fileName);
+          await fs.unlink(filePath);
+          console.log(`Deleted old backup: ${fileName}`);
+        }
+      }
+
+      // Limit number of backups per user
+      const remainingFiles = (await fs.readdir(userBackupDir))
+        .filter((f) => f.startsWith("backup-") && f.endsWith(".enc.json"))
+        .sort()
+        .reverse();
+
+      if (remainingFiles.length > this.maxBackupsPerUser) {
+        const filesToDelete = remainingFiles.slice(this.maxBackupsPerUser);
+
+        for (const fileName of filesToDelete) {
+          const filePath = path.join(userBackupDir, fileName);
+          await fs.unlink(filePath);
+          console.log(`Deleted excess backup: ${fileName}`);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to cleanup old backups:", error);
+    }
   }
 
   /**
-   * Manual backup trigger
+   * Delete all backups for a user
    */
-  async triggerBackup(userId) {
+  async deleteAllBackups(userId) {
     try {
-      return await this.createMemoryBackup(userId);
+      const userBackupDir = path.join(this.backupDir, userId.toString());
+      await fs.rm(userBackupDir, { recursive: true, force: true });
+      console.log(`Deleted all backups for user ${userId}`);
+
+      return { success: true };
     } catch (error) {
-      console.error('Failed to trigger backup:', error);
+      console.error("Failed to delete backups:", error);
       throw error;
     }
   }
@@ -299,152 +314,94 @@ class AIMemoryBackupService {
       return {
         hasBackups: backups.length > 0,
         totalBackups: backups.length,
-        latestBackup: latestBackup ? latestBackup.createdAt : null,
+        latestBackup: latestBackup?.createdAt || null,
+        latestBackupTimestamp: latestBackup?.timestamp || null,
         lastBackupAge: latestBackup
-          ? Math.round((Date.now() - latestBackup.createdAt) / (1000 * 60 * 60))
+          ? Math.round((Date.now() - latestBackup.timestamp) / (1000 * 60 * 60))
           : null,
-        backupHistory: backups,
+        backupHistory: backups.map((b) => ({
+          fileName: b.fileName,
+          size: b.size,
+          createdAt: b.createdAt,
+          ageHours: Math.round((Date.now() - b.timestamp) / (1000 * 60 * 60)),
+        })),
+        retentionDays: this.retentionDays,
+        maxBackups: this.maxBackupsPerUser,
       };
     } catch (error) {
-      console.error('Failed to get backup status:', error);
+      console.error("Failed to get backup status:", error);
+      return {
+        hasBackups: false,
+        totalBackups: 0,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Export backup data (for manual download/transfer)
+   */
+  async exportBackup(userId, backupFileName) {
+    try {
+      const backupPath = path.join(
+        this.backupDir,
+        userId.toString(),
+        backupFileName
+      );
+      const encryptedData = await fs.readFile(backupPath, "utf8");
+
+      return {
+        success: true,
+        data: encryptedData,
+        fileName: backupFileName,
+      };
+    } catch (error) {
+      console.error("Failed to export backup:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Import backup data (from manual upload)
+   */
+  async importBackup(userId, encryptedData, fileName) {
+    try {
+      const userBackupDir = path.join(this.backupDir, userId.toString());
+      await fs.mkdir(userBackupDir, { recursive: true });
+
+      const backupPath = path.join(
+        userBackupDir,
+        fileName || `backup-${Date.now()}.enc.json`
+      );
+      await fs.writeFile(backupPath, encryptedData);
+
+      console.log(`Imported backup for user ${userId}`);
+
+      return {
+        success: true,
+        fileName: path.basename(backupPath),
+      };
+    } catch (error) {
+      console.error("Failed to import backup:", error);
       throw error;
     }
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Frontend Component: Backup Management UI
-// ═══════════════════════════════════════════════════════════════════════════
+// Export singleton instance
+let backupServiceInstance = null;
 
-// src/components/BackupManager.jsx
-import React, { useState, useEffect } from 'react';
+/**
+ * Get or create backup service instance
+ */
+function getBackupService(config) {
+  if (!backupServiceInstance) {
+    backupServiceInstance = new AIMemoryBackupService(config);
+  }
+  return backupServiceInstance;
+}
 
-export const BackupManager = ({ userId }) => {
-  const [backups, setBackups] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [backupStatus, setBackupStatus] = useState(null);
-
-  useEffect(() => {
-    loadBackupStatus();
-  }, [userId]);
-
-  const loadBackupStatus = async () => {
-    try {
-      const response = await fetch(`/api/backups/status/${userId}`);
-      const data = await response.json();
-      setBackupStatus(data);
-      setBackups(data.backupHistory || []);
-    } catch (error) {
-      console.error('Failed to load backup status:', error);
-    }
-  };
-
-  const handleCreateBackup = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/backups/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
-
-      if (response.ok) {
-        alert('Backup created successfully!');
-        loadBackupStatus();
-      }
-    } catch (error) {
-      alert('Failed to create backup: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRestore = async (backupKey) => {
-    if (!window.confirm('This will overwrite your current AI memory. Continue?')) {
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch('/api/backups/restore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, backupKey }),
-      });
-
-      if (response.ok) {
-        alert('Memory restored successfully!');
-        loadBackupStatus();
-      }
-    } catch (error) {
-      alert('Failed to restore: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4 p-6">
-      <h3 className="text-lg font-semibold">💾 AI Memory Backups</h3>
-
-      {backupStatus && (
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm">
-            {backupStatus.hasBackups ? (
-              <>
-                <strong>Latest backup:</strong> {new Date(backupStatus.latestBackup).toLocaleDateString()}{' '}
-                ({backupStatus.lastBackupAge} hours ago)
-              </>
-            ) : (
-              <strong>No backups yet</strong>
-            )}
-          </p>
-          <p className="text-xs text-gray-600 mt-1">
-            Total backups: {backupStatus.totalBackups} (90-day retention)
-          </p>
-        </div>
-      )}
-
-      <button
-        onClick={handleCreateBackup}
-        disabled={loading}
-        className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-      >
-        {loading ? 'Creating...' : '⚡ Create Backup Now'}
-      </button>
-
-      {backups.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="font-semibold text-sm">Backup History</h4>
-          <div className="space-y-2">
-            {backups.map((backup, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                <div className="flex-1">
-                  <p className="text-sm font-medium">
-                    {new Date(backup.createdAt).toLocaleDateString()} at{' '}
-                    {new Date(backup.createdAt).toLocaleTimeString()}
-                  </p>
-                  <p className="text-xs text-gray-500">{(backup.size / 1024).toFixed(1)} KB</p>
-                </div>
-                <button
-                  onClick={() => handleRestore(backup.backupKey)}
-                  className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
-                >
-                  Restore
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <p className="text-xs text-gray-500">
-        ✓ Automatic daily backups enabled
-        <br />✓ End-to-end encrypted storage
-        <br />✓ 90-day retention policy
-      </p>
-    </div>
-  );
+module.exports = {
+  AIMemoryBackupService,
+  getBackupService,
 };
-
-module.exports = AIMemoryBackupService;

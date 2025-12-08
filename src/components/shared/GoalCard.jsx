@@ -1,99 +1,118 @@
-
 import { api } from "@/utils/apiClient";
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Save, X, Copy, Archive, AlertCircle, Calendar, Edit2, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { format } from 'date-fns';
-import { toast } from 'sonner';
-import { PILLARS } from '@/components/shared/Utils';
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ChevronDown,
+  ChevronUp,
+  Save,
+  X,
+  Copy,
+  Archive,
+  AlertCircle,
+  Calendar,
+  Edit2,
+  Trash2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { PILLARS } from "@/utils";
 
-export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgress, onDelete, compact = false }) {
+export default function GoalCard({
+  goal,
+  onEdit,
+  onUpdateStatus,
+  onUpdateProgress,
+  onDelete,
+  compact = false,
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Edit fields
-  const [editSpecific, setEditSpecific] = useState(goal.specific || '');
-  const [editMeasurable, setEditMeasurable] = useState(goal.measurable || '');
-  const [editAchievable, setEditAchievable] = useState(goal.achievable || '');
-  const [editRelevant, setEditRelevant] = useState(goal.relevant || '');
-  const [editTimeBound, setEditTimeBound] = useState(goal.timeBound || '');
-  
+  const [editSpecific, setEditSpecific] = useState(goal.specific || "");
+  const [editMeasurable, setEditMeasurable] = useState(goal.measurable || "");
+  const [editAchievable, setEditAchievable] = useState(goal.achievable || "");
+  const [editRelevant, setEditRelevant] = useState(goal.relevant || "");
+  const [editTimeBound, setEditTimeBound] = useState(goal.timeBound || "");
+
   // Validation
   const [errors, setErrors] = useState({});
-  
+
   const pillar = PILLARS[goal.pillar];
-  
+
   const handleExpand = () => {
     if (!isEditing) {
       setIsExpanded(!isExpanded);
     }
   };
-  
+
   const handleEdit = () => {
     setIsEditing(true);
     setIsExpanded(true);
-    setEditSpecific(goal.specific || '');
-    setEditMeasurable(goal.measurable || '');
-    setEditAchievable(goal.achievable || '');
-    setEditRelevant(goal.relevant || '');
-    setEditTimeBound(goal.timeBound || '');
+    setEditSpecific(goal.specific || "");
+    setEditMeasurable(goal.measurable || "");
+    setEditAchievable(goal.achievable || "");
+    setEditRelevant(goal.relevant || "");
+    setEditTimeBound(goal.timeBound || "");
     setErrors({});
   };
-  
+
   const validateFields = () => {
     const newErrors = {};
-    
-    if (!editSpecific.trim()) newErrors.specific = 'Specific is required';
-    if (!editMeasurable.trim()) newErrors.measurable = 'Measurable is required';
-    if (!editTimeBound.trim()) newErrors.timeBound = 'Time-bound is required';
-    
-    if (editSpecific.length > 300) newErrors.specific = 'Max 300 characters';
-    if (editMeasurable.length > 300) newErrors.measurable = 'Max 300 characters';
-    if (editAchievable.length > 300) newErrors.achievable = 'Max 300 characters';
-    if (editRelevant.length > 300) newErrors.relevant = 'Max 300 characters';
-    if (editTimeBound.length > 150) newErrors.timeBound = 'Max 150 characters';
-    
+
+    if (!editSpecific.trim()) newErrors.specific = "Specific is required";
+    if (!editMeasurable.trim()) newErrors.measurable = "Measurable is required";
+    if (!editTimeBound.trim()) newErrors.timeBound = "Time-bound is required";
+
+    if (editSpecific.length > 300) newErrors.specific = "Max 300 characters";
+    if (editMeasurable.length > 300)
+      newErrors.measurable = "Max 300 characters";
+    if (editAchievable.length > 300)
+      newErrors.achievable = "Max 300 characters";
+    if (editRelevant.length > 300) newErrors.relevant = "Max 300 characters";
+    if (editTimeBound.length > 150) newErrors.timeBound = "Max 150 characters";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const handleSave = async () => {
     if (!validateFields()) {
-      toast.error('Please fix validation errors');
+      toast.error("Please fix validation errors");
       return;
     }
-    
+
     setIsSaving(true);
-    
+
     try {
       await api.updateGoal(goal.id, {
         specific: editSpecific,
         measurable: editMeasurable,
         achievable: editAchievable,
         relevant: editRelevant,
-        timeBound: editTimeBound
+        timeBound: editTimeBound,
       });
-      
+
       setIsEditing(false);
-      toast.success('Goal updated! 🎯');
+      toast.success("Goal updated! 🎯");
       onEdit?.(goal);
     } catch (error) {
-      console.error('Error updating goal:', error);
-      toast.error('Failed to update goal');
+      console.error("Error updating goal:", error);
+      toast.error("Failed to update goal");
     }
-    
+
     setIsSaving(false);
   };
-  
+
   const handleCancel = () => {
     setIsEditing(false);
     setErrors({});
   };
-  
+
   const handleDuplicate = async () => {
     try {
       await api.createGoal({
@@ -105,75 +124,80 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
         achievable: goal.achievable,
         relevant: goal.relevant,
         timeBound: goal.timeBound,
-        status: 'active',
-        progress: 0
+        status: "active",
+        progress: 0,
       });
-      
-      toast.success('Goal duplicated! 📋');
+
+      toast.success("Goal duplicated! 📋");
       onEdit?.(goal);
     } catch (error) {
-      console.error('Error duplicating goal:', error);
-      toast.error('Failed to duplicate goal');
+      console.error("Error duplicating goal:", error);
+      toast.error("Failed to duplicate goal");
     }
   };
-  
+
   const handleArchive = async () => {
     try {
       await api.updateGoal(goal.id, {
-        status: goal.status === 'paused' ? 'active' : 'paused'
+        status: goal.status === "paused" ? "active" : "paused",
       });
-      
-      toast.success(goal.status === 'paused' ? 'Goal reactivated! ✨' : 'Goal archived 📦');
-      onUpdateStatus?.(goal.id, goal.status === 'paused' ? 'active' : 'paused');
+
+      toast.success(
+        goal.status === "paused" ? "Goal reactivated! ✨" : "Goal archived 📦"
+      );
+      onUpdateStatus?.(goal.id, goal.status === "paused" ? "active" : "paused");
     } catch (error) {
-      console.error('Error archiving goal:', error);
-      toast.error('Failed to archive goal');
+      console.error("Error archiving goal:", error);
+      toast.error("Failed to archive goal");
     }
   };
-  
+
   const handleDelete = async () => {
-    const confirmMessage = goal.linkedPlanId 
-      ? 'Delete this goal? This will also unlink it from any plans and habits.'
-      : 'Delete this goal permanently? This action cannot be undone.';
-    
+    const confirmMessage = goal.linkedPlanId
+      ? "Delete this goal? This will also unlink it from any plans and habits."
+      : "Delete this goal permanently? This action cannot be undone.";
+
     if (!confirm(confirmMessage)) {
       return;
     }
-    
+
     try {
       if (goal.linkedHabitsCount > 0) {
         const habits = await api.getHabits({ linkedGoalId: goal.id });
-        const updatePromises = habits.map(habit => 
+        const updatePromises = habits.map((habit) =>
           api.updateHabit(habit.id, { linkedGoalId: null })
         );
         await Promise.all(updatePromises);
       }
-      
+
       if (goal.linkedPlanId) {
         const plan = await api.getPlans({ id: goal.linkedPlanId });
         if (plan.length > 0) {
           const currentGoals = plan[0].smartGoalIds || [];
-          const updatedGoals = currentGoals.filter(id => id !== goal.id);
+          const updatedGoals = currentGoals.filter((id) => id !== goal.id);
           await api.updatePlan(goal.linkedPlanId, {
             smartGoalIds: updatedGoals,
-            linkedGoalsCount: Math.max(0, (plan[0].linkedGoalsCount || 0) - 1)
+            linkedGoalsCount: Math.max(0, (plan[0].linkedGoalsCount || 0) - 1),
           });
         }
       }
-      
+
       await api.deleteGoal(goal.id);
-      
-      toast.success('Goal deleted successfully');
+
+      toast.success("Goal deleted successfully");
       onDelete?.(goal.id);
     } catch (error) {
-      console.error('Error deleting goal:', error);
-      toast.error('Failed to delete goal');
+      console.error("Error deleting goal:", error);
+      toast.error("Failed to delete goal");
     }
   };
-  
+
   const handleProgressClick = () => {
     if (!isEditing) {
-      const newProgress = prompt(`Update progress (0-100):`, goal.progress || 0);
+      const newProgress = prompt(
+        `Update progress (0-100):`,
+        goal.progress || 0
+      );
       if (newProgress !== null) {
         const progress = Math.min(100, Math.max(0, parseInt(newProgress) || 0));
         onUpdateProgress?.(goal.id, progress);
@@ -205,12 +229,14 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
               </div>
               <h3 className="text-white font-bold text-sm">{pillar.name}</h3>
             </div>
-            <p className="text-white/80 text-sm italic line-clamp-2">"{goal.goalStatement}"</p>
+            <p className="text-white/80 text-sm italic line-clamp-2">
+              "{goal.goalStatement}"
+            </p>
           </div>
-          
+
           <div className="flex items-center gap-2 ml-3">
             <div className="text-right">
-              <motion.div 
+              <motion.div
                 className="text-sm text-white/60"
                 key={goal.progress}
                 initial={{ scale: 1.2, color: "#D4AF37" }}
@@ -220,7 +246,7 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                 {goal.progress}%
               </motion.div>
               <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden mt-1">
-                <motion.div 
+                <motion.div
                   className="h-full bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] progress-bar-animated"
                   style={{ width: `${goal.progress}%` }}
                   initial={{ width: 0 }}
@@ -234,7 +260,7 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
       </motion.div>
     );
   }
-  
+
   return (
     <motion.div
       className="bg-white/5 border border-white/10 rounded-xl overflow-hidden transition-all"
@@ -256,7 +282,7 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                 className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl"
                 style={{
                   backgroundColor: `${pillar.color}20`,
-                  boxShadow: `0 0 10px ${pillar.color}40`
+                  boxShadow: `0 0 10px ${pillar.color}40`,
                 }}
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 transition={{ type: "spring", stiffness: 400 }}
@@ -266,11 +292,13 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
               <div>
                 <h3 className="text-white font-bold">{pillar.name}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <motion.span 
+                  <motion.span
                     className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-                      goal.status === 'active' ? 'bg-green-500/20 text-green-400' :
-                      goal.status === 'completed' ? 'bg-blue-500/20 text-blue-400' :
-                      'bg-white/20 text-white/60'
+                      goal.status === "active"
+                        ? "bg-green-500/20 text-green-400"
+                        : goal.status === "completed"
+                        ? "bg-blue-500/20 text-blue-400"
+                        : "bg-white/20 text-white/60"
                     }`}
                     whileHover={{ scale: 1.1 }}
                   >
@@ -279,10 +307,10 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                 </div>
               </div>
             </div>
-            
+
             <p className="text-white/90 italic mb-3">"{goal.goalStatement}"</p>
-            
-            <motion.div 
+
+            <motion.div
               className="cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
@@ -292,7 +320,7 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-white/60">Progress</span>
-                <motion.span 
+                <motion.span
                   className="text-sm font-bold text-white"
                   key={goal.progress}
                   initial={{ scale: 1.3, color: "#D4AF37" }}
@@ -303,21 +331,21 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                 </motion.span>
               </div>
               <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                <motion.div 
+                <motion.div
                   className="h-full bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] progress-bar-animated"
                   initial={{ width: 0 }}
                   animate={{ width: `${goal.progress}%` }}
-                  transition={{ 
-                    type: "spring", 
-                    stiffness: 100, 
+                  transition={{
+                    type: "spring",
+                    stiffness: 100,
                     damping: 20,
-                    mass: 0.5
+                    mass: 0.5,
                   }}
                 />
               </div>
             </motion.div>
           </div>
-          
+
           <div className="ml-4 flex flex-col items-end gap-2">
             <motion.div
               animate={{ rotate: isExpanded ? 180 : 0 }}
@@ -346,12 +374,12 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
           </div>
         </div>
       </motion.button>
-      
+
       <AnimatePresence>
         {isExpanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
+            animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="border-t border-white/10"
@@ -361,8 +389,16 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                 <>
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-green-400 font-bold">Specific</Label>
-                      <span className={`text-xs ${editSpecific.length > 300 ? 'text-red-400' : 'text-white/60'}`}>
+                      <Label className="text-green-400 font-bold">
+                        Specific
+                      </Label>
+                      <span
+                        className={`text-xs ${
+                          editSpecific.length > 300
+                            ? "text-red-400"
+                            : "text-white/60"
+                        }`}
+                      >
                         {editSpecific.length}/300
                       </span>
                     </div>
@@ -371,7 +407,7 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                       onChange={(e) => setEditSpecific(e.target.value)}
                       placeholder="What exactly will be accomplished?"
                       className={`bg-white/10 border text-white ${
-                        errors.specific ? 'border-red-500' : 'border-white/20'
+                        errors.specific ? "border-red-500" : "border-white/20"
                       }`}
                     />
                     {errors.specific && (
@@ -384,8 +420,16 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-blue-400 font-bold">Measurable</Label>
-                      <span className={`text-xs ${editMeasurable.length > 300 ? 'text-red-400' : 'text-white/60'}`}>
+                      <Label className="text-blue-400 font-bold">
+                        Measurable
+                      </Label>
+                      <span
+                        className={`text-xs ${
+                          editMeasurable.length > 300
+                            ? "text-red-400"
+                            : "text-white/60"
+                        }`}
+                      >
                         {editMeasurable.length}/300
                       </span>
                     </div>
@@ -394,7 +438,7 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                       onChange={(e) => setEditMeasurable(e.target.value)}
                       placeholder="How will you measure progress?"
                       className={`bg-white/10 border text-white ${
-                        errors.measurable ? 'border-red-500' : 'border-white/20'
+                        errors.measurable ? "border-red-500" : "border-white/20"
                       }`}
                     />
                     {errors.measurable && (
@@ -407,8 +451,16 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-purple-400 font-bold">Achievable</Label>
-                      <span className={`text-xs ${editAchievable.length > 300 ? 'text-red-400' : 'text-white/60'}`}>
+                      <Label className="text-purple-400 font-bold">
+                        Achievable
+                      </Label>
+                      <span
+                        className={`text-xs ${
+                          editAchievable.length > 300
+                            ? "text-red-400"
+                            : "text-white/60"
+                        }`}
+                      >
                         {editAchievable.length}/300
                       </span>
                     </div>
@@ -422,8 +474,16 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-yellow-400 font-bold">Relevant</Label>
-                      <span className={`text-xs ${editRelevant.length > 300 ? 'text-red-400' : 'text-white/60'}`}>
+                      <Label className="text-yellow-400 font-bold">
+                        Relevant
+                      </Label>
+                      <span
+                        className={`text-xs ${
+                          editRelevant.length > 300
+                            ? "text-red-400"
+                            : "text-white/60"
+                        }`}
+                      >
                         {editRelevant.length}/300
                       </span>
                     </div>
@@ -437,8 +497,16 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-orange-400 font-bold">Time-bound</Label>
-                      <span className={`text-xs ${editTimeBound.length > 150 ? 'text-red-400' : 'text-white/60'}`}>
+                      <Label className="text-orange-400 font-bold">
+                        Time-bound
+                      </Label>
+                      <span
+                        className={`text-xs ${
+                          editTimeBound.length > 150
+                            ? "text-red-400"
+                            : "text-white/60"
+                        }`}
+                      >
                         {editTimeBound.length}/150
                       </span>
                     </div>
@@ -447,7 +515,7 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                       onChange={(e) => setEditTimeBound(e.target.value)}
                       placeholder="Target date or timeframe"
                       className={`bg-white/10 border text-white ${
-                        errors.timeBound ? 'border-red-500' : 'border-white/20'
+                        errors.timeBound ? "border-red-500" : "border-white/20"
                       }`}
                     />
                     {errors.timeBound && (
@@ -462,48 +530,71 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                 <>
                   <div className="space-y-3">
                     <div>
-                      <span className="text-green-400 font-bold text-sm">Specific:</span>
-                      <p className="text-white/80 text-sm mt-1">{goal.specific}</p>
+                      <span className="text-green-400 font-bold text-sm">
+                        Specific:
+                      </span>
+                      <p className="text-white/80 text-sm mt-1">
+                        {goal.specific}
+                      </p>
                     </div>
-                    
+
                     <div>
-                      <span className="text-blue-400 font-bold text-sm">Measurable:</span>
-                      <p className="text-white/80 text-sm mt-1">{goal.measurable}</p>
+                      <span className="text-blue-400 font-bold text-sm">
+                        Measurable:
+                      </span>
+                      <p className="text-white/80 text-sm mt-1">
+                        {goal.measurable}
+                      </p>
                     </div>
-                    
+
                     {goal.achievable && (
                       <div>
-                        <span className="text-purple-400 font-bold text-sm">Achievable:</span>
-                        <p className="text-white/80 text-sm mt-1">{goal.achievable}</p>
+                        <span className="text-purple-400 font-bold text-sm">
+                          Achievable:
+                        </span>
+                        <p className="text-white/80 text-sm mt-1">
+                          {goal.achievable}
+                        </p>
                       </div>
                     )}
-                    
+
                     {goal.relevant && (
                       <div>
-                        <span className="text-yellow-400 font-bold text-sm">Relevant:</span>
-                        <p className="text-white/80 text-sm mt-1">{goal.relevant}</p>
+                        <span className="text-yellow-400 font-bold text-sm">
+                          Relevant:
+                        </span>
+                        <p className="text-white/80 text-sm mt-1">
+                          {goal.relevant}
+                        </p>
                       </div>
                     )}
-                    
+
                     <div>
-                      <span className="text-orange-400 font-bold text-sm">Time-bound:</span>
-                      <p className="text-white/80 text-sm mt-1">{goal.timeBound}</p>
+                      <span className="text-orange-400 font-bold text-sm">
+                        Time-bound:
+                      </span>
+                      <p className="text-white/80 text-sm mt-1">
+                        {goal.timeBound}
+                      </p>
                     </div>
                   </div>
 
-                  <motion.div 
+                  <motion.div
                     className="grid grid-cols-2 gap-2 pt-2"
                     variants={{
                       hidden: { opacity: 0 },
                       visible: {
                         opacity: 1,
-                        transition: { staggerChildren: 0.05 }
-                      }
+                        transition: { staggerChildren: 0.05 },
+                      },
                     }}
                     initial="hidden"
                     animate="visible"
                   >
-                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                    <motion.div
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -516,22 +607,33 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                         Duplicate
                       </button>
                     </motion.div>
-                    
-                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+
+                    <motion.div
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleArchive();
                         }}
-                        aria-label={goal.status === 'paused' ? 'Reactivate goal' : 'Archive goal'}
+                        aria-label={
+                          goal.status === "paused"
+                            ? "Reactivate goal"
+                            : "Archive goal"
+                        }
                         className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white hover:bg-white/20 transition-all text-sm font-bold"
                       >
                         <Archive className="w-4 h-4" aria-hidden="true" />
-                        {goal.status === 'paused' ? 'Reactivate' : 'Archive'}
+                        {goal.status === "paused" ? "Reactivate" : "Archive"}
                       </button>
                     </motion.div>
-                    
-                    <motion.div className="col-span-2" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+
+                    <motion.div
+                      className="col-span-2"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -547,16 +649,18 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
                   </motion.div>
                 </>
               )}
-              
+
               <div className="flex items-center gap-3 text-xs text-white/40 pt-3 border-t border-white/10">
                 <Calendar className="w-3 h-3" />
-                <span>Created {format(new Date(goal.created_date), 'MMM d, yyyy')}</span>
+                <span>
+                  Created {format(new Date(goal.created_date), "MMM d, yyyy")}
+                </span>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {isEditing && (
         <motion.div
           initial={{ y: 50, opacity: 0 }}
@@ -564,7 +668,11 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
           exit={{ y: 50, opacity: 0 }}
           className="sticky bottom-0 left-0 right-0 bg-[#1a1f35] border-t border-white/20 p-4 flex gap-3"
         >
-          <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <motion.div
+            className="flex-1"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
             <Button
               onClick={handleCancel}
               variant="ghost"
@@ -574,14 +682,20 @@ export default function GoalCard({ goal, onEdit, onUpdateStatus, onUpdateProgres
               Cancel
             </Button>
           </motion.div>
-          <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <motion.div
+            className="flex-1"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
             <Button
               onClick={handleSave}
               disabled={isSaving}
               className="w-full bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-[#0A1628] font-bold"
-              style={{ boxShadow: '0 0 20px rgba(212, 175, 55, 0.4)' }}
+              style={{ boxShadow: "0 0 20px rgba(212, 175, 55, 0.4)" }}
             >
-              {isSaving ? 'Saving...' : (
+              {isSaving ? (
+                "Saving..."
+              ) : (
                 <>
                   <Save className="w-4 h-4 mr-2" />
                   Save

@@ -10,6 +10,7 @@ import cookieParser from "cookie-parser";
 import logger from "./utils/logger.js";
 import aiRoutes from "./routes/ai.js";
 import orchestratorRoutes from "./routes/aiRoutes.js";
+import aiUnifiedRoutes from "./routes/aiUnifiedRoutes.js";
 import { aiRateLimitMiddleware } from "./middleware/rateLimiter.js";
 import habitsRoutes from "./routes/habits.js";
 import entriesRoutes from "./routes/entries.js";
@@ -47,16 +48,18 @@ if (!JWT_SECRET) {
   logger.warn("JWT_SECRET not set — using default (NOT SECURE for production)");
 }
 
+const allowedOrigins = [
+  "https://fictional-disco-x5797q7rr56wf9v7-5173.app.github.dev",
+  "https://*.github.dev",
+  "http://localhost:5173",
+];
+
 const app = express();
 
 // Middleware
 app.use(
   cors({
-    origin: [
-      "https://fictional-disco-x5797q7rr56wf9v7-5173.app.github.dev",
-      "https://*.github.dev",
-      "http://localhost:5173",
-    ],
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -96,6 +99,9 @@ app.use("/api/ai", aiRoutes);
 
 // NorthStar Orchestrator Routes (new)
 app.use("/api/orchestrator", orchestratorRoutes);
+
+// Unified AI Orchestrator Routes (all modules integrated)
+app.use("/api/ai/unified", aiUnifiedRoutes);
 
 // Feature Routes
 app.use("/api/habits", habitsRoutes);

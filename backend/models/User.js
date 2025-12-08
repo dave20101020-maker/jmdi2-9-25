@@ -318,6 +318,10 @@ const userSchema = new mongoose.Schema(
       of: assessmentResultSchema,
       default: {},
     },
+    psychologyProfile: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   { timestamps: true }
 );
