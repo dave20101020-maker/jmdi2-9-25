@@ -1,80 +1,76 @@
 /**
  * Consent Banner Component
- * 
+ *
  * Displays AI data usage consent to users on first app load.
  * Stores consent in localStorage and sends to backend for tracking.
  */
 
-import React, { useState } from 'react'
-import { AlertCircle, CheckCircle2, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
+import React, { useState } from "react";
+import { api } from "@/utils/apiClient";
+import { AlertCircle, CheckCircle2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function ConsentBanner({ onConsentGiven, onDismiss }) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [isDismissed, setIsDismissed] = useState(false)
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
 
   const handleAcceptConsent = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       // Store consent in localStorage
       const consentData = {
         aiConsent: true,
         consentTimestamp: new Date().toISOString(),
-        consentVersion: '1.0'
-      }
-      localStorage.setItem('aiConsent', JSON.stringify(consentData))
+        consentVersion: "1.0",
+      };
+      localStorage.setItem("aiConsent", JSON.stringify(consentData));
 
       // Send to backend to track in user record
       try {
-        const token = localStorage.getItem('token') || localStorage.getItem('jwt')
-        const response = await fetch('/api/user/consent', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          credentials: 'include',
-          body: JSON.stringify(consentData)
-        })
+        const method = hasConsent ? "PUT" : "POST";
+        const result =
+          method === "PUT"
+            ? await api.put("/user/consent", { consent: true })
+            : await api.post("/user/consent", { consent: true });
 
         if (!response.ok) {
-          console.warn('Failed to save consent to backend:', response.status)
+          console.warn("Failed to save consent to backend:", response.status);
           // Continue anyway - localStorage is sufficient fallback
         }
       } catch (error) {
-        console.warn('Could not reach backend for consent tracking:', error)
+        console.warn("Could not reach backend for consent tracking:", error);
         // Continue anyway - localStorage consent is still valid
       }
 
-      toast.success('Thank you! Your preferences have been saved.', {
-        icon: '✓',
-        duration: 3000
-      })
+      toast.success("Thank you! Your preferences have been saved.", {
+        icon: "✓",
+        duration: 3000,
+      });
 
       // Notify parent
       if (onConsentGiven) {
-        onConsentGiven()
+        onConsentGiven();
       }
 
-      setIsDismissed(true)
+      setIsDismissed(true);
     } catch (error) {
-      console.error('Error saving consent:', error)
-      toast.error('Failed to save preferences. Please try again.')
+      console.error("Error saving consent:", error);
+      toast.error("Failed to save preferences. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleDismiss = () => {
     if (onDismiss) {
-      onDismiss()
+      onDismiss();
     }
-    setIsDismissed(true)
-  }
+    setIsDismissed(true);
+  };
 
   if (isDismissed) {
-    return null
+    return null;
   }
 
   return (
@@ -89,29 +85,30 @@ export default function ConsentBanner({ onConsentGiven, onDismiss }) {
                 AI-Powered Personalization
               </h3>
               <p className="text-sm text-slate-300 mb-3 leading-relaxed">
-                NorthStar uses AI to create personalized plans, goals, and insights based on your 
-                data. This helps us provide more relevant coaching and recommendations. Your data 
-                is never shared with third parties.
+                NorthStar uses AI to create personalized plans, goals, and
+                insights based on your data. This helps us provide more relevant
+                coaching and recommendations. Your data is never shared with
+                third parties.
               </p>
               <div className="flex flex-wrap gap-4 text-xs text-slate-400">
-                <a 
-                  href="/privacy" 
+                <a
+                  href="/privacy"
                   className="hover:text-blue-400 underline transition-colors"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   Privacy Policy
                 </a>
-                <a 
-                  href="/terms" 
+                <a
+                  href="/terms"
                   className="hover:text-blue-400 underline transition-colors"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   Terms of Service
                 </a>
-                <a 
-                  href="/data-usage" 
+                <a
+                  href="/data-usage"
                   className="hover:text-blue-400 underline transition-colors"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -147,8 +144,7 @@ export default function ConsentBanner({ onConsentGiven, onDismiss }) {
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                  I Understand
+                  <CheckCircle2 className="h-4 w-4 mr-1" />I Understand
                 </>
               )}
             </Button>
@@ -156,5 +152,5 @@ export default function ConsentBanner({ onConsentGiven, onDismiss }) {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,0 +1,57 @@
+.life-orb-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  aspect-ratio: 1 / 1; /* keep it a square */
+}
+
+.life-orb-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important; /* keep your galaxy background */
+}
+
+.life-orb-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* clicks still hit the 3D dots underneath */
+}
+
+.life-orb-score-circle {
+  width: 38%;
+  max-width: 220px;
+  aspect-ratio: 1 / 1;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 20%, #fef9c3, #facc15 55%, #92400e);
+  box-shadow: 0 0 30px rgba(250, 204, 21, 0.6), 0 0 80px rgba(30, 64, 175, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.life-orb-score-value {
+  font-size: clamp(2.8rem, 5vw, 3.4rem);
+  font-weight: 800;
+  color: #111827;
+  line-height: 1;
+}
+
+.life-orb-score-label {
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(15, 23, 42, 0.9);
+}
+
+/* tight screens: shrink slightly */
+@media (max-width: 640px) {
+  .life-orb-score-circle {
+    width: 48%;
+  }
+}

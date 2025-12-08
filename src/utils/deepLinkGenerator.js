@@ -87,6 +87,7 @@ export function getPlatformDeepLink(routePath = "/", params = {}) {
  * Shows appropriate download/open link based on platform
  */
 import React, { useEffect, useState } from "react";
+import { api } from "@/utils/apiClient";
 
 export const AppStoreLink = ({
   route = "/",
@@ -141,15 +142,11 @@ export const AppStoreLink = ({
  */
 export async function trackDeepLinkClick(source, campaign) {
   try {
-    await fetch("/api/analytics/deep-link-click", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source,
-        campaign,
-        platform: navigator.userAgent,
-        timestamp: new Date(),
-      }),
+    await api.post("/analytics/deep-link-click", {
+      source,
+      campaign,
+      platform: navigator.userAgent,
+      timestamp: new Date(),
     });
   } catch (error) {
     console.error("Error tracking deep link:", error);
@@ -191,19 +188,14 @@ export const deepLinkTemplates = {
  */
 export async function recordAppInstall(platform, source, campaign) {
   try {
-    const response = await fetch("/api/analytics/app-install", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        platform,
-        source,
-        campaign,
-        userAgent: navigator.userAgent,
-        referrer: document.referrer,
-        timestamp: new Date(),
-      }),
+    return await api.post("/analytics/app-install", {
+      platform,
+      source,
+      campaign,
+      userAgent: navigator.userAgent,
+      referrer: document.referrer,
+      timestamp: new Date(),
     });
-    return await response.json();
   } catch (error) {
     console.error("Error recording app install:", error);
   }

@@ -1,1091 +1,131 @@
-/**
- * Custom Backend API Client
- * Replaces the legacy SDK with direct backend endpoints
- */
+// src/utils/apiClient.js
 
-const API_PREFIX = "/api";
-const LOGIN_ROUTE = "/login";
-const REFRESH_ENDPOINT = "/auth/refresh";
+const BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
-const rawBackendUrl = import.meta.env.VITE_BACKEND_URL
-  ? String(import.meta.env.VITE_BACKEND_URL).trim()
-  : "";
-const detectedOrigin =
-  typeof window !== "undefined" && window.location?.origin
-    ? window.location.origin
-    : "";
-const legacyApiUrl = (import.meta.env.VITE_API_URL || "").trim();
+async function request(method, path, body) {
+  const options = {
+    method,
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  };
 
-// Graceful fallback: if VITE_BACKEND_URL is missing, use current origin.
-let BASE_BACKEND_URL = rawBackendUrl.replace(/\/$/, "");
-if (!BASE_BACKEND_URL) {
-  BASE_BACKEND_URL = detectedOrigin.replace(/\/$/, "");
-  console.warn(
-    `[apiClient] VITE_BACKEND_URL not set. Falling back to current origin (${BASE_BACKEND_URL}).`
-  );
-}
-
-if (legacyApiUrl && legacyApiUrl !== rawBackendUrl) {
-  console.info(
-    `[apiClient] Using VITE_BACKEND_URL (${BASE_BACKEND_URL}) and ignoring legacy VITE_API_URL (${legacyApiUrl}).`
-  );
-}
-
-const normalizeEndpoint = (endpoint = "") => {
-  if (!endpoint) return API_PREFIX;
-  const hasLeadingSlash = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  if (
-    hasLeadingSlash === API_PREFIX ||
-    hasLeadingSlash.startsWith(`${API_PREFIX}/`)
-  ) {
-    return hasLeadingSlash;
+  if (body) {
+    options.body = JSON.stringify(body);
   }
-  return `${API_PREFIX}${hasLeadingSlash}`;
-};
 
-let redirectingToLogin = false;
+  const DEMO = import.meta.env.VITE_DEMO_MODE === "true";
 
-const emitApiError = (message) => {
-  if (typeof window === "undefined") return;
-  try {
-    window.dispatchEvent(new CustomEvent("api-error", { detail: message }));
-  } catch (err) {
-    if (import.meta.env.DEV) {
-      console.warn("[apiClient] Unable to emit api-error event", err);
-    }
-  }
-};
-
-const redirectToLogin = () => {
-  if (typeof window === "undefined" || redirectingToLogin) {
-    return;
-  }
-  redirectingToLogin = true;
-  try {
-    window.dispatchEvent(new CustomEvent("auth-required"));
-  } catch (err) {
-    if (import.meta.env.DEV) {
-      console.warn("[apiClient] Unable to emit auth-required event", err);
-    }
-  }
-  window.location.assign(LOGIN_ROUTE);
-};
-
-const isFormBody = (body) =>
-  typeof FormData !== "undefined" && body instanceof FormData;
-
-const isBinaryBody = (body) => {
-  const BlobCtor = typeof Blob !== "undefined" ? Blob : null;
-  return (BlobCtor && body instanceof BlobCtor) || body instanceof ArrayBuffer;
-};
-
-const readBody = async (response, { allowInvalidJson }) => {
-  const text = await response.text();
-  if (!text) {
-    return { data: null, rawText: "" };
+  // In demo mode, avoid backend calls and return safe defaults
+  if (DEMO) {
+    if (method === "GET") return [];
+    return { ok: true };
   }
 
   try {
-    return { data: JSON.parse(text), rawText: text };
-  } catch (error) {
-    if (!allowInvalidJson) {
-      const parseError = new Error("Response was not JSON");
-      parseError.cause = error;
-      throw parseError;
-    }
-    return { data: null, rawText: text };
-  }
-};
+    const res = await fetch(`${BASE_URL}${path}`, options);
 
-const isUnauthorizedStatus = (status) => status === 401 || status === 403;
-
-class APIClient {
-  constructor(baseUrl = BASE_BACKEND_URL) {
-    if (!baseUrl) {
-      throw new Error("[apiClient] A base URL must be provided.");
-    }
-    this.baseUrl = baseUrl.replace(/\/$/, "");
-    this.refreshPromise = null;
-  }
-
-  async refreshSession() {
-    if (this.refreshPromise) {
-      return this.refreshPromise;
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Request failed: ${res.status} - ${text}`);
     }
 
-    const url = `${this.baseUrl}${normalizeEndpoint(REFRESH_ENDPOINT)}`;
-    this.refreshPromise = (async () => {
-      let response;
-      try {
-        response = await fetch(url, {
-          method: "POST",
-          credentials: "include",
-        });
-      } catch (error) {
-        console.error("[apiClient] Refresh request failed", error);
-        throw error;
-      }
-
-      const { data, rawText } = await readBody(response, {
-        allowInvalidJson: true,
-      });
-
-      if (!response.ok) {
-        const message =
-          data?.message ||
-          data?.error ||
-          rawText ||
-          "Failed to refresh session";
-        const refreshError = new Error(message);
-        refreshError.status = response.status;
-        refreshError.body = data ?? rawText;
-        throw refreshError;
-      }
-
-      return data;
-    })()
-      .catch((error) => {
-        console.error("[apiClient] Session refresh error", error);
-        throw error;
-      })
-      .finally(() => {
-        this.refreshPromise = null;
-      });
-
-    return this.refreshPromise;
-  }
-
-  async request(endpoint, options = {}, attempt = 0) {
-    if (!this.baseUrl) {
-      throw new Error("[apiClient] Base URL is not configured.");
-    }
-
-    const path = normalizeEndpoint(endpoint);
-    const url = `${this.baseUrl}${path}`;
-    const { skipAuthRetry = false } = options;
-
-    const requestInit = {
-      method: options.method || "GET",
-      credentials: options.credentials || "include",
-      ...options,
-    };
-
-    delete requestInit.skipAuthRetry;
-
-    const headers = {
-      ...(requestInit.headers || {}),
-    };
-
-    const hasContentTypeHeader = Object.keys(headers).some(
-      (key) => key.toLowerCase() === "content-type"
-    );
-
-    if (
-      !hasContentTypeHeader &&
-      !isFormBody(requestInit.body) &&
-      !isBinaryBody(requestInit.body)
-    ) {
-      headers["Content-Type"] = "application/json";
-    }
-
-    requestInit.headers = headers;
-
-    let response;
     try {
-      response = await fetch(url, requestInit);
-    } catch (error) {
-      console.error(`[apiClient] Network error on ${path}`, error);
-      throw error;
+      return await res.json();
+    } catch {
+      return null;
     }
-
-    const { data, rawText } = await readBody(response, {
-      allowInvalidJson: !response.ok,
-    });
-
-    if (!response.ok) {
-      const message =
-        data?.message ||
-        data?.error ||
-        rawText ||
-        `API error: ${response.status}`;
-      const shouldRetry =
-        !skipAuthRetry &&
-        attempt === 0 &&
-        isUnauthorizedStatus(response.status);
-
-      if (shouldRetry) {
-        try {
-          await this.refreshSession();
-          return this.request(endpoint, options, attempt + 1);
-        } catch (refreshError) {
-          emitApiError("Session expired. Redirecting to login.");
-          redirectToLogin();
-          throw refreshError;
-        }
-      }
-
-      if (isUnauthorizedStatus(response.status)) {
-        emitApiError("Authentication required. Redirecting to login.");
-        redirectToLogin();
-      } else {
-        emitApiError(message);
-      }
-
-      const error = new Error(message);
-      error.status = response.status;
-      error.body = data ?? rawText;
-      throw error;
-    }
-
-    return data;
-  }
-
-  // Auth endpoints
-  async authMe() {
-    const payload = await this.request("/auth/me", { method: "GET" });
-    return payload?.data ?? payload;
-  }
-
-  async authLogin(email, password) {
-    // backend expects `emailOrUsername`
-    return this.request("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ emailOrUsername: email, password }),
-      skipAuthRetry: true,
-    });
-  }
-
-  async authRegister(data) {
-    return this.request("/auth/register", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async authUpdateMe(data) {
-    return this.request("/auth/me", {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async authWithGoogle(payload) {
-    return this.request("/auth/google", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  }
-
-  async linkGoogleAccount(payload) {
-    return this.request("/auth/google/link", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  }
-
-  async authWithFacebook(payload) {
-    return this.request("/auth/facebook", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  }
-
-  async linkFacebookAccount(payload) {
-    return this.request("/auth/facebook/link", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  }
-
-  // AI endpoints
-  async aiCoach(prompt, context = {}, pillarFocus = "general") {
-    return this.request("/ai/coach", {
-      method: "POST",
-      body: JSON.stringify({ prompt, userContext: context, pillarFocus }),
-    });
-  }
-
-  async aiDailyPlan(prompt, goals = [], timeAvailable = 16) {
-    return this.request("/ai/daily-plan", {
-      method: "POST",
-      body: JSON.stringify({ prompt, userGoals: goals, timeAvailable }),
-    });
-  }
-
-  async aiPillarAnalysis(prompt, scores = {}, focusAreas = []) {
-    return this.request("/ai/pillar-analysis", {
-      method: "POST",
-      body: JSON.stringify({ prompt, currentScores: scores, focusAreas }),
-    });
-  }
-
-  async aiWeeklyReflection(prompt, weeklyData = {}, pillarScores = {}) {
-    return this.request("/ai/weekly-reflection", {
-      method: "POST",
-      body: JSON.stringify({ prompt, weeklyData, pillarScores }),
-    });
-  }
-
-  // Entry endpoints
-  async createEntry(data) {
-    return this.request("/entries", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getEntries(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/entries?${query}`, { method: "GET" });
-  }
-
-  async updateEntry(id, data) {
-    return this.request(`/entries/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteEntry(id) {
-    return this.request(`/entries/${id}`, { method: "DELETE" });
-  }
-
-  // Habit endpoints
-  async createHabit(data) {
-    return this.request("/habits", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getHabits(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/habits?${query}`, { method: "GET" });
-  }
-
-  async updateHabit(id, data) {
-    return this.request(`/habits/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteHabit(id) {
-    return this.request(`/habits/${id}`, { method: "DELETE" });
-  }
-
-  // Goal endpoints
-  async createGoal(data) {
-    return this.request("/goals", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getGoals(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/goals?${query}`, { method: "GET" });
-  }
-
-  async updateGoal(id, data) {
-    return this.request(`/goals/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteGoal(id) {
-    return this.request(`/goals/${id}`, { method: "DELETE" });
-  }
-
-  // Plan endpoints
-  async createPlan(data) {
-    return this.request("/plans", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getPlans(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/plans?${query}`, { method: "GET" });
-  }
-
-  async updatePlan(id, data) {
-    return this.request(`/plans/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deletePlan(id) {
-    return this.request(`/plans/${id}`, { method: "DELETE" });
-  }
-
-  // Journal/Reflection endpoints
-  async createJournal(data) {
-    return this.request("/journal", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getJournals(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/journal?${query}`, { method: "GET" });
-  }
-
-  // Mood endpoints
-  async createMood(data) {
-    return this.request("/mood", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getMoods(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/mood?${query}`, { method: "GET" });
-  }
-
-  // Meal endpoints
-  async createMeal(data) {
-    return this.request("/meals", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getMeals(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/meals?${query}`, { method: "GET" });
-  }
-
-  // Water intake endpoints
-  async logWater(data) {
-    return this.request("/water", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getWaterLogs(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/water?${query}`, { method: "GET" });
-  }
-
-  // Meditation endpoints
-  async logMeditation(data) {
-    return this.request("/meditation", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getMeditationLogs(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/meditation?${query}`, { method: "GET" });
-  }
-
-  // Symptom/Health check endpoints
-  async logSymptom(data) {
-    return this.request("/symptoms", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getSymptoms(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/symptoms?${query}`, { method: "GET" });
-  }
-
-  async logHealthCheckIn(data) {
-    return this.request("/health-checkin", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getHealthCheckIns(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/health-checkin?${query}`, { method: "GET" });
-  }
-
-  // Medication endpoints
-  async createMedication(data) {
-    return this.request("/medications", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getMedications(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/medications?${query}`, { method: "GET" });
-  }
-
-  async updateMedication(id, data) {
-    return this.request(`/medications/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteMedication(id) {
-    return this.request(`/medications/${id}`, { method: "DELETE" });
-  }
-
-  // Subscription endpoints
-  async getSubscription() {
-    return this.request("/subscription/me", { method: "GET" });
-  }
-
-  async startTrial() {
-    return this.request("/subscription/trial", { method: "POST" });
-  }
-
-  // Weekly review endpoints
-  async createWeeklyReview(data) {
-    return this.request("/weekly-review", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getWeeklyReviews(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/weekly-review?${query}`, { method: "GET" });
-  }
-
-  async deleteWeeklyReview(id) {
-    return this.request(`/weekly-review/${id}`, { method: "DELETE" });
-  }
-
-  // Achievement endpoints
-  async getAchievements(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/achievements?${query}`, { method: "GET" });
-  }
-
-  // Connection/Social endpoints
-  async getConnections(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/connections?${query}`, { method: "GET" });
-  }
-
-  async createConnection(data) {
-    return this.request("/connections", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateConnection(id, data) {
-    return this.request(`/connections/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteConnection(id) {
-    return this.request(`/connections/${id}`, { method: "DELETE" });
-  }
-
-  // Content endpoints
-  async getPillarContent(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/content?${query}`, { method: "GET" });
-  }
-
-  async createPillarContent(data) {
-    return this.request("/content", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Milestone endpoints
-  async getMilestones(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/milestones?${query}`, { method: "GET" });
-  }
-
-  async createMilestone(data) {
-    return this.request("/milestones", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateMilestone(id, data) {
-    return this.request(`/milestones/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteMilestone(id) {
-    return this.request(`/milestones/${id}`, { method: "DELETE" });
-  }
-
-  // Daily Quest endpoints
-  async getDailyQuests(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/daily-quests?${query}`, { method: "GET" });
-  }
-
-  async createDailyQuest(data) {
-    return this.request("/daily-quests", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Coach Interaction endpoints
-  async getCoachInteractions(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/coach-interactions?${query}`, { method: "GET" });
-  }
-
-  async createCoachInteraction(data) {
-    return this.request("/coach-interactions", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Exercise endpoints
-  async getWorkoutLogs(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/workouts?${query}`, { method: "GET" });
-  }
-
-  async createWorkoutLog(data) {
-    return this.request("/workouts", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateWorkoutLog(id, data) {
-    return this.request(`/workouts/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getActiveMinutesGoals(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/active-minutes-goals?${query}`, { method: "GET" });
-  }
-
-  async createActiveMinutesGoal(data) {
-    return this.request("/active-minutes-goals", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateActiveMinutesGoal(id, data) {
-    return this.request(`/active-minutes-goals/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteActiveMinutesGoal(id) {
-    return this.request(`/active-minutes-goals/${id}`, { method: "DELETE" });
-  }
-
-  async getPersonalBests(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/personal-bests?${query}`, { method: "GET" });
-  }
-
-  async createPersonalBest(data) {
-    return this.request("/personal-bests", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updatePersonalBest(id, data) {
-    return this.request(`/personal-bests/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deletePersonalBest(id) {
-    return this.request(`/personal-bests/${id}`, { method: "DELETE" });
-  }
-
-  // Finance endpoints
-  async getBudgets(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/budgets?${query}`, { method: "GET" });
-  }
-
-  async createBudget(data) {
-    return this.request("/budgets", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateBudget(id, data) {
-    return this.request(`/budgets/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteBudget(id) {
-    return this.request(`/budgets/${id}`, { method: "DELETE" });
-  }
-
-  async getExpenses(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/expenses?${query}`, { method: "GET" });
-  }
-
-  async createExpense(data) {
-    return this.request("/expenses", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateExpense(id, data) {
-    return this.request(`/expenses/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteExpense(id) {
-    return this.request(`/expenses/${id}`, { method: "DELETE" });
-  }
-
-  async getSavingsGoals(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/savings-goals?${query}`, { method: "GET" });
-  }
-
-  async createSavingsGoal(data) {
-    return this.request("/savings-goals", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateSavingsGoal(id, data) {
-    return this.request(`/savings-goals/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteSavingsGoal(id) {
-    return this.request(`/savings-goals/${id}`, { method: "DELETE" });
-  }
-
-  // Sleep endpoints
-  async getBedtimeRoutines(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/bedtime-routines?${query}`, { method: "GET" });
-  }
-
-  async createBedtimeRoutine(data) {
-    return this.request("/bedtime-routines", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateBedtimeRoutine(id, data) {
-    return this.request(`/bedtime-routines/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteBedtimeRoutine(id) {
-    return this.request(`/bedtime-routines/${id}`, { method: "DELETE" });
-  }
-
-  async getSleepEnvironmentAudits(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/sleep-audits?${query}`, { method: "GET" });
-  }
-
-  async createSleepEnvironmentAudit(data) {
-    return this.request("/sleep-audits", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getSleepJournals(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/sleep-journals?${query}`, { method: "GET" });
-  }
-
-  async createSleepJournal(data) {
-    return this.request("/sleep-journals", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Social endpoints
-  async getGroupChallenges(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/group-challenges?${query}`, { method: "GET" });
-  }
-
-  async createGroupChallenge(data) {
-    return this.request("/group-challenges", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateGroupChallenge(id, data) {
-    return this.request(`/group-challenges/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getRelationshipCheckIns(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/relationship-check-ins?${query}`, { method: "GET" });
-  }
-
-  async createRelationshipCheckIn(data) {
-    return this.request("/relationship-check-ins", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateRelationshipCheckIn(id, data) {
-    return this.request(`/relationship-check-ins/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getSocialInteractions(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/social-interactions?${query}`, { method: "GET" });
-  }
-
-  async createSocialInteraction(data) {
-    return this.request("/social-interactions", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Spirituality endpoints
-  async getGratitudeEntries(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/gratitude-entries?${query}`, { method: "GET" });
-  }
-
-  async createGratitudeEntry(data) {
-    return this.request("/gratitude-entries", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getReflectionEntries(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/reflection-entries?${query}`, { method: "GET" });
-  }
-
-  async createReflectionEntry(data) {
-    return this.request("/reflection-entries", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getValuesExercises(filters = {}) {
-    const query = new URLSearchParams(filters).toString();
-    return this.request(`/values-exercises?${query}`, { method: "GET" });
-  }
-
-  async createValuesExercise(data) {
-    return this.request("/values-exercises", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Upload endpoint (for files)
-  async uploadFile(file) {
-    // TODO: implement file upload
-    console.warn("File upload not yet implemented");
-    return null;
-  }
-
-  // Logout endpoint
-  async logout() {
-    return this.request("/auth/logout", { method: "POST" });
-  }
-
-  // Onboarding endpoints
-  async getOnboardingProfile() {
-    return this.request("/onboarding", { method: "GET" });
-  }
-
-  async saveOnboardingProfile(profile) {
-    return this.request("/onboarding", {
-      method: "POST",
-      body: JSON.stringify(profile),
-    });
-  }
-
-  async getOnboardingTemplate() {
-    return this.request("/onboarding/template", { method: "GET" });
-  }
-
-  async getPsychologyProfile() {
-    return this.request("/onboarding/psychology", { method: "GET" });
-  }
-
-  async submitPsychologyProfile(payload) {
-    return this.request("/onboarding/psychology", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  }
-
-  async completeOnboarding(payload) {
-    return this.request("/onboarding/complete", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  }
-
-  async upgradeSubscription(payload = { tier: "premium" }) {
-    const body =
-      typeof payload === "string"
-        ? { tier: payload }
-        : { tier: "premium", ...payload };
-    return this.request("/subscription/upgrade", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-  }
-
-  // Pillar check-ins
-  async createPillarCheckIn(data) {
-    return this.request("/pillars/check-in", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getPillarHistory(pillarId) {
-    return this.request(`/pillars/${pillarId}/history`, { method: "GET" });
-  }
-
-  // Friends
-  async sendFriendRequest(data) {
-    return this.request("/friends/request", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async acceptFriendRequest(data) {
-    return this.request("/friends/accept", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async listFriends() {
-    return this.request("/friends", { method: "GET" });
-  }
-
-  async listPendingFriendRequests() {
-    return this.request("/friends/pending", { method: "GET" });
-  }
-
-  // Leaderboards
-  async getLeaderboard(pillarId) {
-    return this.request(`/friends/leaderboard/${pillarId}`, { method: "GET" });
-  }
-
-  async getOverallLeaderboard() {
-    return this.request("/friends/leaderboard/overall", { method: "GET" });
-  }
-
-  async createChallenge(data) {
-    return this.request("/challenges", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async joinChallenge(challengeId) {
-    return this.request("/challenges/join", {
-      method: "POST",
-      body: JSON.stringify({ challengeId }),
-    });
-  }
-
-  async getMyChallenges() {
-    return this.request("/challenges/my", { method: "GET" });
-  }
-
-  async sendMessage(data) {
-    return this.request("/messages/send", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getConversation(friendId) {
-    return this.request(`/messages/${friendId}`, { method: "GET" });
-  }
-
-  async getNotifications() {
-    return this.request("/notifications", { method: "GET" });
-  }
-
-  async markNotificationsRead(body) {
-    return this.request("/notifications/mark-read", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-  }
-
-  async getTimeline() {
-    return this.request("/timeline", { method: "GET" });
-  }
-
-  async exportUserData() {
-    return this.request("/user/export", { method: "GET" });
-  }
-
-  async deleteAccount() {
-    return this.request("/user/delete-account", { method: "POST" });
-  }
-
-  async getWeeklyReport() {
-    return this.request("/ai/weekly-report", { method: "GET" });
+  } catch (err) {
+    // Network or DNS error: return demo-safe defaults to prevent UI crashes
+    if (method === "GET") return [];
+    return { ok: false, error: "connection" };
   }
 }
 
-// Export singleton instance
-export const api = new APIClient();
-export { APIClient };
+const baseApi = {
+  get: (path) => request("GET", path),
+
+  post: (path, body) => request("POST", path, body),
+
+  put: (path, body) => request("PUT", path, body),
+
+  delete: (path) => request("DELETE", path),
+
+  // --------------------------
+  // Auth Endpoints (demo-safe)
+  // --------------------------
+  login: (email, password) =>
+    request("POST", "/auth/login", { email, password }),
+
+  logout: () => request("POST", "/auth/logout"),
+
+  register: (email, password, name) =>
+    request("POST", "/auth/register", { email, password, name }),
+
+  me: () => request("GET", "/auth/me"),
+
+  // ⭐ Compatibility with old code ⭐
+  authMe: () => request("GET", "/auth/me"),
+};
+
+const toKebab = (s) => s
+  .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+  .replace(/^get|^create|^update|^delete|^log|^list|^post|^put|^patch|^ai/, "")
+  .replace(/^-+/, "")
+  .toLowerCase();
+
+const dynamic = new Proxy(baseApi, {
+  get(target, prop) {
+    if (prop in target) return target[prop];
+    // Special cases commonly used in app
+    if (prop === "aiCoach") {
+      return async (payload) => {
+        const DEMO = import.meta.env.VITE_DEMO_MODE === "true";
+        if (DEMO) {
+          return {
+            greeting: "Here’s a quick insight",
+            celebration: "Nice momentum!",
+            focus_area: payload?.pillar || "General",
+            top_insights: [],
+            recommendations: [],
+            suggested_plan: { title: "Starter Plan", description: "Try a simple daily habit." },
+          };
+        }
+        return request("POST", "/ai/coach", payload);
+      };
+    }
+    if (prop === "authUpdateMe") {
+      return (data) => request("PUT", "/auth/me", data);
+    }
+    if (prop === "getPillarContent") {
+      return () => request("GET", "/content");
+    }
+    if (prop === "getNotifications") {
+      return () => request("GET", "/notifications");
+    }
+    if (prop === "ai") {
+      return (path, body) => request("POST", `/ai/${path}`, body);
+    }
+    if (prop === "sendMessage") {
+      return (body) => request("POST", "/messages", body);
+    }
+    if (prop === "getConversation") {
+      return (id) => request("GET", `/messages/${id}`);
+    }
+    if (prop === "listFriends") {
+      return () => request("GET", "/friends");
+    }
+    // Generic inference by method prefix
+    const name = String(prop);
+    const lower = name.toLowerCase();
+    let method = "GET";
+    if (lower.startsWith("create") || lower.startsWith("log") || lower.startsWith("post")) method = "POST";
+    else if (lower.startsWith("update") || lower.startsWith("put") || lower.startsWith("patch")) method = "PUT";
+    else if (lower.startsWith("delete") || lower.startsWith("remove")) method = "DELETE";
+    const path = "/" + toKebab(name).replace(/_/g, "-");
+    return (bodyOrParams) => request(method, path, method === "GET" ? undefined : bodyOrParams);
+  },
+});
+
+export const api = dynamic;
+
 export default api;

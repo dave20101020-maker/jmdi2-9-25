@@ -7,18 +7,16 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function ProtectedRoute({ children, redirectTo = "/sign-in" }) {
   const DISABLE_PROTECTION = import.meta.env.VITE_DISABLE_PROTECTION === "true";
-  const DEMO_MODE =
-    (import.meta.env.VITE_DEMO_MODE || "").toLowerCase() === "true";
+  const { user, initializing, error, demoMode } = useAuth();
   const DEMO_INIT_TIMEOUT_MS = Number(
     import.meta.env.VITE_DEMO_INIT_TIMEOUT_MS || 3000
   );
-  const { user, initializing, error } = useAuth();
   const location = useLocation();
   const redirectTarget = redirectTo || "/sign-in";
   const shouldStoreReturnPath = location.pathname !== redirectTarget;
 
   // Demo mode: skip auth checks and render immediately
-  if (DISABLE_PROTECTION || DEMO_MODE) {
+  if (DISABLE_PROTECTION || demoMode === true) {
     return children || <Outlet />;
   }
 

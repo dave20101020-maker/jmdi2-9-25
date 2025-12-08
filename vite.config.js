@@ -34,7 +34,10 @@ if (!isCodespacesTarget) {
 }
 
 // Backend proxy setup: route /api to backend during dev
-const backendUrl = process.env.VITE_BACKEND_URL || process.env.BACKEND_URL || "http://localhost:5000";
+const backendUrl =
+  process.env.VITE_BACKEND_URL ||
+  process.env.BACKEND_URL ||
+  "http://localhost:5000";
 
 const serverConfig = {
   host: true,

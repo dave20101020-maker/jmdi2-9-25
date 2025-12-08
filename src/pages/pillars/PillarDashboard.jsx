@@ -31,6 +31,7 @@ import {
 } from "@/ai/adaptive";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { createPageUrl } from "@/utils";
+import { api } from "@/utils/apiClient";
 
 export default function PillarDashboard({ pillar, coachAgent = null }) {
   const queryClient = useQueryClient();
@@ -43,17 +44,20 @@ export default function PillarDashboard({ pillar, coachAgent = null }) {
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await fetch("/api/auth/me", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setUser(data);
+        const u = await api.me();
+        if (u && typeof u === "object") {
+          setUser(u);
+          return;
+        }
+        // Demo-mode fallback to enable pillar pages without backend
+        if (import.meta.env.VITE_DEMO_MODE === "true") {
+          setUser({ id: "demo" });
         }
       } catch (error) {
         console.error("Failed to load user:", error);
+        if (import.meta.env.VITE_DEMO_MODE === "true") {
+          setUser({ id: "demo" });
+        }
       }
     }
     loadUser();
@@ -153,20 +157,14 @@ export default function PillarDashboard({ pillar, coachAgent = null }) {
         };
       }
 
-      const response = await fetch("/api/ai/orchestrator", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error("Failed to send message");
-
-      const result = await response.json();
-      toast.success("Message sent to coach!");
-      setCoachMessage("");
+      if (import.meta.env.VITE_DEMO_MODE === "true") {
+        toast.success("Message sent to coach!");
+        setCoachMessage("");
+      } else {
+        const result = await api.post("/ai/orchestrator", payload);
+        toast.success("Message sent to coach!");
+        setCoachMessage("");
+      }
 
       // Could trigger a modal or navigate to chat here
     } catch (error) {

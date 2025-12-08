@@ -1,5 +1,4 @@
 import { api } from "@/utils/apiClient";
-import * as aiClient from "@/api/aiClient";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, TrendingUp, Target, Lightbulb, Zap, AlertCircle, RefreshCw, Loader2, Save } from "lucide-react";

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/Layout/MainLayout";
 import SignIn from "./pages/auth/SignIn";
@@ -209,16 +210,38 @@ function AppContent() {
   );
 }
 
+const queryClient = new QueryClient();
+
 export default function App() {
   return (
-    <BrowserRouter>
-      <div className="ns-app-surface">
-        <StarfieldBackground />
-        <div className="ns-app-surface__content">
-          <AppContent />
-          <SonnerToaster position="top-right" richColors closeButton />
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        {import.meta.env.VITE_DEMO_MODE === "true" && (
+          <div
+            style={{
+              width: "100%",
+              backgroundColor: "#fcd34d",
+              padding: "8px",
+              textAlign: "center",
+              fontWeight: "600",
+              color: "#111",
+              position: "fixed",
+              top: 0,
+              zIndex: 9999,
+              letterSpacing: "0.5px",
+            }}
+          >
+            DEMO MODE
+          </div>
+        )}
+        <div className="ns-app-surface">
+          <StarfieldBackground />
+          <div className="ns-app-surface__content">
+            <AppContent />
+            <SonnerToaster position="top-right" richColors closeButton />
+          </div>
         </div>
-      </div>
-    </BrowserRouter>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }

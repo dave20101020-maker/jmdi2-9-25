@@ -18,7 +18,7 @@
 
 // ⚠️ SECURITY: All AI API calls routed through backend only
 // Frontend never imports AI SDKs or has access to API keys
-import { apiClient } from "@/api/client";
+import { api } from "@/utils/apiClient";
 
 // Voice input configuration
 const voiceConfig = {
@@ -133,13 +133,7 @@ export const VoiceInput = ({
       formData.append("file", audioBlob, "audio.webm");
       formData.append("language", language.split("-")[0]);
 
-      const response = await apiClient.post("/api/ai/transcribe", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      const result = response.data;
+      const result = await api.post("/ai/transcribe", formData);
       const transcribedText = result.text || result.message || "";
 
       // Calculate confidence based on result
@@ -259,7 +253,7 @@ export async function createVoiceEntry(userId, pillar, voiceData) {
 
     // Call backend to analyze sentiment and create entry
     // Backend will use aiController to handle this securely
-    const response = await apiClient.post("/api/voice/entries", {
+    const response = await api.post("/voice/entries", {
       userId,
       pillar,
       text,
@@ -282,8 +276,8 @@ export async function createVoiceEntry(userId, pillar, voiceData) {
  */
 async function analyzeVoiceSentiment(text) {
   try {
-    const response = await apiClient.post("/api/ai/sentiment", { text });
-    const sentiment = response.data.sentiment || "neutral";
+    const response = await api.post("/ai/sentiment", { text });
+    const sentiment = response?.sentiment || "neutral";
     return ["positive", "neutral", "negative"].includes(sentiment)
       ? sentiment
       : "neutral";

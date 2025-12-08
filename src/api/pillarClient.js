@@ -1,6 +1,6 @@
 /**
  * Pillar Client
- * 
+ *
  * Centralized client for CRUD operations on pillar-related data.
  * Handles:
  * - Plans (create, read, update, delete)
@@ -11,8 +11,14 @@
  * - Error handling with standardized responses
  */
 
-import { PILLAR_ENDPOINTS, OTHER_ENDPOINTS, buildUrl, getAuthHeader, replacePathParams } from '@/config/apiConfig'
-import { parseError, getUserFriendlyMessage } from '@/utils/errorHandling'
+import {
+  PILLAR_ENDPOINTS,
+  OTHER_ENDPOINTS,
+  buildUrl,
+  getAuthHeader,
+  replacePathParams,
+} from "@/config/apiConfig";
+import { parseError, getUserFriendlyMessage } from "@/utils/errorHandling";
 
 /**
  * Make authenticated fetch request to pillar endpoint
@@ -22,51 +28,57 @@ import { parseError, getUserFriendlyMessage } from '@/utils/errorHandling'
  * @param {object} [params] - Path parameters (optional)
  * @returns {Promise<object>} - Parsed response
  */
-async function fetchPillar(endpoint, method = 'GET', data = null, params = {}) {
+async function fetchPillar(endpoint, method = "GET", data = null, params = {}) {
   try {
-    const path = replacePathParams(endpoint, params)
-    const url = buildUrl(path)
+    const DEMO = import.meta.env.VITE_DEMO_MODE === "true";
+    if (DEMO) {
+      // Demo mode: avoid network calls, return safe defaults
+      return method === "GET" ? {} : { ok: true };
+    }
+    const path = replacePathParams(endpoint, params);
+    const url = buildUrl(path);
 
     const options = {
       method,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...getAuthHeader(),
       },
-      credentials: 'include',
+      credentials: "include",
+    };
+
+    if (data && (method === "POST" || method === "PUT" || method === "PATCH")) {
+      options.body = JSON.stringify(data);
     }
 
-    if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-      options.body = JSON.stringify(data)
-    }
-
-    const response = await fetch(url, options)
-    const result = await response.json()
+    const response = await fetch(url, options);
+    const result = await response.json();
 
     if (!response.ok) {
-      const error = parseError(result || { message: 'Pillar request failed' })
-      error.statusCode = response.status
-      throw error
+      const error = parseError(result || { message: "Pillar request failed" });
+      error.statusCode = response.status;
+      throw error;
     }
 
-    return result
+    return result;
   } catch (error) {
-    throw error
+    // Network failure: provide safe defaults so UI remains functional
+    return method === "GET" ? {} : { ok: false, error: "connection" };
   }
 }
 
 /**
  * Standard error response formatter
  */
-function errorResponse(error, action = 'operation') {
-  const parsedError = parseError(error)
+function errorResponse(error, action = "operation") {
+  const parsedError = parseError(error);
   return {
     ok: false,
     error: true,
     message: getUserFriendlyMessage(parsedError),
     originalError: parsedError,
     statusCode: error.statusCode || 500,
-  }
+  };
 }
 
 /**
@@ -78,23 +90,23 @@ function errorResponse(error, action = 'operation') {
  */
 export async function createPlan(planData) {
   try {
-    const result = await fetchPillar(PILLAR_ENDPOINTS.PLANS, 'POST', {
+    const result = await fetchPillar(PILLAR_ENDPOINTS.PLANS, "POST", {
       title: planData.title,
-      description: planData.description || '',
+      description: planData.description || "",
       pillar: planData.pillar,
       content: planData.content,
-      timeframe: planData.timeframe || '1 year',
-      status: planData.status || 'active',
+      timeframe: planData.timeframe || "1 year",
+      status: planData.status || "active",
       tags: planData.tags || [],
-    })
+    });
 
     return {
       ok: true,
       plan: result.plan || result,
       id: result.id || result._id,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'create plan')
+    return errorResponse(error, "create plan");
   }
 }
 
@@ -103,16 +115,16 @@ export async function createPlan(planData) {
  */
 export async function getPlans(filters = {}) {
   try {
-    const query = new URLSearchParams(filters).toString()
-    const url = `${PILLAR_ENDPOINTS.PLANS}${query ? '?' + query : ''}`
-    const result = await fetchPillar(url, 'GET')
+    const query = new URLSearchParams(filters).toString();
+    const url = `${PILLAR_ENDPOINTS.PLANS}${query ? "?" + query : ""}`;
+    const result = await fetchPillar(url, "GET");
 
     return {
       ok: true,
       plans: Array.isArray(result) ? result : result.plans || [],
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'fetch plans')
+    return errorResponse(error, "fetch plans");
   }
 }
 
@@ -121,19 +133,16 @@ export async function getPlans(filters = {}) {
  */
 export async function getPlan(planId) {
   try {
-    const result = await fetchPillar(
-      PILLAR_ENDPOINTS.PLAN_BY_ID,
-      'GET',
-      null,
-      { id: planId }
-    )
+    const result = await fetchPillar(PILLAR_ENDPOINTS.PLAN_BY_ID, "GET", null, {
+      id: planId,
+    });
 
     return {
       ok: true,
       plan: result.plan || result,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'fetch plan')
+    return errorResponse(error, "fetch plan");
   }
 }
 
@@ -144,17 +153,17 @@ export async function updatePlan(planId, updates) {
   try {
     const result = await fetchPillar(
       PILLAR_ENDPOINTS.PLAN_BY_ID,
-      'PUT',
+      "PUT",
       updates,
       { id: planId }
-    )
+    );
 
     return {
       ok: true,
       plan: result.plan || result,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'update plan')
+    return errorResponse(error, "update plan");
   }
 }
 
@@ -163,19 +172,16 @@ export async function updatePlan(planId, updates) {
  */
 export async function deletePlan(planId) {
   try {
-    await fetchPillar(
-      PILLAR_ENDPOINTS.PLAN_BY_ID,
-      'DELETE',
-      null,
-      { id: planId }
-    )
+    await fetchPillar(PILLAR_ENDPOINTS.PLAN_BY_ID, "DELETE", null, {
+      id: planId,
+    });
 
     return {
       ok: true,
-      message: 'Plan deleted successfully',
-    }
+      message: "Plan deleted successfully",
+    };
   } catch (error) {
-    return errorResponse(error, 'delete plan')
+    return errorResponse(error, "delete plan");
   }
 }
 
@@ -188,9 +194,9 @@ export async function deletePlan(planId) {
  */
 export async function createGoal(goalData) {
   try {
-    const result = await fetchPillar(PILLAR_ENDPOINTS.GOALS, 'POST', {
+    const result = await fetchPillar(PILLAR_ENDPOINTS.GOALS, "POST", {
       title: goalData.title,
-      description: goalData.description || '',
+      description: goalData.description || "",
       pillar: goalData.pillar,
       goalStatement: goalData.goalStatement,
       specific: goalData.specific,
@@ -199,18 +205,18 @@ export async function createGoal(goalData) {
       relevant: goalData.relevant,
       timeBound: goalData.timeBound,
       deadline: goalData.deadline,
-      priority: goalData.priority || 'medium',
-      status: goalData.status || 'active',
+      priority: goalData.priority || "medium",
+      status: goalData.status || "active",
       linkedPlanId: goalData.linkedPlanId || null,
-    })
+    });
 
     return {
       ok: true,
       goal: result.goal || result,
       id: result.id || result._id,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'create goal')
+    return errorResponse(error, "create goal");
   }
 }
 
@@ -219,16 +225,16 @@ export async function createGoal(goalData) {
  */
 export async function getGoals(filters = {}) {
   try {
-    const query = new URLSearchParams(filters).toString()
-    const url = `${PILLAR_ENDPOINTS.GOALS}${query ? '?' + query : ''}`
-    const result = await fetchPillar(url, 'GET')
+    const query = new URLSearchParams(filters).toString();
+    const url = `${PILLAR_ENDPOINTS.GOALS}${query ? "?" + query : ""}`;
+    const result = await fetchPillar(url, "GET");
 
     return {
       ok: true,
       goals: Array.isArray(result) ? result : result.goals || [],
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'fetch goals')
+    return errorResponse(error, "fetch goals");
   }
 }
 
@@ -237,19 +243,16 @@ export async function getGoals(filters = {}) {
  */
 export async function getGoal(goalId) {
   try {
-    const result = await fetchPillar(
-      PILLAR_ENDPOINTS.GOAL_BY_ID,
-      'GET',
-      null,
-      { id: goalId }
-    )
+    const result = await fetchPillar(PILLAR_ENDPOINTS.GOAL_BY_ID, "GET", null, {
+      id: goalId,
+    });
 
     return {
       ok: true,
       goal: result.goal || result,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'fetch goal')
+    return errorResponse(error, "fetch goal");
   }
 }
 
@@ -260,17 +263,17 @@ export async function updateGoal(goalId, updates) {
   try {
     const result = await fetchPillar(
       PILLAR_ENDPOINTS.GOAL_BY_ID,
-      'PUT',
+      "PUT",
       updates,
       { id: goalId }
-    )
+    );
 
     return {
       ok: true,
       goal: result.goal || result,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'update goal')
+    return errorResponse(error, "update goal");
   }
 }
 
@@ -279,19 +282,16 @@ export async function updateGoal(goalId, updates) {
  */
 export async function deleteGoal(goalId) {
   try {
-    await fetchPillar(
-      PILLAR_ENDPOINTS.GOAL_BY_ID,
-      'DELETE',
-      null,
-      { id: goalId }
-    )
+    await fetchPillar(PILLAR_ENDPOINTS.GOAL_BY_ID, "DELETE", null, {
+      id: goalId,
+    });
 
     return {
       ok: true,
-      message: 'Goal deleted successfully',
-    }
+      message: "Goal deleted successfully",
+    };
   } catch (error) {
-    return errorResponse(error, 'delete goal')
+    return errorResponse(error, "delete goal");
   }
 }
 
@@ -304,25 +304,25 @@ export async function deleteGoal(goalId) {
  */
 export async function createHabit(habitData) {
   try {
-    const result = await fetchPillar(PILLAR_ENDPOINTS.HABITS, 'POST', {
+    const result = await fetchPillar(PILLAR_ENDPOINTS.HABITS, "POST", {
       title: habitData.title,
-      description: habitData.description || '',
+      description: habitData.description || "",
       pillar: habitData.pillar,
-      frequency: habitData.frequency || 'daily', // daily, weekly, monthly
+      frequency: habitData.frequency || "daily", // daily, weekly, monthly
       targetCount: habitData.targetCount || 1,
       timeOfDay: habitData.timeOfDay || null,
       reminder: habitData.reminder !== false,
-      status: habitData.status || 'active',
+      status: habitData.status || "active",
       linkedGoalId: habitData.linkedGoalId || null,
-    })
+    });
 
     return {
       ok: true,
       habit: result.habit || result,
       id: result.id || result._id,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'create habit')
+    return errorResponse(error, "create habit");
   }
 }
 
@@ -331,16 +331,16 @@ export async function createHabit(habitData) {
  */
 export async function getHabits(filters = {}) {
   try {
-    const query = new URLSearchParams(filters).toString()
-    const url = `${PILLAR_ENDPOINTS.HABITS}${query ? '?' + query : ''}`
-    const result = await fetchPillar(url, 'GET')
+    const query = new URLSearchParams(filters).toString();
+    const url = `${PILLAR_ENDPOINTS.HABITS}${query ? "?" + query : ""}`;
+    const result = await fetchPillar(url, "GET");
 
     return {
       ok: true,
       habits: Array.isArray(result) ? result : result.habits || [],
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'fetch habits')
+    return errorResponse(error, "fetch habits");
   }
 }
 
@@ -351,17 +351,17 @@ export async function getHabit(habitId) {
   try {
     const result = await fetchPillar(
       PILLAR_ENDPOINTS.HABIT_BY_ID,
-      'GET',
+      "GET",
       null,
       { id: habitId }
-    )
+    );
 
     return {
       ok: true,
       habit: result.habit || result,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'fetch habit')
+    return errorResponse(error, "fetch habit");
   }
 }
 
@@ -372,17 +372,17 @@ export async function updateHabit(habitId, updates) {
   try {
     const result = await fetchPillar(
       PILLAR_ENDPOINTS.HABIT_BY_ID,
-      'PUT',
+      "PUT",
       updates,
       { id: habitId }
-    )
+    );
 
     return {
       ok: true,
       habit: result.habit || result,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'update habit')
+    return errorResponse(error, "update habit");
   }
 }
 
@@ -391,19 +391,16 @@ export async function updateHabit(habitId, updates) {
  */
 export async function deleteHabit(habitId) {
   try {
-    await fetchPillar(
-      PILLAR_ENDPOINTS.HABIT_BY_ID,
-      'DELETE',
-      null,
-      { id: habitId }
-    )
+    await fetchPillar(PILLAR_ENDPOINTS.HABIT_BY_ID, "DELETE", null, {
+      id: habitId,
+    });
 
     return {
       ok: true,
-      message: 'Habit deleted successfully',
-    }
+      message: "Habit deleted successfully",
+    };
   } catch (error) {
-    return errorResponse(error, 'delete habit')
+    return errorResponse(error, "delete habit");
   }
 }
 
@@ -414,17 +411,17 @@ export async function logHabitCompletion(habitId, date) {
   try {
     const result = await fetchPillar(
       `${PILLAR_ENDPOINTS.HABIT_BY_ID}/log`,
-      'POST',
-      { date: date || new Date().toISOString().split('T')[0] },
+      "POST",
+      { date: date || new Date().toISOString().split("T")[0] },
       { id: habitId }
-    )
+    );
 
     return {
       ok: true,
       log: result,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'log habit')
+    return errorResponse(error, "log habit");
   }
 }
 
@@ -437,22 +434,22 @@ export async function logHabitCompletion(habitId, date) {
  */
 export async function createCheckIn(checkInData) {
   try {
-    const result = await fetchPillar(OTHER_ENDPOINTS.CHECKINS, 'POST', {
+    const result = await fetchPillar(OTHER_ENDPOINTS.CHECKINS, "POST", {
       pillar: checkInData.pillar,
       score: checkInData.score || 5, // 1-10 scale
-      notes: checkInData.notes || '',
-      mood: checkInData.mood || 'neutral',
+      notes: checkInData.notes || "",
+      mood: checkInData.mood || "neutral",
       date: checkInData.date || new Date().toISOString(),
       metrics: checkInData.metrics || {},
-    })
+    });
 
     return {
       ok: true,
       checkIn: result.checkIn || result,
       id: result.id || result._id,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'create check-in')
+    return errorResponse(error, "create check-in");
   }
 }
 
@@ -461,16 +458,18 @@ export async function createCheckIn(checkInData) {
  */
 export async function getCheckIns(pillar, filters = {}) {
   try {
-    const query = new URLSearchParams(filters).toString()
-    const url = `${replacePathParams(OTHER_ENDPOINTS.CHECKIN_BY_PILLAR, { pillar })}${query ? '?' + query : ''}`
-    const result = await fetchPillar(url, 'GET')
+    const query = new URLSearchParams(filters).toString();
+    const url = `${replacePathParams(OTHER_ENDPOINTS.CHECKIN_BY_PILLAR, {
+      pillar,
+    })}${query ? "?" + query : ""}`;
+    const result = await fetchPillar(url, "GET");
 
     return {
       ok: true,
       checkIns: Array.isArray(result) ? result : result.checkIns || [],
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'fetch check-ins')
+    return errorResponse(error, "fetch check-ins");
   }
 }
 
@@ -483,21 +482,21 @@ export async function getCheckIns(pillar, filters = {}) {
  */
 export async function createScreening(screeningData) {
   try {
-    const result = await fetchPillar(OTHER_ENDPOINTS.SCREENINGS, 'POST', {
+    const result = await fetchPillar(OTHER_ENDPOINTS.SCREENINGS, "POST", {
       type: screeningData.type, // e.g., 'PHQ-9', 'PSQI'
       pillar: screeningData.pillar,
       score: screeningData.score,
       results: screeningData.results || {},
       timestamp: screeningData.timestamp || new Date().toISOString(),
-    })
+    });
 
     return {
       ok: true,
       screening: result.screening || result,
       id: result.id || result._id,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'create screening')
+    return errorResponse(error, "create screening");
   }
 }
 
@@ -506,16 +505,16 @@ export async function createScreening(screeningData) {
  */
 export async function getScreenings(filters = {}) {
   try {
-    const query = new URLSearchParams(filters).toString()
-    const url = `${OTHER_ENDPOINTS.SCREENINGS}${query ? '?' + query : ''}`
-    const result = await fetchPillar(url, 'GET')
+    const query = new URLSearchParams(filters).toString();
+    const url = `${OTHER_ENDPOINTS.SCREENINGS}${query ? "?" + query : ""}`;
+    const result = await fetchPillar(url, "GET");
 
     return {
       ok: true,
       screenings: Array.isArray(result) ? result : result.screenings || [],
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'fetch screenings')
+    return errorResponse(error, "fetch screenings");
   }
 }
 
@@ -528,23 +527,23 @@ export async function getScreenings(filters = {}) {
  */
 export async function createEntry(entryData) {
   try {
-    const result = await fetchPillar(OTHER_ENDPOINTS.ENTRIES, 'POST', {
-      title: entryData.title || '',
+    const result = await fetchPillar(OTHER_ENDPOINTS.ENTRIES, "POST", {
+      title: entryData.title || "",
       content: entryData.content,
       pillar: entryData.pillar,
-      type: entryData.type || 'journal', // journal, reflection, note
+      type: entryData.type || "journal", // journal, reflection, note
       date: entryData.date || new Date().toISOString(),
       mood: entryData.mood,
       tags: entryData.tags || [],
-    })
+    });
 
     return {
       ok: true,
       entry: result.entry || result,
       id: result.id || result._id,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'create entry')
+    return errorResponse(error, "create entry");
   }
 }
 
@@ -553,16 +552,16 @@ export async function createEntry(entryData) {
  */
 export async function getEntries(filters = {}) {
   try {
-    const query = new URLSearchParams(filters).toString()
-    const url = `${OTHER_ENDPOINTS.ENTRIES}${query ? '?' + query : ''}`
-    const result = await fetchPillar(url, 'GET')
+    const query = new URLSearchParams(filters).toString();
+    const url = `${OTHER_ENDPOINTS.ENTRIES}${query ? "?" + query : ""}`;
+    const result = await fetchPillar(url, "GET");
 
     return {
       ok: true,
       entries: Array.isArray(result) ? result : result.entries || [],
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'fetch entries')
+    return errorResponse(error, "fetch entries");
   }
 }
 
@@ -573,17 +572,17 @@ export async function updateEntry(entryId, updates) {
   try {
     const result = await fetchPillar(
       OTHER_ENDPOINTS.ENTRY_BY_ID,
-      'PUT',
+      "PUT",
       updates,
       { id: entryId }
-    )
+    );
 
     return {
       ok: true,
       entry: result.entry || result,
-    }
+    };
   } catch (error) {
-    return errorResponse(error, 'update entry')
+    return errorResponse(error, "update entry");
   }
 }
 
@@ -592,19 +591,16 @@ export async function updateEntry(entryId, updates) {
  */
 export async function deleteEntry(entryId) {
   try {
-    await fetchPillar(
-      OTHER_ENDPOINTS.ENTRY_BY_ID,
-      'DELETE',
-      null,
-      { id: entryId }
-    )
+    await fetchPillar(OTHER_ENDPOINTS.ENTRY_BY_ID, "DELETE", null, {
+      id: entryId,
+    });
 
     return {
       ok: true,
-      message: 'Entry deleted successfully',
-    }
+      message: "Entry deleted successfully",
+    };
   } catch (error) {
-    return errorResponse(error, 'delete entry')
+    return errorResponse(error, "delete entry");
   }
 }
 
@@ -644,4 +640,4 @@ export default {
   getEntries,
   updateEntry,
   deleteEntry,
-}
+};

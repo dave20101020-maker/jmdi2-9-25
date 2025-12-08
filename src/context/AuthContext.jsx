@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import PropTypes from "prop-types";
-import api from "@/utils/apiClient";
+import { api } from "@/utils/apiClient";
 import { redirectToGoogleOAuth } from "@/lib/oauth/google";
 import { redirectToFacebookOAuth } from "@/lib/oauth/facebook";
 
@@ -51,6 +51,8 @@ const buildUsername = (email, profile = {}) => {
   return candidate;
 };
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [initializing, setInitializing] = useState(true);
@@ -64,7 +66,7 @@ export function AuthProvider({ children }) {
 
   const refreshUser = useCallback(async () => {
     try {
-      const response = await api.authMe();
+      const response = await api.me();
       const sessionUser = extractUser(response);
       return syncUser(sessionUser);
     } catch (error) {
@@ -107,7 +109,7 @@ export function AuthProvider({ children }) {
     async (emailOrUsername, password) => {
       try {
         setAuthError(null);
-        const response = await api.authLogin(emailOrUsername.trim(), password);
+        const response = await api.login(emailOrUsername.trim(), password);
         const sessionUser = extractUser(response);
         return syncUser(sessionUser);
       } catch (error) {
@@ -124,13 +126,11 @@ export function AuthProvider({ children }) {
       const username = buildUsername(normalizedEmail, profile);
       try {
         setAuthError(null);
-        const response = await api.authRegister({
-          username,
-          email: normalizedEmail,
+        const response = await api.register(
+          normalizedEmail,
           password,
-          subscriptionTier: profile.subscriptionTier || "free",
-          role: profile.role || "user",
-        });
+          profile.fullName || username
+        );
         const sessionUser = extractUser(response);
         return syncUser(sessionUser);
       } catch (error) {
@@ -169,12 +169,29 @@ export function AuthProvider({ children }) {
     );
   }, []);
 
-  const value = useMemo(
-    () => ({
+  const value = useMemo(() => {
+    if (DEMO_MODE) {
+      return {
+        user: { id: "demo-user", name: "Demo User" },
+        initializing: false,
+        loading: false,
+        error: null,
+        demoMode: true,
+        signIn: noop,
+        signUp: noop,
+        signOut: noop,
+        signInWithGoogle: noop,
+        signInWithFacebook: noop,
+        resetPassword: noop,
+        refreshUser: noop,
+      };
+    }
+    return {
       user,
       initializing,
       loading: initializing,
       error: authError,
+      demoMode: false,
       signIn,
       signUp,
       signOut,
@@ -182,20 +199,19 @@ export function AuthProvider({ children }) {
       signInWithFacebook,
       resetPassword,
       refreshUser,
-    }),
-    [
-      user,
-      initializing,
-      authError,
-      signIn,
-      signUp,
-      signOut,
-      signInWithGoogle,
-      signInWithFacebook,
-      resetPassword,
-      refreshUser,
-    ]
-  );
+    };
+  }, [
+    user,
+    initializing,
+    authError,
+    signIn,
+    signUp,
+    signOut,
+    signInWithGoogle,
+    signInWithFacebook,
+    resetPassword,
+    refreshUser,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

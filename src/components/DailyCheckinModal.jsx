@@ -14,9 +14,9 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { api } from "@/utils/apiClient";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, ChevronLeft } from "lucide-react";
-import aiClient from "@/api/aiClient";
 
 export default function DailyCheckinModal({
   isOpen,
@@ -41,13 +41,7 @@ export default function DailyCheckinModal({
     const loadQuestions = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/checkin/${pillar}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-
-        const data = await response.json();
+        const data = await api.get(`/checkin/${pillar}`);
 
         if (data.completed) {
           // Already completed today
@@ -127,16 +121,7 @@ export default function DailyCheckinModal({
       setSubmitting(true);
       setError(null);
 
-      const response = await fetch(`/api/checkin/${pillar}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ responses }),
-      });
-
-      const data = await response.json();
+      const data = await api.post(`/checkin/${pillar}`, { responses });
 
       if (data.ok) {
         // Call parent callback

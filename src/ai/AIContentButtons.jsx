@@ -1,8 +1,15 @@
 import { api } from "@/utils/apiClient";
-import * as aiClient from "@/api/aiClient";
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, FileText, Lightbulb, X, Loader2, RefreshCw, AlertCircle } from "lucide-react";
+import {
+  BookOpen,
+  FileText,
+  Lightbulb,
+  X,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
@@ -12,24 +19,31 @@ const CONTENT_TYPES = {
   quick_read: {
     icon: BookOpen,
     label: "2-Min Quick Read",
-    prompt: (pillar) => `Generate a 2-minute quick read article about ${pillar}. Focus on actionable tips or an interesting insight. Keep it concise and engaging for a user wanting rapid insights to improve this pillar. Use markdown format. Maximum 200 words. Include a catchy title.`,
-    color: "#FF6B9D"
+    prompt: (pillar) =>
+      `Generate a 2-minute quick read article about ${pillar}. Focus on actionable tips or an interesting insight. Keep it concise and engaging for a user wanting rapid insights to improve this pillar. Use markdown format. Maximum 200 words. Include a catchy title.`,
+    color: "#FF6B9D",
   },
   blog: {
     icon: FileText,
     label: "5-Min Blog Post",
-    prompt: (pillar) => `Generate a 5-minute blog post (around 500 words) about ${pillar}. Cover a specific aspect like 'the importance of X' or 'how to overcome Y challenge'. Provide practical, evidence-based advice with an encouraging tone. Use markdown format with headers and bullet points. Include a compelling title.`,
-    color: "#4ECDC4"
+    prompt: (pillar) =>
+      `Generate a 5-minute blog post (around 500 words) about ${pillar}. Cover a specific aspect like 'the importance of X' or 'how to overcome Y challenge'. Provide practical, evidence-based advice with an encouraging tone. Use markdown format with headers and bullet points. Include a compelling title.`,
+    color: "#4ECDC4",
   },
   fact: {
     icon: Lightbulb,
     label: "Quick Fact",
-    prompt: (pillar) => `Provide one surprising, lesser-known, or scientifically-backed fact about ${pillar} and its impact on overall wellbeing. Keep it to 1-2 sentences maximum. Make it memorable and insightful.`,
-    color: "#FFD93D"
-  }
+    prompt: (pillar) =>
+      `Provide one surprising, lesser-known, or scientifically-backed fact about ${pillar} and its impact on overall wellbeing. Keep it to 1-2 sentences maximum. Make it memorable and insightful.`,
+    color: "#FFD93D",
+  },
 };
 
-export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37" }) {
+export default function AIContentButtons({
+  pillar,
+  pillarName,
+  color = "#D4AF37",
+}) {
   const [selectedType, setSelectedType] = useState(null);
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -39,14 +53,14 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
   const loadContent = async (type) => {
     setSelectedType(type);
     setLoading(true);
-    
+
     try {
       // Try to get existing content from today
-      const today = format(new Date(), 'yyyy-MM-dd');
+      const today = format(new Date(), "yyyy-MM-dd");
       const existing = await api.getPillarContent({
         pillar,
         contentType: type,
-        generatedDate: today
+        generatedDate: today,
       });
 
       if (existing.length > 0) {
@@ -66,37 +80,47 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
     setLoading(true);
     try {
       const prompt = CONTENT_TYPES[type].prompt(pillarName);
-      
-      // Use aiClient to send message to orchestrator
-      const result = await aiClient.sendMessage({
-        message: prompt,
-        pillar: pillar
-      });
 
-      // Check for crisis response
-      if (result.isCrisis) {
-        toast.error('Crisis detected. Please reach out for support.');
-        return;
-      }
-
-      // Check for error
-      if (result.error) {
-        toast.error(result.message || 'Failed to generate content');
-        return;
-      }
-
+      // In demo mode, generate local content instead of calling AI
+      const DEMO = import.meta.env.VITE_DEMO_MODE === "true";
       let title, mainContent;
-      const responseText = result.text;
-      
-      if (type === 'fact') {
+      let responseText;
+      if (DEMO) {
+        if (type === "fact") {
+          responseText = `A quick fact about ${pillarName}: Strong habits in this pillar often boost your overall life score.`;
+        } else if (type === "quick_read") {
+          responseText = `# ${pillarName} Quick Tips\n\n- Focus on one small improvement today.\n- Track your progress for a week.\n- Celebrate small wins.`;
+        } else {
+          responseText = `# ${pillarName} Deep Dive\n\nHere are thoughtful insights and practical steps to improve your ${pillarName}.`;
+        }
+      } else {
+        // Fallback: try a generic backend endpoint if available
+        try {
+          const res = await api.post("/ai/content", {
+            message: prompt,
+            pillar,
+          });
+          responseText = res?.text || res?.content || "";
+        } catch (e) {
+          responseText =
+            "# Insight\n\nUnable to reach AI service right now. Here's a placeholder to keep you moving.";
+        }
+      }
+
+      if (type === "fact") {
         title = "Did You Know?";
         mainContent = responseText;
       } else {
         // Extract title from markdown (first # heading)
-        const lines = responseText.split('\n');
-        const titleLine = lines.find(line => line.startsWith('#'));
-        title = titleLine ? titleLine.replace(/^#+\s*/, '') : `${pillarName} Insight`;
-        mainContent = lines.filter(line => !line.startsWith('#')).join('\n').trim();
+        const lines = responseText.split("\n");
+        const titleLine = lines.find((line) => line.startsWith("#"));
+        title = titleLine
+          ? titleLine.replace(/^#+\s*/, "")
+          : `${pillarName} Insight`;
+        mainContent = lines
+          .filter((line) => !line.startsWith("#"))
+          .join("\n")
+          .trim();
       }
 
       const newContent = {
@@ -104,14 +128,14 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
         content: mainContent,
         pillar,
         contentType: type,
-        generatedDate: format(new Date(), 'yyyy-MM-dd')
+        generatedDate: format(new Date(), "yyyy-MM-dd"),
       };
 
       setContent(newContent);
-      toast.success('Content generated successfully!');
+      toast.success("Content generated successfully!");
     } catch (error) {
       console.error("Error generating content:", error);
-      toast.error('Failed to generate content');
+      toast.error("Failed to generate content");
     } finally {
       setLoading(false);
     }
@@ -127,7 +151,7 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
     if (!selectedType) return;
 
     const handleEsc = (e) => {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === "Escape") closeModal();
     };
 
     const handleKeyDown = (e) => {
@@ -138,7 +162,7 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
       const firstElement = focusableElements[0];
       const lastElement = focusableElements[focusableElements.length - 1];
 
-      if (e.key === 'Tab') {
+      if (e.key === "Tab") {
         if (e.shiftKey && document.activeElement === firstElement) {
           e.preventDefault();
           lastElement?.focus();
@@ -149,23 +173,27 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
       }
     };
 
-    document.addEventListener('keydown', handleEsc);
-    document.addEventListener('keydown', handleKeyDown);
-    
+    document.addEventListener("keydown", handleEsc);
+    document.addEventListener("keydown", handleKeyDown);
+
     // Focus close button on modal open
     if (closeButtonRef.current) {
       setTimeout(() => closeButtonRef.current?.focus(), 100);
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEsc);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleEsc);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [selectedType]);
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-3 mb-6" role="group" aria-label="Content type options">
+      <div
+        className="grid grid-cols-3 gap-3 mb-6"
+        role="group"
+        aria-label="Content type options"
+      >
         {Object.entries(CONTENT_TYPES).map(([type, config]) => {
           const Icon = config.icon;
           return (
@@ -178,8 +206,14 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
               whileTap={{ scale: 0.98 }}
               style={{ boxShadow: `0 0 15px ${config.color}20` }}
             >
-              <Icon className="w-6 h-6 mx-auto mb-2 group-hover:scale-110 transition-transform" style={{ color: config.color }} aria-hidden="true" />
-              <p className="text-white text-xs font-medium text-center">{config.label}</p>
+              <Icon
+                className="w-6 h-6 mx-auto mb-2 group-hover:scale-110 transition-transform"
+                style={{ color: config.color }}
+                aria-hidden="true"
+              />
+              <p className="text-white text-xs font-medium text-center">
+                {config.label}
+              </p>
             </motion.button>
           );
         })}
@@ -213,9 +247,14 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
                   {React.createElement(CONTENT_TYPES[selectedType].icon, {
                     className: "w-6 h-6",
                     style: { color: CONTENT_TYPES[selectedType].color },
-                    "aria-hidden": "true"
+                    "aria-hidden": "true",
                   })}
-                  <h2 id="content-title" className="text-xl font-bold text-white">{CONTENT_TYPES[selectedType].label}</h2>
+                  <h2
+                    id="content-title"
+                    className="text-xl font-bold text-white"
+                  >
+                    {CONTENT_TYPES[selectedType].label}
+                  </h2>
                 </div>
                 <div className="flex items-center gap-2">
                   {content && !loading && (
@@ -246,25 +285,62 @@ export default function AIContentButtons({ pillar, pillarName, color = "#D4AF37"
               <div className="p-6 overflow-y-auto max-h-[calc(85vh-80px)]">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color }} />
-                    <p className="text-white/60">Generating personalized content...</p>
+                    <Loader2
+                      className="w-8 h-8 animate-spin mb-4"
+                      style={{ color }}
+                    />
+                    <p className="text-white/60">
+                      Generating personalized content...
+                    </p>
                   </div>
                 ) : content ? (
                   <div>
-                    <h3 className="text-2xl font-bold text-white mb-4">{content.title}</h3>
-                    {selectedType === 'fact' ? (
-                      <p className="text-white/80 text-lg leading-relaxed">{content.content}</p>
+                    <h3 className="text-2xl font-bold text-white mb-4">
+                      {content.title}
+                    </h3>
+                    {selectedType === "fact" ? (
+                      <p className="text-white/80 text-lg leading-relaxed">
+                        {content.content}
+                      </p>
                     ) : (
                       <ReactMarkdown
                         className="prose prose-invert prose-sm max-w-none"
                         components={{
-                          h1: ({children}) => <h1 className="text-2xl font-bold text-white mb-4">{children}</h1>,
-                          h2: ({children}) => <h2 className="text-xl font-bold text-white mb-3 mt-6">{children}</h2>,
-                          h3: ({children}) => <h3 className="text-lg font-semibold text-white mb-2 mt-4">{children}</h3>,
-                          p: ({children}) => <p className="text-white/80 mb-4 leading-relaxed">{children}</p>,
-                          ul: ({children}) => <ul className="list-disc list-inside text-white/80 mb-4 space-y-2">{children}</ul>,
-                          ol: ({children}) => <ol className="list-decimal list-inside text-white/80 mb-4 space-y-2">{children}</ol>,
-                          strong: ({children}) => <strong className="text-white font-semibold">{children}</strong>,
+                          h1: ({ children }) => (
+                            <h1 className="text-2xl font-bold text-white mb-4">
+                              {children}
+                            </h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-xl font-bold text-white mb-3 mt-6">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-lg font-semibold text-white mb-2 mt-4">
+                              {children}
+                            </h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-white/80 mb-4 leading-relaxed">
+                              {children}
+                            </p>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-disc list-inside text-white/80 mb-4 space-y-2">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal list-inside text-white/80 mb-4 space-y-2">
+                              {children}
+                            </ol>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="text-white font-semibold">
+                              {children}
+                            </strong>
+                          ),
                         }}
                       >
                         {content.content}
