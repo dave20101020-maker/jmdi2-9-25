@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import AppShell from "./components/layout/AppShell";
+-import MainLayout from "./components/Layout/MainLayout";
++import AppShell from "./components/layout/AppShell";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -52,7 +53,7 @@ import Settings from "@/pages/Settings";
 import AdminDashboard from "@/pages/AdminDashboard";
 import NotFound from "@/pages/NotFound";
 import { NAMED_ROUTES } from "@/config/routes";
-import { ThemeProvider } from "./components/ThemeProvider";
++import { ThemeProvider } from "./components/ThemeProvider";
 
 const stripLeadingSlash = (value = "") =>
   value.startsWith("/") ? value.slice(1) : value;
@@ -178,7 +179,8 @@ function AppContent() {
         <Route path="/register" element={<SignUp />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
-        <Route path="/" element={<AppShell />}>
+-        <Route path="/" element={<MainLayout />}>
++        <Route path="/" element={<AppShell />}>
           <Route
             index
             element={<Navigate to={NAMED_ROUTES.Dashboard} replace />}
@@ -217,8 +219,9 @@ const queryClient = new QueryClient();
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <BrowserRouter>
+-      <BrowserRouter>
++      <ThemeProvider>
++        <BrowserRouter>
           {import.meta.env.VITE_DEMO_MODE === "true" && (
             <div
               style={{
@@ -241,11 +244,15 @@ export default function App() {
             <StarfieldBackground />
             <div className="ns-app-surface__content">
               <AppContent />
-              <SonnerToaster position="top-right" richColors closeButton />
-            </div>
-          </div>
-        </BrowserRouter>
-      </ThemeProvider>
-    </QueryClientProvider>
-  );
+-              <SonnerToaster position="top-right" richColors closeButton />
+-            </div>
+-          </div>
+-        </BrowserRouter>
++              <SonnerToaster position="top-right" richColors closeButton />
++            </div>
++          </div>
++        </BrowserRouter>
++      </ThemeProvider>
+     </QueryClientProvider>
+   );
 }

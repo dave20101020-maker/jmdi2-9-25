@@ -2,7 +2,7 @@
 // Core brand + pillar colors centralized for consistent usage
 
 export const CORE = Object.freeze({
-  NAVY: "#0A1224",
+  NAVY: "#0A1029",
   GOLD: "#D4AF37",
   SOFT_GOLD: "#E6C76A",
   WHITE: "#FFFFFF",

@@ -11,20 +11,27 @@
   -webkit-font-smoothing: antialiased;
 
   /* Core palette */
-  --ns-color-background: #0a1224; /* Navy core */
-  --ns-color-foreground: #f6f7fb; /* Off-white for contrast */
-  --ns-color-card: #0f1c35;
-  --ns-color-card-foreground: #f9fbff;
-  --ns-color-border: rgba(246, 201, 68, 0.24);
-  --ns-color-ring: rgba(246, 201, 68, 0.45);
-  --ns-color-muted: rgba(148, 163, 184, 0.32);
-  --ns-color-muted-foreground: rgba(226, 232, 240, 0.86);
-  --ns-color-accent: #111e38;
-  --ns-color-accent-foreground: #f6f7fb;
-  --ns-color-primary: #f6c944; /* Gold accent */
-  --ns-color-primary-foreground: #0a1224;
+  --ns-color-background: var(--ns-color-bg-solid, #0a1029); /* Navy core */
+  --ns-color-foreground: var(
+    --ns-color-text,
+    #f5f7ff
+  ); /* Off-white for contrast */
+  --ns-color-surface: var(--ns-color-surface, #0c1431);
+  --ns-color-card: var(--ns-color-card, #101b3d);
+  --ns-color-card-foreground: var(--ns-color-card-foreground, #f5f7ff);
+  --ns-color-border: var(--ns-color-border, rgba(212, 175, 55, 0.28));
+  --ns-color-ring: var(--ns-color-ring, rgba(212, 175, 55, 0.45));
+  --ns-color-muted: var(--ns-color-muted, rgba(185, 194, 214, 0.65));
+  --ns-color-muted-foreground: var(
+    --ns-color-muted-foreground,
+    rgba(245, 247, 255, 0.86)
+  );
+  --ns-color-accent: #111a3c;
+  --ns-color-accent-foreground: var(--ns-color-foreground);
+  --ns-color-primary: var(--ns-color-gold, #d4af37); /* Gold accent */
+  --ns-color-primary-foreground: var(--ns-color-primary-foreground, #0a1029);
   --ns-color-secondary: rgba(255, 255, 255, 0.08);
-  --ns-color-secondary-foreground: #f6f7fb;
+  --ns-color-secondary-foreground: var(--ns-color-foreground);
 
   /* Typography */
   --ns-font-family: "InterVariable", "Inter", system-ui, -apple-system,
@@ -52,27 +59,20 @@
   /* Atmospherics */
   --ns-bg-star: rgba(255, 255, 255, 0.4);
   --ns-bg-star-dim: rgba(255, 255, 255, 0.12);
-  --ns-gradient-galaxy: radial-gradient(
-      circle at 5% 15%,
-      rgba(246, 201, 68, 0.1),
-      transparent 45%
-    ),
-    radial-gradient(
-      circle at 85% 10%,
-      rgba(59, 130, 246, 0.12),
-      transparent 50%
-    ),
-    linear-gradient(135deg, #0b1631 0%, #0a1224 40%, #0f1c35 100%);
+  --ns-gradient-galaxy: var(
+    --ns-color-bg,
+    linear-gradient(135deg, #060a1f 0%, #0a1029 40%, #101b3d 100%)
+  );
 
   /* Legacy aliases */
-  --ns-card-bg: rgba(15, 28, 53, 0.9);
+  --ns-card-bg: rgba(16, 27, 61, 0.92);
   --ns-card-border: var(--ns-color-border);
-  --ns-card-shadow: 0 0 30px rgba(246, 201, 68, 0.14);
+  --ns-card-shadow: 0 0 30px rgba(212, 175, 55, 0.14);
   --ns-gold: var(--ns-color-primary);
-  --ns-gold-strong: #c69925;
+  --ns-gold-strong: #b98a2e;
   --ns-text-strong: var(--ns-color-foreground);
   --ns-text-soft: rgba(226, 232, 240, 0.78);
-  --ns-pillar-default: #f4d06f;
+  --ns-pillar-default: #d4af37;
   --ns-pillar-sleep: #5b5fef;
   --ns-pillar-diet: #4cd97b;
   --ns-pillar-exercise: #ff6b6b;
@@ -142,7 +142,7 @@ a {
 }
 
 .ns-button-primary {
-  background: linear-gradient(120deg, #f6c944, #eabf3a);
+  background: linear-gradient(120deg, #d4af37, #b98a2e);
   color: var(--ns-color-primary-foreground);
   border-radius: var(--ns-radius-pill);
   border: 1px solid var(--ns-color-border);
@@ -151,7 +151,7 @@ a {
 
 .ns-button-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 30px rgba(246, 201, 68, 0.25);
+  box-shadow: 0 10px 30px rgba(212, 175, 55, 0.25);
 }
 
 .ns-focus-ring:focus-visible {

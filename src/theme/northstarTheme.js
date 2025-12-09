@@ -1,27 +1,24 @@
 const palette = {
-  cosmicNavy: "#020617",
-  deepNavy: "#050d2a",
-  midnight: "#070b1f",
-  card: "#0f1b3d",
-  surface: "#111b3d",
-  nebula: "#1d2759",
-  gold: "#f4d06f",
-  amber: "#d6a03a",
-  teal: "#4cc9f0",
-  magenta: "#c77dff",
-  white: "#f7f8ff",
-  muted: "#b8c4ff",
+  cosmicNavy: "#0A1029",
+  deepNavy: "#0D1635",
+  midnight: "#080F29",
+  card: "#101B3D",
+  surface: "#0C1431",
+  nebula: "#162047",
+  gold: "#D4AF37",
+  amber: "#B98A2E",
+  white: "#f5f7ff",
+  muted: "#b9c2d6",
   danger: "#ff6b6b",
 };
 
 const gradients = {
-  horizon:
-    "linear-gradient(140deg, rgba(5,4,28,1) 0%, rgba(10,18,56,1) 40%, rgba(16,31,82,1) 100%)",
+  horizon: "linear-gradient(140deg, #060a1f 0%, #0a1029 40%, #101b3d 100%)",
   aurora:
     "linear-gradient(120deg, rgba(196,125,255,0.08), rgba(76,201,240,0.08))",
-  cta: "linear-gradient(135deg, #f8e27e, #d6a33a)",
-  pill: "linear-gradient(145deg, rgba(244,208,63,0.18), rgba(71,214,167,0.18))",
-  card: "linear-gradient(160deg, rgba(15,27,61,0.95), rgba(7,12,33,0.85))",
+  cta: "linear-gradient(135deg, #e6c45a, #b98a2e)",
+  pill: "linear-gradient(145deg, rgba(212,175,55,0.18), rgba(71,214,167,0.18))",
+  card: "linear-gradient(160deg, rgba(16,27,61,0.95), rgba(8,15,41,0.88))",
 };
 
 const radii = {
@@ -65,16 +62,25 @@ const northstarTheme = {
 export const applyNorthstarTheme = (root = document.documentElement) => {
   const entries = {
     "--ns-color-bg": gradients.horizon,
+    "--ns-color-bg-solid": palette.cosmicNavy,
+    "--ns-color-background": palette.cosmicNavy,
     "--ns-color-cosmic": palette.cosmicNavy,
     "--ns-color-deep": palette.deepNavy,
     "--ns-color-surface": palette.surface,
     "--ns-color-card": palette.card,
+    "--ns-color-card-foreground": palette.white,
     "--ns-color-aurora": gradients.aurora,
     "--ns-color-gold": palette.gold,
+    "--ns-color-primary": palette.gold,
+    "--ns-color-primary-foreground": palette.cosmicNavy,
+    "--ns-color-border": "rgba(212, 175, 55, 0.28)",
+    "--ns-color-ring": "rgba(212, 175, 55, 0.45)",
+    "--ns-color-accent": palette.midnight,
     "--ns-color-amber": palette.amber,
     "--ns-color-teal": palette.teal,
     "--ns-color-magenta": palette.magenta,
     "--ns-color-text": palette.white,
+    "--ns-color-foreground": palette.white,
     "--ns-color-muted": palette.muted,
     "--ns-color-danger": palette.danger,
     "--ns-gradient-cta": gradients.cta,
