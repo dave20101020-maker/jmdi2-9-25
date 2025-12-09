@@ -106,6 +106,7 @@ function DashboardContent({ user }) {
   const queryClient = useQueryClient();
   const [showTour, setShowTour] = useState(false);
   const [celebrationMilestone, setCelebrationMilestone] = useState(null);
+  const [recommendation, setRecommendation] = useState(null);
   const today = format(new Date(), "yyyy-MM-dd");
   const {
     subscription,

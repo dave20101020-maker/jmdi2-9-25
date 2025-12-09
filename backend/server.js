@@ -26,6 +26,8 @@ import notificationsRoutes from "./routes/notifications.js";
 import timelineRoutes from "./routes/timeline.js";
 import userRoutes from "./routes/user.js";
 import integrationsRoutes from "./routes/integrations.js";
+import insightsRoutes from "./routes/insights.js";
+import progressRoutes from "./routes/progress.js";
 
 const envName = process.env.NODE_ENV || "development";
 
@@ -118,6 +120,8 @@ app.use("/api/notifications", notificationsRoutes);
 app.use("/api/timeline", timelineRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/integrations", integrationsRoutes);
+app.use("/api/insights", insightsRoutes);
+app.use("/api/progress", progressRoutes);
 
 // Connect to MongoDB
 let mongoRetryCount = 0;
