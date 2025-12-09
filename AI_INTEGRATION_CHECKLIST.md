@@ -124,6 +124,20 @@
   - Features: 2-5 min quick actions
   - Status: ✅ Connected
 
+## 🛡️ Compliance Agent (Recommended - NHS Readiness)
+
+- [ ] **AI Security & Compliance Engineer**
+
+  - Purpose: NHS-facing DCB0129 + DPIA alignment
+  - Responsibilities:
+    - Prevent PII leaks and enforce safe prompt handling
+    - Implement secure storage, key management, and encryption defaults
+    - Review authentication/authorization logic for AI endpoints
+    - Insert compliance banners and non-diagnostic disclaimers
+    - Lead DPIA, LLM safety controls, and data retention rules
+    - Build Trust Center API + UI for transparency
+    - Verify logging, audit trails, and evidence capture for assessments
+
 ---
 
 ## 🔌 API Endpoints (10/10 Created)
