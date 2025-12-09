@@ -2,6 +2,10 @@ import OpenAI from "openai";
 import User from "../models/User.js";
 import OnboardingProfile from "../models/OnboardingProfile.js";
 import PillarCheckIn from "../models/PillarCheckIn.js";
+import { applyAiDisclaimer } from "../src/ai/disclaimer.js";
+
+const sendAiResponse = (res, payload, status = 200) =>
+  res.status(status).json(applyAiDisclaimer(payload));
 
 // Lazy initialization of OpenAI client
 let openai = null;
@@ -180,7 +184,8 @@ export const coachAgent = async (req, res) => {
   try {
     const { prompt, userContext = {}, pillarFocus } = req.body;
 
-    if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+    if (!prompt)
+      return sendAiResponse(res, { error: "Prompt is required" }, 400);
 
     // If no pillarFocus provided, ask orchestrator to pick 1-2 pillars
     let chosen = { primaryPillars: [], reason: "user-specified" };
@@ -238,7 +243,7 @@ export const coachAgent = async (req, res) => {
       };
     }
 
-    res.json({
+    sendAiResponse(res, {
       success: true,
       agent: "coach",
       timestamp: new Date().toISOString(),
@@ -246,12 +251,14 @@ export const coachAgent = async (req, res) => {
     });
   } catch (error) {
     console.error("Coach agent error:", error);
-    res
-      .status(500)
-      .json({
+    sendAiResponse(
+      res,
+      {
         error: "Failed to process coaching request",
         message: error.message,
-      });
+      },
+      500
+    );
   }
 };
 
@@ -264,9 +271,8 @@ export const dailyPlanAgent = async (req, res) => {
   try {
     const { prompt, userGoals = [], timeAvailable = 16 } = req.body;
 
-    if (!prompt) {
-      return res.status(400).json({ error: "Prompt is required" });
-    }
+    if (!prompt)
+      return sendAiResponse(res, { error: "Prompt is required" }, 400);
 
     const response = await getOpenAIClient().beta.messages.create({
       model: "gpt-4-turbo",
@@ -304,7 +310,7 @@ export const dailyPlanAgent = async (req, res) => {
       };
     }
 
-    res.json({
+    sendAiResponse(res, {
       success: true,
       agent: "dailyPlan",
       timestamp: new Date().toISOString(),
@@ -312,10 +318,14 @@ export const dailyPlanAgent = async (req, res) => {
     });
   } catch (error) {
     console.error("Daily plan agent error:", error);
-    res.status(500).json({
-      error: "Failed to create daily plan",
-      message: error.message,
-    });
+    sendAiResponse(
+      res,
+      {
+        error: "Failed to create daily plan",
+        message: error.message,
+      },
+      500
+    );
   }
 };
 
@@ -328,14 +338,18 @@ export const pillarAnalysisAgent = async (req, res) => {
   try {
     const { prompt, currentScores = {}, focusAreas = [], pillar } = req.body;
 
-    if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+    if (!prompt)
+      return sendAiResponse(res, { error: "Prompt is required" }, 400);
+
+    if (!pillar)
+      return sendAiResponse(
+        res,
+        { error: "pillar is required for pillar-analysis" },
+        400
+      );
 
     // require a specific pillar for pillar-analysis
     const target = pillar;
-    if (!target)
-      return res
-        .status(400)
-        .json({ error: "pillar is required for pillar-analysis" });
     const config = pillarConfigs[target] || {
       system: "You are a holistic wellness analyst.",
       tone: "neutral",
@@ -376,7 +390,7 @@ export const pillarAnalysisAgent = async (req, res) => {
       };
     }
 
-    res.json({
+    sendAiResponse(res, {
       success: true,
       agent: "pillarAnalysis",
       timestamp: new Date().toISOString(),
@@ -384,10 +398,14 @@ export const pillarAnalysisAgent = async (req, res) => {
     });
   } catch (error) {
     console.error("Pillar analysis agent error:", error);
-    res.status(500).json({
-      error: "Failed to analyze pillars",
-      message: error.message,
-    });
+    sendAiResponse(
+      res,
+      {
+        error: "Failed to analyze pillars",
+        message: error.message,
+      },
+      500
+    );
   }
 };
 
@@ -400,9 +418,8 @@ export const weeklyReflectionAgent = async (req, res) => {
   try {
     const { prompt, weeklyData = {}, pillarScores = {} } = req.body;
 
-    if (!prompt) {
-      return res.status(400).json({ error: "Prompt is required" });
-    }
+    if (!prompt)
+      return sendAiResponse(res, { error: "Prompt is required" }, 400);
 
     const response = await getOpenAIClient().beta.messages.create({
       model: "gpt-4-turbo",
@@ -447,7 +464,7 @@ export const weeklyReflectionAgent = async (req, res) => {
       };
     }
 
-    res.json({
+    sendAiResponse(res, {
       success: true,
       agent: "weeklyReflection",
       timestamp: new Date().toISOString(),
@@ -455,10 +472,14 @@ export const weeklyReflectionAgent = async (req, res) => {
     });
   } catch (error) {
     console.error("Weekly reflection agent error:", error);
-    res.status(500).json({
-      error: "Failed to generate weekly reflection",
-      message: error.message,
-    });
+    sendAiResponse(
+      res,
+      {
+        error: "Failed to generate weekly reflection",
+        message: error.message,
+      },
+      500
+    );
   }
 };
 
@@ -593,17 +614,21 @@ export const weeklyReportAgent = async (req, res) => {
   try {
     const user = req.user;
     if (!user)
-      return res
-        .status(401)
-        .json({ success: false, error: "Not authenticated" });
+      return sendAiResponse(
+        res,
+        { success: false, error: "Not authenticated" },
+        401
+      );
     const report = await buildWeeklyReport(user._id);
     if (!report)
-      return res
-        .status(500)
-        .json({ success: false, error: "Failed to build report" });
-    return res.json({ success: true, data: report });
+      return sendAiResponse(
+        res,
+        { success: false, error: "Failed to build report" },
+        500
+      );
+    return sendAiResponse(res, { success: true, data: report });
   } catch (err) {
     console.error("weeklyReportAgent error", err);
-    return res.status(500).json({ success: false, error: "Server error" });
+    return sendAiResponse(res, { success: false, error: "Server error" }, 500);
   }
 };

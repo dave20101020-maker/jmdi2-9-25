@@ -34,7 +34,7 @@ export const env = {
     secretKey: process.env.STRIPE_SECRET_KEY,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
   },
-  region: process.env.DEPLOY_REGION || "uk",
+  region: process.env.DEPLOY_REGION || "uk", // align to UK/EU storage requirement
 };
 
 export default env;
