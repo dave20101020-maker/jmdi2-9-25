@@ -1,5 +1,5 @@
 import UserProgress from "../models/UserProgress.js";
-import { VALID_PILLARS } from "../models/Insight.js";
+import { VALID_PILLARS, normalizePillarId } from "../utils/pillars.js";
 
 const resolveUserId = (req) =>
   req.user?._id?.toString() || req.body.userId || req.query.userId;
@@ -22,6 +22,7 @@ export const saveUserProgress = async (req, res) => {
 
     const sanitizedPillars = Array.isArray(pillars)
       ? pillars
+          .map((p) => ({ ...p, pillar: normalizePillarId(p?.pillar) }))
           .filter((p) => p?.pillar && VALID_PILLARS.includes(p.pillar))
           .map((p) => ({
             pillar: p.pillar,

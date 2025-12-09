@@ -1,48 +1,117 @@
-import OnboardingProfile from '../models/OnboardingProfile.js';
+import OnboardingProfile from "../models/OnboardingProfile.js";
+import UserConsent from "../models/UserConsent.js";
+import { VALID_PILLARS, normalizePillarId } from "../utils/pillars.js";
 
-export const getProfile = async (req, res) => {
+const clampScore = (value) => Math.max(0, Math.min(10, Number(value) || 0));
+
+const computeBaselineScore = (comB = {}) => {
+  const entries = Object.values(comB).map((group) => {
+    if (!group) return 0;
+    const capability = clampScore(group.capability);
+    const opportunity = clampScore(group.opportunity);
+    const motivation = clampScore(group.motivation);
+    return (capability + opportunity + motivation) / 3;
+  });
+  if (!entries.length) return 0;
+  const avg = entries.reduce((a, b) => a + b, 0) / entries.length;
+  return Math.round(avg * 10);
+};
+
+const ensureGoalIntegrity = (goals = []) =>
+  goals
+    .map((goal) => ({
+      pillar: normalizePillarId(goal?.pillar),
+      goal: goal?.goal,
+    }))
+    .filter((entry) => entry.pillar && VALID_PILLARS.includes(entry.pillar));
+
+export const submitOnboarding = async (req, res) => {
   try {
-    const userId = req.user?.id || req.query.userId;
-    if (!userId) return res.status(400).json({ success: false, error: 'userId required' });
+    const { com_b: comB = {}, demographics = {}, goals = [] } = req.body || {};
+    const userId = req.user?._id;
+    if (!userId)
+      return res.status(401).json({ success: false, error: "Auth required" });
 
-    const profile = await OnboardingProfile.findOne({ userId: String(userId) });
-    return res.status(200).json({ success: true, data: profile || null });
-  } catch (err) {
-    console.error('getProfile error', err);
-    return res.status(500).json({ success: false, error: 'Server error' });
+    const normalizedGoals = ensureGoalIntegrity(goals);
+    const baselineScore = computeBaselineScore(comB);
+    const northStarScore = Math.round((baselineScore || 0) * 1.1);
+
+    const payload = {
+      userId: String(userId),
+      demographics,
+      com_b: comB,
+      selectedGoals: normalizedGoals,
+      assessments: {
+        results: new Map([
+          ["baseline", { score: baselineScore, totalPossible: 100 }],
+        ]),
+      },
+      psychologyProfile: { northStarScore },
+      completedAt: new Date(),
+    };
+
+    const profile = await OnboardingProfile.findOneAndUpdate(
+      { userId: String(userId) },
+      payload,
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        baselineScore,
+        northStarScore,
+        profile,
+      },
+    });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
   }
 };
 
-export const saveProfile = async (req, res) => {
+export const getOnboarding = async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId)
+    return res.status(401).json({ success: false, error: "Auth required" });
+  const profile = await OnboardingProfile.findOne({ userId: String(userId) });
+  if (!profile)
+    return res
+      .status(404)
+      .json({ success: false, error: "No onboarding profile" });
+  return res.json({ success: true, data: profile });
+};
+
+export const saveConsent = async (req, res) => {
   try {
-    const userId = req.user?.id || req.body.userId;
-    if (!userId) return res.status(400).json({ success: false, error: 'userId required' });
-
-    const payload = req.body || {};
-    // ensure only expected fields are written
-    const data = {
-      userId: String(userId),
-      age: payload.age,
-      sex: payload.sex,
-      heightCm: payload.heightCm,
-      weightKg: payload.weightKg,
-      shiftWork: payload.shiftWork || false,
-      com_b: payload.com_b || {},
-      extra: payload.extra || {},
+    const userId = req.user?._id;
+    if (!userId)
+      return res.status(401).json({ success: false, error: "Auth required" });
+    const { gdprAccepted, llmAccepted } = req.body || {};
+    const update = {
+      gdpr: {
+        accepted: !!gdprAccepted,
+        timestamp: new Date(),
+      },
+      llm: {
+        accepted: !!llmAccepted,
+        timestamp: new Date(),
+      },
     };
-
-    const existing = await OnboardingProfile.findOne({ userId: String(userId) });
-    if (existing) {
-      Object.assign(existing, data);
-      await existing.save();
-      return res.status(200).json({ success: true, data: existing });
-    }
-
-    const created = new OnboardingProfile(data);
-    await created.save();
-    return res.status(201).json({ success: true, data: created });
-  } catch (err) {
-    console.error('saveProfile error', err);
-    return res.status(500).json({ success: false, error: 'Server error' });
+    const consent = await UserConsent.findOneAndUpdate(
+      { userId: String(userId) },
+      update,
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+    return res.status(200).json({ success: true, data: consent });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
   }
 };

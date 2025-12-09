@@ -1,13 +1,22 @@
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
 
 const pillarSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Pillar name is required'],
+      required: [true, "Pillar name is required"],
       unique: true,
       trim: true,
-      enum: ['Sleep', 'Diet', 'Exercise', 'Physical Health', 'Mental Health', 'Finance', 'Social', 'Spirituality'],
+      enum: [
+        "Sleep",
+        "Diet",
+        "Exercise",
+        "Physical Health",
+        "Mental Health",
+        "Finance",
+        "Social",
+        "Spirituality",
+      ],
     },
     identifier: {
       type: String,
@@ -19,21 +28,21 @@ const pillarSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      required: [true, 'Description is required'],
+      required: [true, "Description is required"],
       trim: true,
     },
     icon: {
       type: String,
-      default: '⭐',
+      default: "⭐",
     },
     color: {
       type: String,
-      default: '#D4AF37',
+      default: "#D4AF37",
     },
     category: {
       type: String,
-      enum: ['physical', 'mental', 'lifestyle'],
-      default: 'lifestyle',
+      enum: ["physical", "mental", "lifestyle"],
+      default: "lifestyle",
     },
     order: {
       type: Number,
@@ -54,19 +63,27 @@ const pillarSchema = new mongoose.Schema(
         url: String,
         type: {
           type: String,
-          enum: ['article', 'video', 'tool', 'course'],
+          enum: ["article", "video", "tool", "course"],
         },
       },
     ],
+    quickWins: {
+      type: [String],
+      default: [],
+    },
+    trendSummary: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
-)
+);
 
 // Index for quick lookups
-pillarSchema.index({ identifier: 1 })
-pillarSchema.index({ name: 1 })
-pillarSchema.index({ isActive: 1, order: 1 })
+pillarSchema.index({ identifier: 1 });
+pillarSchema.index({ name: 1 });
+pillarSchema.index({ isActive: 1, order: 1 });
 
-export default mongoose.model('Pillar', pillarSchema)
+export default mongoose.model("Pillar", pillarSchema);

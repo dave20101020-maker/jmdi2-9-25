@@ -1,4 +1,5 @@
-import Insight, { VALID_PILLARS } from "../models/Insight.js";
+import Insight from "../models/Insight.js";
+import { normalizePillarId } from "../utils/pillars.js";
 
 const resolveUserId = (req) =>
   req.user?._id?.toString() || req.body.userId || req.query.userId;
@@ -21,7 +22,9 @@ export const createInsight = async (req, res) => {
         .json({ success: false, error: "content is required" });
     }
 
-    if (pillar && !VALID_PILLARS.includes(pillar)) {
+    const normalizedPillar = normalizePillarId(pillar);
+
+    if (pillar && !normalizedPillar) {
       return res.status(400).json({ success: false, error: "Invalid pillar" });
     }
 
@@ -29,7 +32,7 @@ export const createInsight = async (req, res) => {
       userId,
       title: title?.trim() || undefined,
       content,
-      pillar,
+      pillar: normalizedPillar || undefined,
       habitId,
       tags: Array.isArray(tags) ? tags : [],
       source: source || "manual",
@@ -53,7 +56,11 @@ export const listInsights = async (req, res) => {
 
     const { pillar, habitId, limit = 20 } = req.query;
     const query = { userId };
-    if (pillar) query.pillar = pillar;
+    const normalizedPillar = normalizePillarId(pillar);
+    if (pillar && !normalizedPillar) {
+      return res.status(400).json({ success: false, error: "Invalid pillar" });
+    }
+    if (normalizedPillar) query.pillar = normalizedPillar;
     if (habitId) query.habitId = habitId;
 
     const insights = await Insight.find(query)

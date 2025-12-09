@@ -1,15 +1,5 @@
 import mongoose from "mongoose";
-
-const VALID_PILLARS = [
-  "sleep",
-  "diet",
-  "exercise",
-  "physical_health",
-  "mental_health",
-  "finances",
-  "social",
-  "spirituality",
-];
+import { VALID_PILLARS } from "../utils/pillars.js";
 
 const insightSchema = new mongoose.Schema(
   {
@@ -57,5 +47,3 @@ const insightSchema = new mongoose.Schema(
 insightSchema.index({ userId: 1, createdAt: -1 });
 
 export default mongoose.model("Insight", insightSchema);
-
-export { VALID_PILLARS };

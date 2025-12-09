@@ -1,7 +1,8 @@
-import PillarScore from '../models/PillarScore.js';
-import PillarCheckIn from '../models/PillarCheckIn.js';
-import User from '../models/User.js';
-import Notification from '../models/Notification.js';
+import PillarScore from "../models/PillarScore.js";
+import PillarCheckIn from "../models/PillarCheckIn.js";
+import User from "../models/User.js";
+import Notification from "../models/Notification.js";
+import { normalizePillarId, VALID_PILLARS } from "../utils/pillars.js";
 
 // @desc    Create or update pillar score
 // @route   POST /api/pillars
@@ -9,32 +10,47 @@ import Notification from '../models/Notification.js';
 export const upsertPillarScore = async (req, res, next) => {
   try {
     const { userId, pillar, score } = req.body;
+    const normalizedPillar = normalizePillarId(pillar);
 
     if (!userId || !pillar || score === undefined) {
-      return res.status(400).json({ success: false, error: 'userId, pillar and score are required' });
+      return res.status(400).json({
+        success: false,
+        error: "userId, pillar and score are required",
+      });
     }
 
     if (score < 0 || score > 100) {
-      return res.status(400).json({ success: false, error: 'Score must be between 0 and 100' });
+      return res
+        .status(400)
+        .json({ success: false, error: "Score must be between 0 and 100" });
     }
 
-    const validPillars = ['sleep', 'diet', 'exercise', 'physical_health', 'mental_health', 'finances', 'social', 'spirituality'];
-    if (!validPillars.includes(pillar)) {
-      return res.status(400).json({ success: false, error: 'Invalid pillar' });
+    if (!normalizedPillar || !VALID_PILLARS.includes(normalizedPillar)) {
+      return res.status(400).json({ success: false, error: "Invalid pillar" });
     }
 
-    const existing = await PillarScore.findOne({ userId, pillar });
+    const existing = await PillarScore.findOne({
+      userId,
+      pillar: normalizedPillar,
+    });
     if (existing) {
       existing.score = score;
       existing.updatedAt = new Date();
-      existing.weeklyScores = [...(existing.weeklyScores || []), score].slice(-12);
+      existing.weeklyScores = [...(existing.weeklyScores || []), score].slice(
+        -12
+      );
       existing.calculateTrend();
       await existing.save();
 
       return res.status(200).json({ success: true, data: existing });
     }
 
-    const created = new PillarScore({ userId, pillar, score, weeklyScores: [score] });
+    const created = new PillarScore({
+      userId,
+      pillar: normalizedPillar,
+      score,
+      weeklyScores: [score],
+    });
     created.calculateTrend();
     await created.save();
 
@@ -54,14 +70,25 @@ export const getPillarScores = async (req, res, next) => {
 
     // If not authenticated, allow query.userId (legacy), else require auth
     let userId = authUser ? String(authUser._id) : req.query.userId;
-    if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
+    if (!userId)
+      return res
+        .status(400)
+        .json({ success: false, error: "userId is required" });
 
     // Determine allowed pillars from authenticated user when possible
     let allowed = [];
     if (authUser && Array.isArray(authUser.allowedPillars)) {
-      allowed = authUser.allowedPillars;
+      allowed = authUser.allowedPillars
+        .map(normalizePillarId)
+        .filter((pillarId) => pillarId && VALID_PILLARS.includes(pillarId));
     } else if (req.query.pillar) {
-      allowed = [req.query.pillar];
+      const normalizedQuery = normalizePillarId(req.query.pillar);
+      if (!normalizedQuery || !VALID_PILLARS.includes(normalizedQuery)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid pillar" });
+      }
+      allowed = [normalizedQuery];
     }
 
     // Fetch existing scores for this user and allowed pillars (or all if allowed empty)
@@ -73,19 +100,30 @@ export const getPillarScores = async (req, res, next) => {
     // Build response covering all allowed pillars
     if (authUser && allowed.length > 0) {
       const map = {};
-      scores.forEach(s => { map[s.pillar] = s; });
-      const result = allowed.map(pillarId => {
+      scores.forEach((s) => {
+        map[s.pillar] = s;
+      });
+      const result = allowed.map((pillarId) => {
         const doc = map[pillarId];
         if (doc) {
-          return { pillar: doc.pillar, score: doc.score, trend: doc.trend, updatedAt: doc.updatedAt };
+          return {
+            pillar: doc.pillar,
+            score: doc.score,
+            trend: doc.trend,
+            updatedAt: doc.updatedAt,
+          };
         }
-        return { pillar: pillarId, score: 0, trend: 'stable', updatedAt: null };
+        return { pillar: pillarId, score: 0, trend: "stable", updatedAt: null };
       });
-      return res.status(200).json({ success: true, count: result.length, data: result });
+      return res
+        .status(200)
+        .json({ success: true, count: result.length, data: result });
     }
 
     // If no auth/allowed info, return whatever we found
-    return res.status(200).json({ success: true, count: scores.length, data: scores });
+    return res
+      .status(200)
+      .json({ success: true, count: scores.length, data: scores });
   } catch (error) {
     return res.status(400).json({ success: false, error: error.message });
   }
@@ -97,7 +135,10 @@ export const getPillarScores = async (req, res, next) => {
 export const deletePillarScore = async (req, res, next) => {
   try {
     const deleted = await PillarScore.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ success: false, error: 'PillarScore not found' });
+    if (!deleted)
+      return res
+        .status(404)
+        .json({ success: false, error: "PillarScore not found" });
     return res.status(200).json({ success: true, data: {} });
   } catch (error) {
     return res.status(400).json({ success: false, error: error.message });
@@ -109,27 +150,55 @@ export const deletePillarScore = async (req, res, next) => {
 export const postPillarCheckIn = async (req, res, next) => {
   try {
     const user = req.user;
-    if (!user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+    if (!user)
+      return res
+        .status(401)
+        .json({ success: false, error: "Not authenticated" });
 
     const { pillarId, value, note } = req.body || {};
-    if (!pillarId || value === undefined) return res.status(400).json({ success: false, error: 'pillarId and value required' });
-    if (value < 0 || value > 10) return res.status(400).json({ success: false, error: 'value must be between 0 and 10' });
+    const normalizedPillar = normalizePillarId(pillarId);
+    if (!pillarId || value === undefined)
+      return res
+        .status(400)
+        .json({ success: false, error: "pillarId and value required" });
+    if (!normalizedPillar)
+      return res.status(400).json({ success: false, error: "Invalid pillar" });
+    if (value < 0 || value > 10)
+      return res
+        .status(400)
+        .json({ success: false, error: "value must be between 0 and 10" });
 
     // Save check-in record
-    const checkin = new PillarCheckIn({ userId: user._id, pillarId, value, note: note || '' });
+    const checkin = new PillarCheckIn({
+      userId: user._id,
+      pillarId: normalizedPillar,
+      value,
+      note: note || "",
+    });
     await checkin.save();
 
     // Update or create aggregate PillarScore (score is 0-100)
     const scoreValue = Math.round(value * 10);
-    const existing = await PillarScore.findOne({ userId: String(user._id), pillar: pillarId });
+    const existing = await PillarScore.findOne({
+      userId: String(user._id),
+      pillar: normalizedPillar,
+    });
     if (existing) {
       existing.score = scoreValue;
-      existing.weeklyScores = [...(existing.weeklyScores || []), scoreValue].slice(-12);
+      existing.weeklyScores = [
+        ...(existing.weeklyScores || []),
+        scoreValue,
+      ].slice(-12);
       existing.updatedAt = new Date();
       existing.calculateTrend();
       await existing.save();
     } else {
-      const created = new PillarScore({ userId: String(user._id), pillar: pillarId, score: scoreValue, weeklyScores: [scoreValue] });
+      const created = new PillarScore({
+        userId: String(user._id),
+        pillar: normalizedPillar,
+        score: scoreValue,
+        weeklyScores: [scoreValue],
+      });
       created.calculateTrend();
       await created.save();
     }
@@ -137,25 +206,41 @@ export const postPillarCheckIn = async (req, res, next) => {
     // --- STREAK & BADGES LOGIC ---
     try {
       const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfToday = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
       const startOfYesterday = new Date(startOfToday);
       startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
       // Determine if user already had a check-in today (excluding the one we just saved)
-      const alreadyToday = await PillarCheckIn.findOne({ userId: user._id, _id: { $ne: checkin._id }, createdAt: { $gte: startOfToday } });
+      const alreadyToday = await PillarCheckIn.findOne({
+        userId: user._id,
+        _id: { $ne: checkin._id },
+        createdAt: { $gte: startOfToday },
+      });
 
       // Find the most recent previous checkin (before this one)
-      const prev = await PillarCheckIn.findOne({ userId: user._id, _id: { $ne: checkin._id } }).sort({ createdAt: -1 });
+      const prev = await PillarCheckIn.findOne({
+        userId: user._id,
+        _id: { $ne: checkin._id },
+      }).sort({ createdAt: -1 });
 
       let newStreak = 1;
       if (alreadyToday) {
         // If there was already a checkin today, do not change streak
         newStreak = user.current_streak || 1;
-      } else if (prev && prev.createdAt >= startOfYesterday && prev.createdAt < startOfToday) {
+      } else if (
+        prev &&
+        prev.createdAt >= startOfYesterday &&
+        prev.createdAt < startOfToday
+      ) {
         // previous checkin was yesterday -> continue streak
         newStreak = (user.current_streak || 0) + 1;
       } else if (prev && prev.createdAt >= startOfToday) {
         // defensive: previous is today (should be caught by alreadyToday), keep streak
+        newStreak = user.current_streak || 1;
         newStreak = user.current_streak || 1;
       } else {
         // no recent previous -> reset to 1
@@ -172,7 +257,7 @@ export const postPillarCheckIn = async (req, res, next) => {
       // Award badges for milestones
       const badgesToAward = [];
       const existingBadges = Array.isArray(user.badges) ? user.badges : [];
-      const milestones = [3,7,14,30];
+      const milestones = [3, 7, 14, 30];
       for (const m of milestones) {
         if (newStreak >= m) {
           const badgeKey = `${m}_day_streak`;
@@ -180,29 +265,50 @@ export const postPillarCheckIn = async (req, res, next) => {
         }
       }
       if (badgesToAward.length > 0) {
-        updates.badges = Array.from(new Set([...(existingBadges || []), ...badgesToAward]));
+        updates.badges = Array.from(
+          new Set([...(existingBadges || []), ...badgesToAward])
+        );
       }
 
       // Persist updates to user document
-      const updatedUser = await User.findByIdAndUpdate(user._id, updates, { new: true }).catch(e => { console.debug('streak update failed', e); return null; });
+      const updatedUser = await User.findByIdAndUpdate(user._id, updates, {
+        new: true,
+      }).catch((e) => {
+        console.debug("streak update failed", e);
+        return null;
+      });
 
       // Create notifications for streaks/badges
       try {
         if (badgesToAward.length > 0) {
-          await Notification.create({ userId: user._id, type: 'streak', title: 'You earned a badge!', message: `You've earned: ${badgesToAward.join(', ')}` });
+          await Notification.create({
+            userId: user._id,
+            type: "streak",
+            title: "You earned a badge!",
+            message: `You've earned: ${badgesToAward.join(", ")}`,
+          });
         }
         if (newStreak && newStreak > (user.current_streak || 0)) {
-          await Notification.create({ userId: user._id, type: 'streak', title: 'Streak updated', message: `Your current streak is now ${newStreak} day${newStreak !== 1 ? 's' : ''}` });
+          await Notification.create({
+            userId: user._id,
+            type: "streak",
+            title: "Streak updated",
+            message: `Your current streak is now ${newStreak} day${
+              newStreak !== 1 ? "s" : ""
+            }`,
+          });
         }
-      } catch (e) { console.debug('notification create failed', e); }
+      } catch (e) {
+        console.debug("notification create failed", e);
+      }
     } catch (e) {
-      console.debug('streak/badge logic failed', e);
+      console.debug("streak/badge logic failed", e);
     }
 
     return res.status(201).json({ success: true, checkin });
   } catch (err) {
-    console.error('postPillarCheckIn error', err);
-    return res.status(500).json({ success: false, error: 'Server error' });
+    console.error("postPillarCheckIn error", err);
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
@@ -211,15 +317,30 @@ export const postPillarCheckIn = async (req, res, next) => {
 export const getPillarHistory = async (req, res, next) => {
   try {
     const user = req.user;
-    if (!user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+    if (!user)
+      return res
+        .status(401)
+        .json({ success: false, error: "Not authenticated" });
 
     const { pillarId } = req.params;
-    if (!pillarId) return res.status(400).json({ success: false, error: 'pillarId required' });
+    const normalizedPillar = normalizePillarId(pillarId);
+    if (!pillarId)
+      return res
+        .status(400)
+        .json({ success: false, error: "pillarId required" });
+    if (!normalizedPillar)
+      return res.status(400).json({ success: false, error: "Invalid pillar" });
 
-    const entries = await PillarCheckIn.find({ userId: user._id, pillarId }).sort({ createdAt: -1 }).limit(14).lean();
+    const entries = await PillarCheckIn.find({
+      userId: user._id,
+      pillarId: normalizedPillar,
+    })
+      .sort({ createdAt: -1 })
+      .limit(14)
+      .lean();
     return res.json({ success: true, count: entries.length, data: entries });
   } catch (err) {
-    console.error('getPillarHistory error', err);
-    return res.status(500).json({ success: false, error: 'Server error' });
+    console.error("getPillarHistory error", err);
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 };

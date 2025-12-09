@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { VALID_PILLARS } from "./Insight.js";
+import { VALID_PILLARS } from "../utils/pillars.js";
 
 const pillarProgressSchema = new mongoose.Schema(
   {

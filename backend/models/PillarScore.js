@@ -1,38 +1,39 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
+import { VALID_PILLARS } from "../utils/pillars.js";
 
 const pillarScoreSchema = new mongoose.Schema(
   {
     userId: {
       type: String,
-      required: [true, 'User ID is required'],
+      required: [true, "User ID is required"],
       index: true,
     },
     pillar: {
       type: String,
-      required: [true, 'Pillar is required'],
-      enum: ['sleep', 'diet', 'exercise', 'physical_health', 'mental_health', 'finances', 'social', 'spirituality'],
+      required: [true, "Pillar is required"],
+      enum: VALID_PILLARS,
       index: true,
     },
     score: {
       type: Number,
-      required: [true, 'Score is required'],
-      min: [0, 'Score must be between 0 and 100'],
-      max: [100, 'Score must be between 0 and 100'],
+      required: [true, "Score is required"],
+      min: [0, "Score must be between 0 and 100"],
+      max: [100, "Score must be between 0 and 100"],
       default: 50,
     },
     trend: {
       type: String,
-      enum: ['improving', 'stable', 'declining'],
-      default: 'stable',
+      enum: ["improving", "stable", "declining"],
+      default: "stable",
     },
     weeklyScores: {
       type: [Number],
       default: [],
       validate: {
         validator: function (v) {
-          return v.every(score => score >= 0 && score <= 100);
+          return v.every((score) => score >= 0 && score <= 100);
         },
-        message: 'All weekly scores must be between 0 and 100',
+        message: "All weekly scores must be between 0 and 100",
       },
     },
     monthlyScores: {
@@ -40,10 +41,14 @@ const pillarScoreSchema = new mongoose.Schema(
       default: [],
       validate: {
         validator: function (v) {
-          return v.every(score => score >= 0 && score <= 100);
+          return v.every((score) => score >= 0 && score <= 100);
         },
-        message: 'All monthly scores must be between 0 and 100',
+        message: "All monthly scores must be between 0 and 100",
       },
+    },
+    quickWins: {
+      type: [String],
+      default: [],
     },
   },
   {
@@ -60,7 +65,7 @@ pillarScoreSchema.index({ userId: 1, pillar: 1, createdAt: -1 });
 // Calculate trend based on recent scores
 pillarScoreSchema.methods.calculateTrend = function () {
   if (this.weeklyScores.length < 2) {
-    this.trend = 'stable';
+    this.trend = "stable";
     return;
   }
 
@@ -68,16 +73,19 @@ pillarScoreSchema.methods.calculateTrend = function () {
   const older = this.weeklyScores.slice(-8, -4) || [this.weeklyScores[0]];
 
   const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
-  const olderAvg = older.length > 0 ? older.reduce((a, b) => a + b, 0) / older.length : recentAvg;
+  const olderAvg =
+    older.length > 0
+      ? older.reduce((a, b) => a + b, 0) / older.length
+      : recentAvg;
 
   const threshold = 5;
   if (recentAvg > olderAvg + threshold) {
-    this.trend = 'improving';
+    this.trend = "improving";
   } else if (recentAvg < olderAvg - threshold) {
-    this.trend = 'declining';
+    this.trend = "declining";
   } else {
-    this.trend = 'stable';
+    this.trend = "stable";
   }
 };
 
-export default mongoose.model('PillarScore', pillarScoreSchema);
+export default mongoose.model("PillarScore", pillarScoreSchema);

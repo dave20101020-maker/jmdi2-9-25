@@ -9,6 +9,7 @@
  */
 
 import express from "express";
+import { z } from "zod";
 import { runNorthStarAI } from "../src/ai/orchestrator/northstarOrchestrator.js";
 import { aiRateLimitMiddleware } from "../middleware/rateLimiter.js";
 import { sanitizationMiddleware } from "../middleware/sanitization.js";
@@ -20,6 +21,7 @@ import { requireSensitiveConsent } from "../middleware/consentGuard.js";
 import { memoryStore } from "../src/ai/orchestrator/memoryStore.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { FEATURE_KEYS } from "../utils/entitlements.js";
+import { validate } from "../middleware/validate.js";
 
 const router = express.Router();
 
@@ -73,6 +75,13 @@ router.post(
   requireFeatureAccess(FEATURE_KEYS.AI_CHAT),
   aiRateLimitMiddleware,
   sanitizationMiddleware,
+  validate({
+    body: z.object({
+      message: z.string().min(1),
+      pillar: z.string().optional(),
+      explicitMode: z.boolean().optional(),
+    }),
+  }),
   asyncHandler(async (req, res) => {
     const { message, pillar, explicitMode } = req.body;
     const userId = getAuthenticatedUserId(req);
