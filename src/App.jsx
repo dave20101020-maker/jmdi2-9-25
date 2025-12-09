@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
--import MainLayout from "./components/Layout/MainLayout";
-+import AppShell from "./components/layout/AppShell";
+import AppShell from "./components/layout/AppShell";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -12,48 +11,48 @@ import { useConsent } from "@/hooks/useConsent";
 import "./App.css";
 import { Toaster as SonnerToaster } from "sonner";
 import StarfieldBackground from "@/components/visuals/StarfieldBackground";
-import Dashboard from "@/pages/Dashboard";
-import Track from "@/pages/Track";
-import Community from "@/pages/Community";
-import Analytics from "@/pages/Analytics";
-import CoachSelect from "@/pages/CoachSelect";
-import Coach from "@/pages/Coach";
-import Profile from "@/pages/Profile";
-import Sleep from "@/pages/Sleep";
-import Diet from "@/pages/Diet";
-import Exercise from "@/pages/Exercise";
-import PhysicalHealth from "@/pages/PhysicalHealth";
-import MentalHealth from "@/pages/MentalHealth";
-import Finances from "@/pages/Finances";
-import Social from "@/pages/Social";
-import Spirituality from "@/pages/Spirituality";
-import Onboarding from "@/pages/Onboarding";
-import MyPlans from "@/pages/MyPlans";
-import PlanDetail from "@/pages/PlanDetail";
-import DailyProgress from "@/pages/DailyProgress";
-import WeeklyReflection from "@/pages/WeeklyReflection";
-import WeeklyReport from "@/pages/WeeklyReport";
-import Upgrade from "@/pages/Upgrade";
-import Pricing from "@/pages/Pricing";
-import Goals from "@/pages/Goals";
-import MyGrowth from "@/pages/MyGrowth";
-import MoodTracker from "@/pages/MoodTracker";
-import Habits from "@/pages/Habits";
-import Friends from "@/pages/Friends";
-import Milestones from "@/pages/Milestones";
-import Connections from "@/pages/Connections";
-import Feedback from "@/pages/Feedback";
-import Meditation from "@/pages/Meditation";
-import Achievements from "@/pages/Achievements";
-import Messages from "@/pages/Messages";
-import Notifications from "@/pages/Notifications";
-import Timeline from "@/pages/Timeline";
-import Pillar from "@/pages/Pillar";
-import Settings from "@/pages/Settings";
-import AdminDashboard from "@/pages/AdminDashboard";
-import NotFound from "@/pages/NotFound";
+import Dashboard from "./pages/Dashboard";
+import Track from "./pages/Track";
+import Community from "./pages/Community";
+import Analytics from "./pages/Analytics";
+import CoachSelect from "./pages/CoachSelect";
+import Coach from "./pages/Coach";
+import Profile from "./pages/Profile";
+import Sleep from "./pages/Sleep";
+import Diet from "./pages/Diet";
+import Exercise from "./pages/Exercise";
+import PhysicalHealth from "./pages/PhysicalHealth";
+import MentalHealth from "./pages/MentalHealth";
+import Finances from "./pages/Finances";
+import Social from "./pages/Social";
+import Spirituality from "./pages/Spirituality";
+import Onboarding from "./pages/Onboarding";
+import MyPlans from "./pages/MyPlans";
+import PlanDetail from "./pages/PlanDetail";
+import DailyProgress from "./pages/DailyProgress";
+import WeeklyReflection from "./pages/WeeklyReflection";
+import WeeklyReport from "./pages/WeeklyReport";
+import Upgrade from "./pages/Upgrade";
+import Pricing from "./pages/Pricing";
+import Goals from "./pages/Goals";
+import MyGrowth from "./pages/MyGrowth";
+import MoodTracker from "./pages/MoodTracker";
+import Habits from "./pages/Habits";
+import Friends from "./pages/Friends";
+import Milestones from "./pages/Milestones";
+import Connections from "./pages/Connections";
+import Feedback from "./pages/Feedback";
+import Meditation from "./pages/Meditation";
+import Achievements from "./pages/Achievements";
+import Messages from "./pages/Messages";
+import Notifications from "./pages/Notifications";
+import Timeline from "./pages/Timeline";
+import Pillar from "./pages/Pillar";
+import Settings from "./pages/Settings";
+import AdminDashboard from "./pages/AdminDashboard";
+import NotFound from "./pages/NotFound";
 import { NAMED_ROUTES } from "@/config/routes";
-+import { ThemeProvider } from "./components/ThemeProvider";
+import { ThemeProvider } from "./components/ThemeProvider";
 
 const stripLeadingSlash = (value = "") =>
   value.startsWith("/") ? value.slice(1) : value;
@@ -178,9 +177,7 @@ function AppContent() {
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/register" element={<SignUp />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-
--        <Route path="/" element={<MainLayout />}>
-+        <Route path="/" element={<AppShell />}>
+        <Route path="/" element={<AppShell />}>
           <Route
             index
             element={<Navigate to={NAMED_ROUTES.Dashboard} replace />}
@@ -203,7 +200,6 @@ function AppContent() {
             )
           )}
         </Route>
-
         <Route path="*" element={<NotFound />} />
       </Routes>
 
@@ -219,9 +215,8 @@ const queryClient = new QueryClient();
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
--      <BrowserRouter>
-+      <ThemeProvider>
-+        <BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
           {import.meta.env.VITE_DEMO_MODE === "true" && (
             <div
               style={{
@@ -244,15 +239,11 @@ export default function App() {
             <StarfieldBackground />
             <div className="ns-app-surface__content">
               <AppContent />
--              <SonnerToaster position="top-right" richColors closeButton />
--            </div>
--          </div>
--        </BrowserRouter>
-+              <SonnerToaster position="top-right" richColors closeButton />
-+            </div>
-+          </div>
-+        </BrowserRouter>
-+      </ThemeProvider>
-     </QueryClientProvider>
-   );
+              <SonnerToaster position="top-right" richColors closeButton />
+            </div>
+          </div>
+        </BrowserRouter>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
 }

@@ -615,6 +615,32 @@ function DashboardContent({ user }) {
           </p>
         </section>
 
+        {/* Life Score Hero */}
+        <div className="text-center mt-8 mb-8">
+          <div className="flex justify-center">
+            <ScoreOrb
+              lifeScore={accessibleLifeScore}
+              pillarScores={accessiblePillarScores}
+            />
+          </div>
+          <div
+            className="mx-auto mt-6 inline-block bg-[#1a1f35] border border-white/20 rounded-2xl px-8 py-4"
+            style={{ boxShadow: "0 0 30px rgba(212, 175, 55, 0.3)" }}
+          >
+            <div className="text-5xl font-bold text-[#F4D03F] mb-1">
+              {accessibleLifeScore}/100
+            </div>
+            <div className="text-white/80 text-sm font-medium">
+              Your Life Score
+            </div>
+            <div className="text-white/60 text-xs mt-1">
+              {hasFullAccess
+                ? "Average of 8 life pillars"
+                : `Average of ${accessiblePillars.length} selected pillars`}
+            </div>
+          </div>
+        </div>
+
         {/* Trial/Free Banner */}
         {!hasFullAccess && (
           <div className="bg-gradient-to-r from-[#D4AF37]/20 to-[#F4D03F]/20 backdrop-blur-md border border-[#D4AF37]/40 rounded-2xl p-4 mb-6 mt-6 text-center">
@@ -883,34 +909,6 @@ function DashboardContent({ user }) {
                 No badges yet — keep logging to earn badges!
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Life Constellation Orb */}
-        <div className="flex justify-center mb-12 mt-8">
-          <ScoreOrb
-            lifeScore={accessibleLifeScore}
-            pillarScores={accessiblePillarScores}
-          />
-        </div>
-
-        {/* Life Score Display */}
-        <div className="text-center mb-8">
-          <div
-            className="inline-block bg-[#1a1f35] border border-white/20 rounded-2xl px-8 py-4"
-            style={{ boxShadow: "0 0 30px rgba(212, 175, 55, 0.3)" }}
-          >
-            <div className="text-5xl font-bold text-[#F4D03F] mb-1">
-              {accessibleLifeScore}/100
-            </div>
-            <div className="text-white/80 text-sm font-medium">
-              Your Life Score
-            </div>
-            <div className="text-white/60 text-xs mt-1">
-              {hasFullAccess
-                ? "Average of 8 life pillars"
-                : `Average of ${accessiblePillars.length} selected pillars`}
-            </div>
           </div>
         </div>
 

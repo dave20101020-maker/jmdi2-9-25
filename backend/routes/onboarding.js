@@ -19,6 +19,7 @@ import OnboardingProfile from "../models/OnboardingProfile.js";
 import { loadMemory, saveMemory } from "../src/ai/orchestrator/memoryStore.js";
 import logger from "../utils/logger.js";
 import { requireSensitiveConsent } from "../middleware/consentGuard.js";
+import { encryptPsychometrics } from "../services/psychometricVault.js";
 
 const router = express.Router();
 router.use(authRequired);
@@ -1248,10 +1249,16 @@ router.post("/complete", requireSensitiveConsent, async (req, res) => {
     profile.healthScreens = healthScreens;
     profile.mentalHealthScreens = mentalHealthScreens;
     profile.consents = normalizedConsents;
+    const encryptedAssessments = encryptPsychometrics(
+      assessments?.results || {}
+    );
     profile.assessments = {
       responses: assessments?.responses || {},
       results: assessments?.results || {},
     };
+    if (encryptedAssessments) {
+      profile.secureAssessments = encryptedAssessments;
+    }
     profile.completedAt = new Date();
 
     await profile.save();

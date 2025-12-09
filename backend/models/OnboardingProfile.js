@@ -219,6 +219,12 @@ const onboardingSchema = new mongoose.Schema(
         default: {},
       },
     },
+    secureAssessments: {
+      cipherText: { type: String, default: null },
+      iv: { type: String, default: null },
+      authTag: { type: String, default: null },
+      version: { type: String, default: null },
+    },
 
     psychologyProfile: {
       type: psychologyProfileSchema,
