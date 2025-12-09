@@ -3,8 +3,8 @@ const defaultTheme = require("tailwindcss/defaultTheme");
 const northStarPalette = {
   brand: {
     navy: "#0A1224", // Core background
-    gold: "#D4AF37", // Primary accent
-    softGold: "#E6C76A", // Hover accent
+    gold: "#F6C944", // Primary accent
+    softGold: "#EABF3A", // Hover accent
     white: "#FFFFFF",
     softWhite: "#F4F7FA",
     divider: "#1C2438",

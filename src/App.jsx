@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import MainLayout from "./components/Layout/MainLayout";
+import AppShell from "./components/layout/AppShell";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -52,6 +52,7 @@ import Settings from "@/pages/Settings";
 import AdminDashboard from "@/pages/AdminDashboard";
 import NotFound from "@/pages/NotFound";
 import { NAMED_ROUTES } from "@/config/routes";
+import { ThemeProvider } from "./components/ThemeProvider";
 
 const stripLeadingSlash = (value = "") =>
   value.startsWith("/") ? value.slice(1) : value;
@@ -70,7 +71,8 @@ const APP_SHELL_ROUTES = [
   { key: "profile", path: NAMED_ROUTES.Profile, Component: Profile },
   { key: "settings", path: NAMED_ROUTES.Settings, Component: Settings },
   { key: "onboarding", path: NAMED_ROUTES.Onboarding, Component: Onboarding },
-  { key: "pillar", path: "pillar/:pillarId", Component: Pillar },
+  { key: "pillar", path: "pillars/:pillarId", Component: Pillar },
+  { key: "pillar-legacy", path: "pillar/:pillarId", Component: Pillar },
   { key: "sleep", path: NAMED_ROUTES.Sleep, Component: Sleep },
   { key: "diet", path: NAMED_ROUTES.Diet, Component: Diet },
   { key: "exercise", path: NAMED_ROUTES.Exercise, Component: Exercise },
@@ -176,7 +178,7 @@ function AppContent() {
         <Route path="/register" element={<SignUp />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
-        <Route path="/" element={<MainLayout />}>
+        <Route path="/" element={<AppShell />}>
           <Route
             index
             element={<Navigate to={NAMED_ROUTES.Dashboard} replace />}
@@ -215,33 +217,35 @@ const queryClient = new QueryClient();
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        {import.meta.env.VITE_DEMO_MODE === "true" && (
-          <div
-            style={{
-              width: "100%",
-              backgroundColor: "#fcd34d",
-              padding: "8px",
-              textAlign: "center",
-              fontWeight: "600",
-              color: "#111",
-              position: "fixed",
-              top: 0,
-              zIndex: 9999,
-              letterSpacing: "0.5px",
-            }}
-          >
-            DEMO MODE
+      <ThemeProvider>
+        <BrowserRouter>
+          {import.meta.env.VITE_DEMO_MODE === "true" && (
+            <div
+              style={{
+                width: "100%",
+                backgroundColor: "#fcd34d",
+                padding: "8px",
+                textAlign: "center",
+                fontWeight: "600",
+                color: "#111",
+                position: "fixed",
+                top: 0,
+                zIndex: 9999,
+                letterSpacing: "0.5px",
+              }}
+            >
+              DEMO MODE
+            </div>
+          )}
+          <div className="ns-app-surface">
+            <StarfieldBackground />
+            <div className="ns-app-surface__content">
+              <AppContent />
+              <SonnerToaster position="top-right" richColors closeButton />
+            </div>
           </div>
-        )}
-        <div className="ns-app-surface">
-          <StarfieldBackground />
-          <div className="ns-app-surface__content">
-            <AppContent />
-            <SonnerToaster position="top-right" richColors closeButton />
-          </div>
-        </div>
-      </BrowserRouter>
+        </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
