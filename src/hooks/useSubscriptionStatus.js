@@ -11,9 +11,18 @@ const extractSubscription = (payload) => {
 };
 
 export function useSubscriptionStatus(options = {}) {
+  const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+
   const query = useQuery({
     queryKey: QUERY_KEY,
     queryFn: async () => {
+      if (DEMO_MODE) {
+        return {
+          status: "active",
+          tier: "premium",
+          daysRemaining: null,
+        };
+      }
       const response = await api.getSubscription();
       return extractSubscription(response);
     },

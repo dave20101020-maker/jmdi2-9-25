@@ -32,7 +32,7 @@ export default function Settings() {
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">Settings</h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-white/60">
           Manage your account preferences and integrations
         </p>
       </div>
@@ -52,7 +52,7 @@ export default function Settings() {
         <TabsContent value="account" className="mt-6">
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Account Settings</h2>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-white/60">
               Account management features coming soon.
             </p>
           </div>
@@ -64,13 +64,13 @@ export default function Settings() {
             <div className="flex items-center justify-between bg-white/5 dark:bg-white/10 border border-white/10 rounded-2xl p-4">
               <div>
                 <div className="text-sm font-medium">Reduced Motion</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
+                <div className="text-xs text-white/60">
                   Minimize animations for comfort and battery life.
                 </div>
               </div>
               <button
                 type="button"
-                className="px-3 py-1 rounded-full bg-white/10 text-sm text-gray-800 dark:text-white hover:bg-white/15"
+                className="px-3 py-1 rounded-full bg-white/10 text-sm text-white hover:bg-white/15"
                 aria-pressed={reduceMotion}
                 onClick={() => setReduceMotion((v) => !v)}
               >
@@ -79,8 +79,8 @@ export default function Settings() {
             </div>
             <div className="flex items-center justify-between bg-white/5 dark:bg-white/10 border border-white/10 rounded-2xl p-4">
               <div>
-                <div className="text_sm font-medium">Theme</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
+                <div className="text-sm font-medium">Theme</div>
+                <div className="text-xs text-white/60">
                   Choose light, dark, or follow system.
                 </div>
               </div>
@@ -94,16 +94,16 @@ export default function Settings() {
                 <option value="dark">Dark</option>
               </select>
             </div>
-            <div className="flex items-center justify_between bg-white/5 dark:bg-white/10 border border-white/10 rounded-2xl p-4">
+            <div className="flex items-center justify-between bg-white/5 dark:bg-white/10 border border-white/10 rounded-2xl p-4">
               <div>
                 <div className="text-sm font-medium">Notifications</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
+                <div className="text-xs text-white/60">
                   Enable in-app notifications.
                 </div>
               </div>
               <button
                 type="button"
-                className="px-3 py-1 rounded-full bg-white/10 text-sm text-gray-800 dark:text-white hover:bg-white/15"
+                className="px-3 py-1 rounded-full bg-white/10 text-sm text-white hover:bg-white/15"
                 aria-pressed={notifications}
                 onClick={() => setNotifications((v) => !v)}
               >
@@ -139,10 +139,10 @@ export default function Settings() {
                   <option value="direct">Direct</option>
                 </select>
               </div>
-              <div className="bg-white/5 dark:bg-white/10 border border-white/10 rounded-2xl p-4 md:col_span-2">
+              <div className="bg-white/5 dark:bg-white/10 border border-white/10 rounded-2xl p-4 md:col-span-2">
                 <div className="text-sm font-medium mb-2">Model</div>
                 <select
-                  className="w-full bg-transparent border border_white/20 rounded-lg px-2 py-1 text-sm"
+                  className="w-full bg-transparent border border-white/20 rounded-lg px-2 py-1 text-sm"
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
                 >

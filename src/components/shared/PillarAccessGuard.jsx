@@ -23,6 +23,12 @@ export default function PillarAccessGuard({ pillarId, children }) {
     isLoading: subscriptionLoading,
   } = useSubscriptionStatus();
 
+  // Demo mode: grant access to all pillars
+  const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+  if (DEMO_MODE) {
+    return <>{children}</>;
+  }
+
   useEffect(() => {
     async function checkAccess() {
       const currentUser = await api.authMe();

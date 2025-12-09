@@ -1,4 +1,3 @@
-7
 import { PILLARS, getPillarsArray } from "@/utils";
 
 const DEFAULT_PILLARS = getPillarsArray();

@@ -2,11 +2,13 @@ const defaultTheme = require("tailwindcss/defaultTheme");
 
 const northStarPalette = {
   brand: {
-    navy: "#020617",
-    midnight: "#0B1436",
-    indigo: "#0F172A",
-    gold: "#FACC15",
-    ivory: "#F8FAFC",
+    navy: "#0A1224", // Core background
+    gold: "#D4AF37", // Primary accent
+    softGold: "#E6C76A", // Hover accent
+    white: "#FFFFFF",
+    softWhite: "#F4F7FA",
+    divider: "#1C2438",
+    error: "#FF6868",
   },
   semantic: {
     background: "var(--ns-color-background)",
@@ -68,6 +70,17 @@ module.exports = {
         accent: northStarPalette.semantic.accent,
         primary: northStarPalette.semantic.primary,
         secondary: northStarPalette.semantic.secondary,
+        // Pillar colors for utilities
+        pillar: {
+          sleep: "#4B6FFF",
+          diet: "#7BC74D",
+          exercise: "#FF7A28",
+          physical: "#1BBF9A",
+          mental: "#4FB3FF",
+          finances: "#22A06B",
+          social: "#FF4D8B",
+          spirituality: "#9A66FF",
+        },
       },
       spacing: northStarSpacing,
       borderRadius: {

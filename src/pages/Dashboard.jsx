@@ -1,99 +1,195 @@
-import React from "react";
-import { useAuth } from "@/hooks/useAuth";
+import CoachPanel from "@/components/ai/CoachPanel";
+import { api } from "@/utils/apiClient";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { PILLARS, getPillarsArray, createPageUrl } from "@/utils";
+import PropTypes from "prop-types";
+import {
+  TrendingUp,
+  TrendingDown,
+  Award,
+  Target,
+  Flame,
+  ChevronRight,
+  Smile,
+  CheckCircle2,
+} from "lucide-react";
+import { format, differenceInCalendarDays } from "date-fns";
+import ScoreOrb from "@/components/shared/ScoreOrb";
+import DailySummary from "@/components/shared/DailySummary";
+import AIInsights from "@/ai/AIInsights";
+import {
+  buildAdaptiveCoachContext,
+  buildAdaptiveCoachProfile,
+} from "@/ai/adaptive";
+import ActiveItemsWidget from "@/components/shared/ActiveItemsWidget";
+import GuidedTour from "@/ai/GuidedTour";
+import AuthGuard from "@/components/shared/AuthGuard";
+import StreakDisplay from "@/components/shared/StreakDisplay";
+import MilestoneCelebration from "@/components/shared/MilestoneCelebration";
+import { useStreak } from "@/hooks/useStreak";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import AIErrorBoundary from "@/components/AIErrorBoundary";
+import { LifeOrbitVisualizer } from "@/components/visuals/LifeOrbitVisualizer";
+import { computeComBRecommendations, createComBInput } from "@/engines/com-b";
 
-const componentMap = {
-  SleepSummaryCard,
-  HabitChecklist,
-  PillarProgressGrid,
-  WeeklyTrendsCard,
+/** @typedef {import("@/engines/com-b").PillarMetric} PillarMetric */
+
+// This constant is necessary for iterating over all pillars in the UI and filtering
+const PILLARS_ARRAY = getPillarsArray();
+
+// Helper function for calculating scores based on a specific date and set of pillars
+// This function mimics the original calculateScores signature for compatibility with existing logic.
+function calculateGenericScores(entries, pillarsToConsider, dateFilter = null) {
+  const scores = {};
+  const filteredEntries = dateFilter
+    ? entries.filter((e) => e.date === dateFilter)
+    : entries;
+
+  pillarsToConsider.forEach((pillar) => {
+    const entry = filteredEntries.find((e) => e.pillar === pillar.id);
+    scores[pillar.id] = entry?.score || 0;
+  });
+
+  const lifeScore =
+    pillarsToConsider.length > 0
+      ? Math.round(
+          Object.values(scores).reduce((sum, score) => sum + score, 0) /
+            pillarsToConsider.length
+        )
+      : 0;
+
+  return { lifeScore, pillarScores: scores };
+}
+
+// This `calculateScores` function is from the outline and replaces the original one.
+// It calculates scores for *all* 8 pillars (0 if not logged), but the lifeScore average
+// only includes pillars that actually have an entry for today.
+const calculateScores = (entries) => {
+  const today = format(new Date(), "yyyy-MM-dd");
+  const todaysEntries = entries.filter((e) => e.date === today);
+
+  let totalScore = 0;
+  let pillarCount = 0;
+
+  const pillarScores = {};
+  Object.keys(PILLARS).forEach((pillarId) => {
+    const entry = todaysEntries.find((e) => e.pillar === pillarId);
+    pillarScores[pillarId] = entry?.score || 0;
+
+    // Only count pillars that have an entry today for the lifeScore average
+    if (entry) {
+      totalScore += entry.score;
+      pillarCount++;
+    }
+  });
+
+  const lifeScore = pillarCount > 0 ? Math.round(totalScore / pillarCount) : 0;
+
+  return { lifeScore, pillarScores };
 };
 
-export default function Dashboard() {
-  const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-  const { load, save, defaultModules } = useDashboardModules();
-  const [modules, setModules] = React.useState(load());
-  const [openSettings, setOpenSettings] = React.useState(false);
+const ORBIT_PILLAR_COLORS = Object.freeze({
+  sleep: "#22d3ee",
+  mental: "#a855f7",
+  exercise: "#22c55e",
+  physical: "#0ea5e9",
+  finances: "#f97316",
+  social: "#ec4899",
+  diet: "#84cc16",
+  spiritual: "#6366f1",
+});
 
-  React.useEffect(() => save(modules), [modules]);
+function DashboardContent({ user }) {
+  const queryClient = useQueryClient();
+  const [showTour, setShowTour] = useState(false);
+  const [celebrationMilestone, setCelebrationMilestone] = useState(null);
+  const today = format(new Date(), "yyyy-MM-dd");
+  const {
+    subscription,
+    hasPremiumAccess,
+    isTrial,
+    daysRemaining,
+    isLoading: subscriptionLoading,
+  } = useSubscriptionStatus();
 
-  const visible = modules.filter(m => m.enabled && (m.showOn === 'dashboard' || m.showOn === 'both'));
-
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (!over) return;
-    if (active.id !== over.id) {
-      const oldIndex = modules.findIndex(m => m.id === active.id);
-      const newIndex = modules.findIndex(m => m.id === over.id);
-      const next = modules.slice();
-      const [moved] = next.splice(oldIndex, 1);
-      next.splice(newIndex, 0, moved);
-      setModules(next);
-    }
+  const getFirstName = (value) => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return trimmed.split(/\s+/)[0];
   };
 
-  const resetDefault = () => setModules(defaultModules);
+  const welcomeFirstName =
+    getFirstName(user?.full_name) ||
+    getFirstName(user?.fullName) ||
+    getFirstName(user?.displayName) ||
+    getFirstName(user?.raw?.displayName) ||
+    getFirstName(user?.email?.split("@")[0]) ||
+    "Traveler";
 
-  return (
-    <div className="min-h-[100dvh] bg-[#050b16]">
-      <div className="mx-auto max-w-6xl px-4 py-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl md:text-2xl text-white font-semibold">Mission Control · NorthStar</h1>
-          <div className="flex gap-2">
-            <button className="px-3 py-2 rounded-xl bg-white/10 text-white/80" onClick={resetDefault}>Reset</button>
-            <button className="px-3 py-2 rounded-xl bg-blue-600 text-white" onClick={() => setOpenSettings(true)}>Customize</button>
-          </div>
-        </div>
-        {demoMode && (
-          <div className="mt-3 rounded-xl border border-yellow-400/30 bg-yellow-500/10 text-yellow-200 px-3 py-2 text-sm">Demo Mode: data is mocked.</div>
-        )}
+  const { data: entries = [], isLoading: entriesLoading } = useQuery({
+    queryKey: ["entries", user?.email],
+    queryFn: () => api.getEntries({ created_by: user?.email }, "-date", 90),
+    enabled: !!user?.email,
+    staleTime: 30000,
+    initialData: [],
+  });
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <DndContext onDragEnd={handleDragEnd}>
-            <SortableContext items={visible.map(v => v.id)} strategy={rectSortingStrategy}>
-              {visible.map(mod => {
-                const Comp = componentMap[mod.component];
-              export default function Dashboard() {
-                const { demoMode } = useAuth();
+  const streak = useStreak(entries, user);
 
-                const mockData = {
-                  sleepScore: 78,
-                  readiness: 72,
-                  habitsCompleted: 5,
-                };
+  useEffect(() => {
+    async function refreshUserState() {
+      if (!user || subscriptionLoading) return;
 
-                return (
-                  <div className="p-6 text-white">
-                    <h1 className="text-3xl font-bold mb-4">Mission Control · NorthStar</h1>
+      const isPremiumAccess = hasPremiumAccess;
 
-                    {demoMode && (
-                      <div className="mb-6 p-4 rounded-lg bg-yellow-500 text-black font-semibold">
-                        DEMO MODE — Sample data is shown
-                      </div>
-                    )}
+      // Show tour for new users who haven't seen it
+      if (!user.tour_completed && user.onboarding_completed) {
+        setShowTour(true);
+      }
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                      <div className="bg-[#0f172a] rounded-xl p-6 shadow-lg">
-                        <h2 className="text-xl font-semibold mb-2">Sleep Score</h2>
-                        <p className="text-4xl font-bold text-blue-400">{mockData.sleepScore}</p>
-                      </div>
+      let updateData = {};
 
-                      <div className="bg-[#0f172a] rounded-xl p-6 shadow-lg">
-                        <h2 className="text-xl font-semibold mb-2">Daily Readiness</h2>
-                        <p className="text-4xl font-bold text-green-400">{mockData.readiness}</p>
-                      </div>
+      // Calculate and award pillar score bonuses
+      const allEntries = await api.getEntries(
+        { created_by: user.email },
+        "-date",
+        100
+      );
+      const todayEntries = allEntries.filter((e) => e.date === today);
 
-                      <div className="bg-[#0f172a] rounded-xl p-6 shadow-lg">
-                        <h2 className="text-xl font-semibold mb-2">Habits Completed</h2>
-                        <p className="text-4xl font-bold text-yellow-400">{mockData.habitsCompleted}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-        </div>
-      </div>
-    );
-  }
+      let bonusPoints = 0;
+      const bonusesAwarded = user.streak_milestones_awarded || {};
+
+      todayEntries.forEach((entry) => {
+        const bonusKey = `pillar_${entry.pillar}_${today}`;
+        if (entry.score > 80 && !bonusesAwarded[bonusKey]) {
+          bonusPoints += 100;
+          bonusesAwarded[bonusKey] = true;
+        }
+      });
+
+      if (bonusPoints > 0) {
+        updateData.points = (user.points || 0) + bonusPoints;
+        updateData.streak_milestones_awarded = bonusesAwarded;
+        updateData.last_points_calculation = new Date().toISOString();
+      }
+
+      // Check for streak milestones
+      const milestones = [7, 14, 30, 60, 100, 365];
+      const currentStreak = streak.currentStreak;
+      const lastCelebrated = user.last_celebrated_milestone || 0;
+
+      const newMilestone = milestones.find(
+        (m) => currentStreak >= m && m > lastCelebrated
+      );
+
+      if (newMilestone) {
+        updateData.last_celebrated_milestone = newMilestone;
+        setCelebrationMilestone(newMilestone);
       }
 
       // Update longest streak
@@ -443,8 +539,7 @@ export default function Dashboard() {
     queryClient.invalidateQueries(["auth-user"]);
   };
 
-  // Today's focus recommendation
-  const [recommendation, setRecommendation] = useState(null);
+  // Load recommendation data after state is initialized
   useEffect(() => {
     let mounted = true;
     const loadRecommendation = async () => {
@@ -506,23 +601,6 @@ export default function Dashboard() {
             accessiblePillars={accessiblePillars}
             user={user}
           />
-          {/* 3D Life Score Orb hero */}
-          <section className="flex flex-col items-center justify-center pt-10 pb-8">
-            <LifeScoreOrb3D
-              lifeScore={accessibleLifeScore}
-              pillarScores={accessiblePillarArray.map((p) => ({
-                id: p.id,
-                label: p.name,
-                color:
-                  ORBIT_PILLAR_COLORS[p.id] ||
-                  p.color ||
-                  p.accentColor ||
-                  "#22d3ee",
-                score: p.score ?? 0,
-              }))}
-              onPillarClick={(pillarId) => navigate(`/pillars/${pillarId}`)}
-            />
-          </section>
         </div>
 
         <section className="ns-card mt-8 flex flex-col items-center gap-4 text-center">

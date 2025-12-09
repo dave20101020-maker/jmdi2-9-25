@@ -14,22 +14,20 @@ export default function ProtectedRoute({ children, redirectTo = "/sign-in" }) {
   const location = useLocation();
   const redirectTarget = redirectTo || "/sign-in";
   const shouldStoreReturnPath = location.pathname !== redirectTarget;
+  const [expired, setExpired] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!(initializing && DEMO_INIT_TIMEOUT_MS > 0 && !DISABLE_PROTECTION)) {
+      setExpired(false);
+      return undefined;
+    }
+    const t = setTimeout(() => setExpired(true), DEMO_INIT_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [DEMO_INIT_TIMEOUT_MS, DISABLE_PROTECTION, initializing]);
 
   // Demo mode: skip auth checks and render immediately
-  if (DISABLE_PROTECTION || demoMode === true) {
+  if (DISABLE_PROTECTION || demoMode === true || expired) {
     return children || <Outlet />;
-  }
-
-  // In case initialization hangs due to backend issues, allow a timed bypass in demo builds
-  if (initializing && DEMO_INIT_TIMEOUT_MS > 0) {
-    const [expired, setExpired] = React.useState(false);
-    React.useEffect(() => {
-      const t = setTimeout(() => setExpired(true), DEMO_INIT_TIMEOUT_MS);
-      return () => clearTimeout(t);
-    }, [DEMO_INIT_TIMEOUT_MS]);
-    if (expired) {
-      return children || <Outlet />;
-    }
   }
 
   const errorStatus =
