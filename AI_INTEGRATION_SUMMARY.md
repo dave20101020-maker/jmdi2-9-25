@@ -116,6 +116,18 @@ Unified Orchestrator (unifiedOrchestrator)
 ✅ Error logging (no user data in logs)
 ✅ Development vs production error detail levels
 
+## 🛡️ NHS Readiness - AI Security & Compliance Engineer (Recommended)
+
+NorthStar is NHS-facing and needs DCB0129 alignment plus DPIA coverage. A dedicated AI Security & Compliance Engineer agent is **mandatory for NHS-level credibility** and should own:
+
+- Preventing PII leaks and enforcing safe prompt handling
+- Implementing secure storage, key management, and encryption defaults
+- Reviewing authentication/authorization logic across AI endpoints
+- Inserting compliance banners and non-diagnostic disclaimers in UI flows
+- Driving DPIA, LLM safety controls, and data retention rules
+- Building the Trust Center API and UI for transparency
+- Verifying logging, audit trails, and evidence capture for assessments
+
 ---
 
 ## 💡 Key Features
