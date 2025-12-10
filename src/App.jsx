@@ -27,6 +27,7 @@ import queryClient from "./app/queryClient";
 import Pillars from "@/pages/Pillars";
 import { NAMED_ROUTES } from "@/config/routes";
 import CoachHub from "./pages/coach/CoachHub";
+import NorthStarAssistant from "@/ai/NorthStarAssistant";
 
 function AppRoutes() {
   return (
@@ -146,6 +147,7 @@ export default function App() {
             <StarfieldBackground />
             <div className="ns-app-surface__content">
               <AppRoutes />
+              <NorthStarAssistant />
               <SonnerToaster position="top-right" richColors closeButton />
             </div>
           </div>
