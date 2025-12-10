@@ -1,4 +1,4 @@
-import { post, get } from './client';
+import { post, get } from "./client";
 
 /**
  * Save onboarding data and answers to the backend
@@ -11,14 +11,14 @@ import { post, get } from './client';
  */
 export const saveOnboardingData = async (userId, data) => {
   try {
-    const response = await post('/api/onboarding', {
+    const response = await post("/api/onboarding", {
       userId,
       ...data,
       completedAt: new Date().toISOString(),
     });
     return response;
   } catch (error) {
-    console.error('Error saving onboarding data:', error);
+    console.error("Error saving onboarding data:", error);
     throw error;
   }
 };
@@ -33,7 +33,7 @@ export const getOnboardingProfile = async (userId) => {
     const response = await get(`/api/onboarding/${userId}`);
     return response;
   } catch (error) {
-    console.error('Error fetching onboarding profile:', error);
+    console.error("Error fetching onboarding profile:", error);
     throw error;
   }
 };
@@ -49,7 +49,7 @@ export const updateOnboardingData = async (userId, updates) => {
     const response = await post(`/api/onboarding/${userId}`, updates);
     return response;
   } catch (error) {
-    console.error('Error updating onboarding data:', error);
+    console.error("Error updating onboarding data:", error);
     throw error;
   }
 };
@@ -69,9 +69,26 @@ export const checkOnboardingStatus = async (userId) => {
   }
 };
 
+/**
+ * Submit onboarding baseline data
+ * @param {Object} payload - Baseline data
+ * @returns {Promise<Object>} Response from the server
+ */
+export const submitBaseline = (payload) =>
+  post("/api/onboarding/baseline", payload);
+
+/**
+ * Submit consent data
+ * @param {Object} payload - Consent data
+ * @returns {Promise<Object>} Response from the server
+ */
+export const submitConsent = (payload) => post("/api/consent", payload);
+
 export default {
   saveOnboardingData,
   getOnboardingProfile,
   updateOnboardingData,
   checkOnboardingStatus,
+  submitBaseline,
+  submitConsent,
 };

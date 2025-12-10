@@ -28,6 +28,10 @@ import userRoutes from "./routes/user.js";
 import integrationsRoutes from "./routes/integrations.js";
 import insightsRoutes from "./routes/insights.js";
 import progressRoutes from "./routes/progress.js";
+import checkinRoutes from "./routes/checkin.js";
+import pillarExperienceRoutes from "./routes/pillarsExperienceRoutes.js";
+import publicPagesRoutes from "./routes/publicPages.js";
+import navRoutes from "./routes/navRoutes.js";
 
 const envName = process.env.NODE_ENV || "development";
 
@@ -110,7 +114,6 @@ app.use("/api/habits", habitsRoutes);
 app.use("/api/entries", entriesRoutes);
 app.use("/api/pillars", pillarsRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/action-plans", actionPlansRoutes);
 app.use("/api/friends", friendsRoutes);
@@ -122,6 +125,8 @@ app.use("/api/user", userRoutes);
 app.use("/api/integrations", integrationsRoutes);
 app.use("/api/insights", insightsRoutes);
 app.use("/api/progress", progressRoutes);
+app.use("/api/nav", navRoutes);
+app.use("/", publicPagesRoutes);
 
 // Connect to MongoDB
 let mongoRetryCount = 0;
