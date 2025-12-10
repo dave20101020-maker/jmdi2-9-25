@@ -15,9 +15,14 @@ import { Toaster as SonnerToaster } from "sonner";
 import AuthGuard from "./components/auth/AuthGuard";
 import CheckIns from "./pages/CheckIns";
 import PillarPage from "./pages/pillars/PillarPage";
-import Privacy from "./pages/compliance/Privacy";
-import Terms from "./pages/compliance/Terms";
-import TrustCenter from "./pages/compliance/TrustCenter";
+import SleepPillar from "./pages/pillars/SleepPillar";
+import DietPillar from "./pages/pillars/DietPillar";
+import ExercisePillar from "./pages/pillars/ExercisePillar";
+import PhysicalHealthPillar from "./pages/pillars/PhysicalHealthPillar";
+import MentalHealthPillar from "./pages/pillars/MentalHealthPillar";
+import FinancesPillar from "./pages/pillars/FinancesPillar";
+import SocialPillar from "./pages/pillars/SocialPillar";
+import SpiritualityPillar from "./pages/pillars/SpiritualityPillar";
 import queryClient from "./app/queryClient";
 import Pillars from "@/pages/Pillars";
 import { NAMED_ROUTES } from "@/config/routes";
@@ -48,18 +53,66 @@ function AppRoutes() {
           }
         />
         <Route
-          path="/habits"
+          path="/pillars/sleep"
           element={
             <AuthGuard>
-              <Habits />
+              <SleepPillar />
             </AuthGuard>
           }
         />
         <Route
-          path="/check-ins"
+          path="/pillars/diet"
           element={
             <AuthGuard>
-              <CheckIns />
+              <DietPillar />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/pillars/exercise"
+          element={
+            <AuthGuard>
+              <ExercisePillar />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/pillars/physical_health"
+          element={
+            <AuthGuard>
+              <PhysicalHealthPillar />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/pillars/mental_health"
+          element={
+            <AuthGuard>
+              <MentalHealthPillar />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/pillars/finances"
+          element={
+            <AuthGuard>
+              <FinancesPillar />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/pillars/social"
+          element={
+            <AuthGuard>
+              <SocialPillar />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/pillars/spirituality"
+          element={
+            <AuthGuard>
+              <SpiritualityPillar />
             </AuthGuard>
           }
         />

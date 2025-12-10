@@ -30,7 +30,6 @@ import insightsRoutes from "./routes/insights.js";
 import progressRoutes from "./routes/progress.js";
 import checkinRoutes from "./routes/checkin.js";
 import pagesRoutes from "./routes/pages.js";
-import pillarExperienceRoutes from "./routes/pillarsExperienceRoutes.js";
 import publicPagesRoutes from "./routes/publicPages.js";
 import navRoutes from "./routes/navRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
