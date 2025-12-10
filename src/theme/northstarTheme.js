@@ -1,24 +1,26 @@
 const palette = {
   cosmicNavy: "#0A1029",
-  deepNavy: "#0D1635",
-  midnight: "#080F29",
-  card: "#101B3D",
-  surface: "#0C1431",
-  nebula: "#162047",
+  deepNavy: "#060A1F",
+  midnight: "#0D1536",
+  card: "#111A3B",
+  surface: "#141F44",
+  nebula: "#1E2B63",
   gold: "#D4AF37",
-  amber: "#B98A2E",
-  white: "#f5f7ff",
-  muted: "#b9c2d6",
+  amber: "#B8902D",
+  teal: "#4cc9f0",
+  magenta: "#c77dff",
+  white: "#f7f8ff",
+  muted: "#b8c4ff",
   danger: "#ff6b6b",
 };
 
 const gradients = {
-  horizon: "linear-gradient(140deg, #060a1f 0%, #0a1029 40%, #101b3d 100%)",
+  horizon: "linear-gradient(140deg, #0A1029 0%, #0C1440 45%, #111A3B 100%)",
   aurora:
     "linear-gradient(120deg, rgba(196,125,255,0.08), rgba(76,201,240,0.08))",
-  cta: "linear-gradient(135deg, #e6c45a, #b98a2e)",
-  pill: "linear-gradient(145deg, rgba(212,175,55,0.18), rgba(71,214,167,0.18))",
-  card: "linear-gradient(160deg, rgba(16,27,61,0.95), rgba(8,15,41,0.88))",
+  cta: "linear-gradient(135deg, #F6D980, #D4AF37)",
+  pill: "linear-gradient(145deg, rgba(212,175,55,0.18), rgba(76,201,240,0.16))",
+  card: "linear-gradient(160deg, rgba(17,26,59,0.95), rgba(10,16,41,0.9))",
 };
 
 const radii = {

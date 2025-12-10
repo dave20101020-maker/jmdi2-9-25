@@ -1,4 +1,5 @@
-import Habit from '../models/Habit.js';
+import Habit from "../models/Habit.js";
+import { recordEvent } from "../utils/eventLogger.js";
 
 // @desc    Create a new habit
 // @route   POST /api/habits
@@ -11,14 +12,25 @@ export const createHabit = async (req, res, next) => {
     if (!userId || !name || !pillar) {
       return res.status(400).json({
         success: false,
-        error: 'userId, name, and pillar are required',
+        error: "userId, name, and pillar are required",
       });
     }
 
-    if (!['sleep', 'diet', 'exercise', 'physical_health', 'mental_health', 'finances', 'social', 'spirituality'].includes(pillar)) {
+    if (
+      ![
+        "sleep",
+        "diet",
+        "exercise",
+        "physical_health",
+        "mental_health",
+        "finances",
+        "social",
+        "spirituality",
+      ].includes(pillar)
+    ) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid pillar value',
+        error: "Invalid pillar value",
       });
     }
 
@@ -34,6 +46,13 @@ export const createHabit = async (req, res, next) => {
     });
 
     await habit.save();
+
+    await recordEvent("habit_created", {
+      userId,
+      source: "api/habits",
+      ip: req.ip,
+      payload: { name, pillar },
+    });
 
     res.status(201).json({
       success: true,
@@ -57,13 +76,13 @@ export const getHabits = async (req, res, next) => {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        error: 'userId is required',
+        error: "userId is required",
       });
     }
 
     const filter = { userId };
     if (pillar) filter.pillar = pillar;
-    if (isActive !== undefined) filter.isActive = isActive === 'true';
+    if (isActive !== undefined) filter.isActive = isActive === "true";
 
     const habits = await Habit.find(filter).sort({ createdAt: -1 });
 
@@ -90,7 +109,7 @@ export const getHabit = async (req, res, next) => {
     if (!habit) {
       return res.status(404).json({
         success: false,
-        error: 'Habit not found',
+        error: "Habit not found",
       });
     }
 
@@ -114,10 +133,22 @@ export const updateHabit = async (req, res, next) => {
     const { name, pillar, isActive } = req.body;
 
     // Validate pillar if provided
-    if (pillar && !['sleep', 'diet', 'exercise', 'physical_health', 'mental_health', 'finances', 'social', 'spirituality'].includes(pillar)) {
+    if (
+      pillar &&
+      ![
+        "sleep",
+        "diet",
+        "exercise",
+        "physical_health",
+        "mental_health",
+        "finances",
+        "social",
+        "spirituality",
+      ].includes(pillar)
+    ) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid pillar value',
+        error: "Invalid pillar value",
       });
     }
 
@@ -130,7 +161,7 @@ export const updateHabit = async (req, res, next) => {
     if (!habit) {
       return res.status(404).json({
         success: false,
-        error: 'Habit not found',
+        error: "Habit not found",
       });
     }
 
@@ -156,7 +187,7 @@ export const completeHabit = async (req, res, next) => {
     if (!habit) {
       return res.status(404).json({
         success: false,
-        error: 'Habit not found',
+        error: "Habit not found",
       });
     }
 
@@ -164,7 +195,7 @@ export const completeHabit = async (req, res, next) => {
     today.setHours(0, 0, 0, 0);
 
     // Check if already completed today
-    const alreadyCompleted = habit.completionDates.some(date => {
+    const alreadyCompleted = habit.completionDates.some((date) => {
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);
       return d.getTime() === today.getTime();
@@ -180,6 +211,19 @@ export const completeHabit = async (req, res, next) => {
     }
 
     await habit.save();
+
+    await recordEvent("habit_checkin_logged", {
+      userId: habit.userId,
+      source: "api/habits",
+      ip: req.ip,
+      payload: {
+        pillar: habit.pillar,
+        completedAt: today.toISOString(),
+        alreadyCompleted,
+        streakCount: habit.streakCount,
+        bestStreak: habit.bestStreak,
+      },
+    });
 
     res.status(200).json({
       success: true,
@@ -203,7 +247,7 @@ export const deleteHabit = async (req, res, next) => {
     if (!habit) {
       return res.status(404).json({
         success: false,
-        error: 'Habit not found',
+        error: "Habit not found",
       });
     }
 

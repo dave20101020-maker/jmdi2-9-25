@@ -1,244 +1,86 @@
-import React, { useState } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "./components/ThemeProvider";
 import AppShell from "./components/layout/AppShell";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
-import ForgotPassword from "./pages/auth/ForgotPassword";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import ConsentBanner from "./components/ConsentBanner";
-import { useConsent } from "@/hooks/useConsent";
-import "./App.css";
-import { Toaster as SonnerToaster } from "sonner";
-import StarfieldBackground from "@/components/visuals/StarfieldBackground";
-import Dashboard from "./pages/Dashboard";
-import Track from "./pages/Track";
-import Community from "./pages/Community";
-import Analytics from "./pages/Analytics";
-import CoachSelect from "./pages/CoachSelect";
-import Coach from "./pages/Coach";
-import Profile from "./pages/Profile";
-import Sleep from "./pages/Sleep";
-import Diet from "./pages/Diet";
-import Exercise from "./pages/Exercise";
-import PhysicalHealth from "./pages/PhysicalHealth";
-import MentalHealth from "./pages/MentalHealth";
-import Finances from "./pages/Finances";
-import Social from "./pages/Social";
-import Spirituality from "./pages/Spirituality";
 import Onboarding from "./pages/Onboarding";
-import MyPlans from "./pages/MyPlans";
-import PlanDetail from "./pages/PlanDetail";
-import DailyProgress from "./pages/DailyProgress";
-import WeeklyReflection from "./pages/WeeklyReflection";
-import WeeklyReport from "./pages/WeeklyReport";
-import Upgrade from "./pages/Upgrade";
-import Pricing from "./pages/Pricing";
-import Goals from "./pages/Goals";
-import MyGrowth from "./pages/MyGrowth";
-import MoodTracker from "./pages/MoodTracker";
+import Dashboard from "./pages/Dashboard";
 import Habits from "./pages/Habits";
-import Friends from "./pages/Friends";
-import Milestones from "./pages/Milestones";
-import Connections from "./pages/Connections";
-import Feedback from "./pages/Feedback";
-import Meditation from "./pages/Meditation";
-import Achievements from "./pages/Achievements";
-import Messages from "./pages/Messages";
-import Notifications from "./pages/Notifications";
-import Timeline from "./pages/Timeline";
-import Pillar from "./pages/Pillar";
-import Settings from "./pages/Settings";
-import AdminDashboard from "./pages/AdminDashboard";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
-import { NAMED_ROUTES } from "@/config/routes";
-import { ThemeProvider } from "./components/ThemeProvider";
+import StarfieldBackground from "@/components/visuals/StarfieldBackground";
+import { Toaster as SonnerToaster } from "sonner";
+import AuthGuard from "./components/auth/AuthGuard";
+import CheckIns from "./pages/CheckIns";
+import PillarPage from "./pages/pillars/PillarPage";
+import Privacy from "./pages/compliance/Privacy";
+import Terms from "./pages/compliance/Terms";
+import TrustCenter from "./pages/compliance/TrustCenter";
+import queryClient from "./app/queryClient";
 
-const stripLeadingSlash = (value = "") =>
-  value.startsWith("/") ? value.slice(1) : value;
-
-const APP_SHELL_ROUTES = [
-  { key: "dashboard", path: NAMED_ROUTES.Dashboard, Component: Dashboard },
-  { key: "community", path: NAMED_ROUTES.Community, Component: Community },
-  { key: "track", path: NAMED_ROUTES.Track, Component: Track },
-  { key: "analytics", path: NAMED_ROUTES.Analytics, Component: Analytics },
-  {
-    key: "coach-select",
-    path: NAMED_ROUTES.CoachSelect,
-    Component: CoachSelect,
-  },
-  { key: "coach", path: NAMED_ROUTES.Coach, Component: Coach },
-  { key: "profile", path: NAMED_ROUTES.Profile, Component: Profile },
-  { key: "settings", path: NAMED_ROUTES.Settings, Component: Settings },
-  { key: "onboarding", path: NAMED_ROUTES.Onboarding, Component: Onboarding },
-  { key: "pillar", path: "pillars/:pillarId", Component: Pillar },
-  { key: "pillar-legacy", path: "pillar/:pillarId", Component: Pillar },
-  { key: "sleep", path: NAMED_ROUTES.Sleep, Component: Sleep },
-  { key: "diet", path: NAMED_ROUTES.Diet, Component: Diet },
-  { key: "exercise", path: NAMED_ROUTES.Exercise, Component: Exercise },
-  {
-    key: "physical-health",
-    path: NAMED_ROUTES.PhysicalHealth,
-    Component: PhysicalHealth,
-  },
-  {
-    key: "mental-health",
-    path: NAMED_ROUTES.MentalHealth,
-    Component: MentalHealth,
-  },
-  { key: "finances", path: NAMED_ROUTES.Finances, Component: Finances },
-  { key: "social", path: NAMED_ROUTES.Social, Component: Social },
-  {
-    key: "spirituality",
-    path: NAMED_ROUTES.Spirituality,
-    Component: Spirituality,
-  },
-  { key: "my-plans", path: NAMED_ROUTES.MyPlans, Component: MyPlans },
-  { key: "plan-detail", path: NAMED_ROUTES.PlanDetail, Component: PlanDetail },
-  {
-    key: "daily-progress",
-    path: NAMED_ROUTES.DailyProgress,
-    Component: DailyProgress,
-  },
-  {
-    key: "weekly-reflection",
-    path: NAMED_ROUTES.WeeklyReflection,
-    Component: WeeklyReflection,
-  },
-  {
-    key: "weekly-report",
-    path: NAMED_ROUTES.WeeklyReport,
-    Component: WeeklyReport,
-  },
-  { key: "messages", path: NAMED_ROUTES.Messages, Component: Messages },
-  {
-    key: "notifications",
-    path: NAMED_ROUTES.Notifications,
-    Component: Notifications,
-  },
-  { key: "timeline", path: NAMED_ROUTES.Timeline, Component: Timeline },
-  { key: "upgrade", path: NAMED_ROUTES.Upgrade, Component: Upgrade },
-  {
-    key: "pricing",
-    path: NAMED_ROUTES.Pricing,
-    Component: Pricing,
-    isProtected: false,
-  },
-  { key: "goals", path: NAMED_ROUTES.Goals, Component: Goals },
-  { key: "my-growth", path: NAMED_ROUTES.MyGrowth, Component: MyGrowth },
-  {
-    key: "mood-tracker",
-    path: NAMED_ROUTES.MoodTracker,
-    Component: MoodTracker,
-  },
-  { key: "habits", path: NAMED_ROUTES.Habits, Component: Habits },
-  { key: "friends", path: NAMED_ROUTES.Friends, Component: Friends },
-  {
-    key: "milestones",
-    path: NAMED_ROUTES.Milestones,
-    Component: Milestones,
-  },
-  {
-    key: "connections",
-    path: NAMED_ROUTES.Connections,
-    Component: Connections,
-  },
-  { key: "feedback", path: NAMED_ROUTES.Feedback, Component: Feedback },
-  {
-    key: "meditation",
-    path: NAMED_ROUTES.Meditation,
-    Component: Meditation,
-  },
-  {
-    key: "achievements",
-    path: NAMED_ROUTES.Achievements,
-    Component: Achievements,
-  },
-  {
-    key: "admin",
-    path: NAMED_ROUTES.AdminDashboard,
-    Component: AdminDashboard,
-  },
-];
-
-function AppContent() {
-  const { hasConsent, isLoading: consentLoading } = useConsent();
-  const [showBanner, setShowBanner] = useState(!hasConsent && !consentLoading);
-
-  const handleConsentGiven = () => {
-    setShowBanner(false);
-  };
-
+function AppRoutes() {
   return (
-    <>
-      <Routes>
-        <Route path="/sign-in" element={<SignIn />} />
-        <Route path="/login" element={<SignIn />} />
-        <Route path="/sign-up" element={<SignUp />} />
-        <Route path="/register" element={<SignUp />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/" element={<AppShell />}>
-          <Route
-            index
-            element={<Navigate to={NAMED_ROUTES.Dashboard} replace />}
-          />
-          {APP_SHELL_ROUTES.map(
-            ({ key, path, Component, isProtected = true }) => (
-              <Route
-                key={key}
-                path={stripLeadingSlash(path)}
-                element={
-                  isProtected ? (
-                    <ProtectedRoute>
-                      <Component />
-                    </ProtectedRoute>
-                  ) : (
-                    <Component />
-                  )
-                }
-              />
-            )
-          )}
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+    <Routes>
+      <Route path="/login" element={<SignIn />} />
+      <Route path="/register" element={<SignUp />} />
 
-      {showBanner && !consentLoading && (
-        <ConsentBanner onConsentGiven={handleConsentGiven} />
-      )}
-    </>
+      <Route element={<AppShell />}>
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/dashboard"
+          element={
+            <AuthGuard>
+              <Dashboard />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/pillars/:pillarId"
+          element={
+            <AuthGuard>
+              <PillarPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/habits"
+          element={
+            <AuthGuard>
+              <Habits />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/check-ins"
+          element={
+            <AuthGuard>
+              <CheckIns />
+            </AuthGuard>
+          }
+        />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/trust-center" element={<TrustCenter />} />
+      </Route>
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
-
-const queryClient = new QueryClient();
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <BrowserRouter>
-          {import.meta.env.VITE_DEMO_MODE === "true" && (
-            <div
-              style={{
-                width: "100%",
-                backgroundColor: "#fcd34d",
-                padding: "8px",
-                textAlign: "center",
-                fontWeight: "600",
-                color: "#111",
-                position: "fixed",
-                top: 0,
-                zIndex: 9999,
-                letterSpacing: "0.5px",
-              }}
-            >
-              DEMO MODE
-            </div>
-          )}
           <div className="ns-app-surface">
             <StarfieldBackground />
             <div className="ns-app-surface__content">
-              <AppContent />
+              <AppRoutes />
               <SonnerToaster position="top-right" richColors closeButton />
             </div>
           </div>

@@ -25,9 +25,6 @@ export default function PillarAccessGuard({ pillarId, children }) {
 
   // Demo mode: grant access to all pillars
   const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
-  if (DEMO_MODE) {
-    return <>{children}</>;
-  }
 
   useEffect(() => {
     async function checkAccess() {
@@ -46,9 +43,18 @@ export default function PillarAccessGuard({ pillarId, children }) {
       setLoading(false);
     }
     if (!subscriptionLoading) {
+      if (DEMO_MODE) {
+        setHasAccess(true);
+        setLoading(false);
+        return;
+      }
       checkAccess();
     }
-  }, [pillarId, hasPremiumAccess, subscriptionLoading]);
+  }, [pillarId, hasPremiumAccess, subscriptionLoading, DEMO_MODE]);
+
+  if (DEMO_MODE) {
+    return <>{children}</>;
+  }
 
   if (loading || subscriptionLoading) {
     return (

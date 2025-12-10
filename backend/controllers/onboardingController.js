@@ -1,6 +1,7 @@
 import OnboardingProfile from "../models/OnboardingProfile.js";
 import UserConsent from "../models/UserConsent.js";
 import { VALID_PILLARS, normalizePillarId } from "../utils/pillars.js";
+import { recordEvent } from "../utils/eventLogger.js";
 
 const clampScore = (value) => Math.max(0, Math.min(10, Number(value) || 0));
 
@@ -60,6 +61,17 @@ export const submitOnboarding = async (req, res) => {
       }
     );
 
+    await recordEvent("onboarding_completed", {
+      userId,
+      source: "api/onboarding",
+      ip: req.ip,
+      payload: {
+        baselineScore,
+        northStarScore,
+        goalsSelected: normalizedGoals.length,
+      },
+    });
+
     return res.status(201).json({
       success: true,
       data: {
@@ -110,6 +122,17 @@ export const saveConsent = async (req, res) => {
         setDefaultsOnInsert: true,
       }
     );
+    await recordEvent("consent_recorded", {
+      userId,
+      source: req.body?.source || "api/consent",
+      ip: req.ip,
+      payload: {
+        gdprAccepted: !!gdprAccepted,
+        llmAccepted: !!llmAccepted,
+        recordedAt: new Date().toISOString(),
+      },
+    });
+
     return res.status(200).json({ success: true, data: consent });
   } catch (error) {
     return res.status(400).json({ success: false, error: error.message });

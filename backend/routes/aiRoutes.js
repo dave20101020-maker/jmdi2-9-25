@@ -22,6 +22,7 @@ import { memoryStore } from "../src/ai/orchestrator/memoryStore.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { FEATURE_KEYS } from "../utils/entitlements.js";
 import { validate } from "../middleware/validate.js";
+import { recordEvent } from "../utils/eventLogger.js";
 
 const router = express.Router();
 
@@ -145,7 +146,7 @@ router.post(
       }
 
       // Success response
-      return res.json({
+      const responseBody = applyAiDisclaimer({
         ok: true,
         agent: result.agent,
         pillar: result.pillar,
@@ -158,6 +159,19 @@ router.post(
           : undefined,
         rateLimit: req.rateLimit,
       });
+
+      await recordEvent("ai_chat_engagement", {
+        userId,
+        source: "api/ai/chat",
+        ip: req.ip,
+        payload: {
+          pillar: result.pillar,
+          agent: result.agent,
+          explicitMode: !!explicitMode,
+        },
+      });
+
+      return res.json(responseBody);
     } catch (error) {
       console.error("AI chat error:", error);
 
