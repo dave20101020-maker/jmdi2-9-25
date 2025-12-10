@@ -21,6 +21,7 @@ import TrustCenter from "./pages/compliance/TrustCenter";
 import queryClient from "./app/queryClient";
 import Pillars from "@/pages/Pillars";
 import { NAMED_ROUTES } from "@/config/routes";
+import CoachHub from "./pages/coach/CoachHub";
 
 function AppRoutes() {
   return (
@@ -68,6 +69,14 @@ function AppRoutes() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/trust-center" element={<TrustCenter />} />
         <Route path={NAMED_ROUTES.Pillars} element={<Pillars />} />
+        <Route
+          path="/coaches"
+          element={
+            <AuthGuard>
+              <CoachHub />
+            </AuthGuard>
+          }
+        />
       </Route>
 
       <Route path="*" element={<NotFound />} />

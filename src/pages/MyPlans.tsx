@@ -663,7 +663,11 @@ export default function MyPlans() {
     };
   }, []);
 
-  const { data: plans = [], isLoading } = useQuery<ReadonlyArray<PlanProps>>({
+  const {
+    data: plans = [],
+    isLoading,
+    isFetching,
+  } = useQuery<ReadonlyArray<PlanProps>>({
     queryKey: ["lifePlans", user?.email],
     queryFn: async () => {
       if (!user?.email) {
@@ -694,7 +698,7 @@ export default function MyPlans() {
     setTimeout(() => setShowSuccess(false), 3000);
   };
 
-  if (isLoading) {
+  if (isLoading || isFetching) {
     return (
       <div className="min-h-screen flex items-center justify-center pb-20">
         <div className="text-center">
@@ -853,10 +857,6 @@ export default function MyPlans() {
             <div className="mb-8">
               <h2 className="text-xl font-bold text-white mb-4">
                 Create New Plan
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {pillarsArray.map((pillar) => (
-                  <button
                     key={pillar.id}
                     onClick={() => handlePillarSelect(pillar)}
                     className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all hover:-translate-y-1 group"

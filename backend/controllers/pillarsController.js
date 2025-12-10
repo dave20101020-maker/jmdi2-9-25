@@ -4,6 +4,76 @@ import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 import { normalizePillarId, VALID_PILLARS } from "../utils/pillars.js";
 
+const PILLAR_DEFINITIONS = [
+  {
+    id: "sleep",
+    title: "Sleep",
+    summary: "Optimize recovery, circadian rhythm, and sleep hygiene.",
+    path: "/sleep",
+    focusAreas: ["consistency", "environment", "wind-down", "recovery"],
+  },
+  {
+    id: "diet",
+    title: "Diet",
+    summary: "Balance macros, hydration, and mindful nutrition habits.",
+    path: "/diet",
+    focusAreas: ["fueling", "hydration", "meal timing", "hunger cues"],
+  },
+  {
+    id: "exercise",
+    title: "Exercise",
+    summary: "Build strength, mobility, and energy with adaptive training.",
+    path: "/exercise",
+    focusAreas: ["strength", "cardio", "mobility", "recovery"],
+  },
+  {
+    id: "physical-health",
+    title: "Physical Health",
+    summary: "Track vitals, recovery signals, and preventative care routines.",
+    path: "/physical-health",
+    focusAreas: ["vitals", "preventative", "pain", "energy"],
+  },
+  {
+    id: "mental-health",
+    title: "Mental Health",
+    summary: "Strengthen resilience through mood, stress, and focus practices.",
+    path: "/mental-health",
+    focusAreas: ["stress", "focus", "mood", "resilience"],
+  },
+  {
+    id: "finances",
+    title: "Finances",
+    summary: "Plan cashflow, savings, and goal-based financial habits.",
+    path: "/finances",
+    focusAreas: ["budget", "savings", "debt", "investing"],
+  },
+  {
+    id: "social",
+    title: "Social",
+    summary: "Nurture relationships, community engagement, and support.",
+    path: "/social",
+    focusAreas: ["connections", "support", "communication", "community"],
+  },
+  {
+    id: "spirituality",
+    title: "Spirituality",
+    summary: "Cultivate mindfulness, purpose, and reflective practices.",
+    path: "/spirituality",
+    focusAreas: ["mindfulness", "values", "rituals", "gratitude"],
+  },
+];
+
+// @desc    Get pillar metadata definitions
+// @route   GET /api/pillars/definitions
+// @access  Public
+export const getPillarDefinitions = async (req, res) => {
+  return res.status(200).json({
+    success: true,
+    count: PILLAR_DEFINITIONS.length,
+    data: PILLAR_DEFINITIONS,
+  });
+};
+
 // @desc    Create or update pillar score
 // @route   POST /api/pillars
 // @access  Private

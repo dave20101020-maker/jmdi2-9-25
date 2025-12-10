@@ -15,6 +15,25 @@ const renderPillarRoute = () =>
     </MemoryRouter>
   );
 
+vi.mock("@/components/shared/AuthGuard", () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => {
+    const [user, setUser] = React.useState<ReturnType<
+      typeof createMockUser
+    > | null>(null);
+
+    React.useEffect(() => {
+      api
+        .authMe()
+        .then(setUser)
+        .catch(() => setUser(createMockUser()));
+    }, []);
+
+    if (!user) return null;
+    return <>{typeof children === "function" ? children(user) : children}</>;
+  },
+}));
+
 describe("Pillar page", () => {
   const isoNow = new Date().toISOString();
 
@@ -71,6 +90,8 @@ describe("Pillar page", () => {
   it("submits a pillar check-in successfully", async () => {
     renderPillarRoute();
 
+    await screen.findByText(/Deep breathing/i);
+
     const slider = screen.getByRole("slider");
     fireEvent.change(slider, { target: { value: "9" } });
 
@@ -96,6 +117,8 @@ describe("Pillar page", () => {
     api.createPillarCheckIn.mockRejectedValueOnce(new Error("boom"));
 
     renderPillarRoute();
+
+    await screen.findByText(/Deep breathing/i);
 
     fireEvent.click(screen.getByRole("button", { name: /Save Check-In/i }));
 
