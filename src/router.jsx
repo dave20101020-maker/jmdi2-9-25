@@ -77,6 +77,18 @@ const WeeklyReportPage = lazyPage(
 );
 const UpgradePage = lazyPage(() => import("@/pages/Upgrade"), "UpgradePage");
 const PricingPage = lazyPage(() => import("@/pages/Pricing"), "PricingPage");
+const PrivacyPage = lazyPage(
+  () => import("@/pages/compliance/Privacy"),
+  "PrivacyPage"
+);
+const TermsPage = lazyPage(
+  () => import("@/pages/compliance/Terms"),
+  "TermsPage"
+);
+const TrustCenterPage = lazyPage(
+  () => import("@/pages/compliance/TrustCenter"),
+  "TrustCenterPage"
+);
 const GoalsPage = lazyPage(() => import("@/pages/Goals"), "GoalsPage");
 const MyGrowthPage = lazyPage(() => import("@/pages/MyGrowth"), "MyGrowthPage");
 const MoodTrackerPage = lazyPage(
@@ -344,6 +356,27 @@ const routeConfig = [
     path: NAMED_ROUTES.Pricing,
     Component: PricingPage,
     label: "pricing",
+    isProtected: false,
+  },
+  {
+    key: "privacy",
+    path: NAMED_ROUTES.Privacy,
+    Component: PrivacyPage,
+    label: "privacy",
+    isProtected: false,
+  },
+  {
+    key: "terms",
+    path: NAMED_ROUTES.Terms,
+    Component: TermsPage,
+    label: "terms",
+    isProtected: false,
+  },
+  {
+    key: "trust-center",
+    path: NAMED_ROUTES.TrustCenter,
+    Component: TrustCenterPage,
+    label: "trust center",
     isProtected: false,
   },
   {
