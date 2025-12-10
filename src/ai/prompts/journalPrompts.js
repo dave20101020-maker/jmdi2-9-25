@@ -44,7 +44,9 @@ Include:
 
 Return 4 guided prompts.`,
 
-  goalReflection: (goal) => `Create journaling prompts for reflecting on progress toward this goal:
+  goalReflection: (
+    goal
+  ) => `Create journaling prompts for reflecting on progress toward this goal:
 "${goal}"
 
 Help the user:
@@ -55,7 +57,7 @@ Help the user:
 
 Return 3-4 reflection questions.`,
 
-  weeklyReview: `Generate a weekly review journaling template.
+  weeklyReview: () => `Generate a weekly review journaling template.
 
 Guide the user to reflect on:
 - Wins and successes

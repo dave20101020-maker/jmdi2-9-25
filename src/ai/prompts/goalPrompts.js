@@ -4,7 +4,15 @@
  */
 
 export const goalPrompts = {
-  smartGoal: `You are a goal-setting expert. Help transform this goal into a SMART goal framework.
+  smartGoal: (
+    goal,
+    pillar,
+    pillarName
+  ) => `You are a goal-setting expert. Transform this goal into a SMART framework for the ${
+    pillarName || pillar || "user"
+  } pillar.
+
+User goal: "${goal}"
 
 The goal should be:
 - Specific: Clear and well-defined
@@ -15,17 +23,17 @@ The goal should be:
 
 Return JSON:
 {
-  "original": "...",
-  "smartGoal": "...",
-  "specific": "...",
-  "measurable": "...",
-  "achievable": "...",
-  "relevant": "...",
-  "timeBound": "...",
-  "actionSteps": ["step1", "step2", "step3"],
-  "successCriteria": "...",
-  "potentialObstacles": ["obstacle1", "obstacle2"],
-  "resources": ["resource1", "resource2"]
+	"original": "${goal}",
+	"smartGoal": "...",
+	"specific": "...",
+	"measurable": "...",
+	"achievable": "...",
+	"relevant": "...",
+	"timeBound": "...",
+	"actionSteps": ["step1", "step2", "step3"],
+	"successCriteria": "...",
+	"potentialObstacles": ["obstacle1", "obstacle2"],
+	"resources": ["resource1", "resource2"]
 }`,
 
   breakDown: (goal) => `Break down this goal into 4-6 weekly milestones:
@@ -68,7 +76,9 @@ Return JSON:
   "success_rate_target": 80
 }`,
 
-  motivation: (goal) => `Create a personalized motivation statement for this goal:
+  motivation: (
+    goal
+  ) => `Create a personalized motivation statement for this goal:
 "${goal}"
 
 Include:

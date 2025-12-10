@@ -8,9 +8,16 @@ afterEach(() => {
 });
 
 const ensureMatchMedia = () => {
-  if (typeof window === "undefined" || window.matchMedia) {
-    return;
-  }
+  if (typeof window === "undefined") return;
+
+  const needsPolyfill = (() => {
+    if (!window.matchMedia) return true;
+
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion)");
+    return !mediaQuery || typeof mediaQuery.addEventListener !== "function";
+  })();
+
+  if (!needsPolyfill) return;
 
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -86,6 +93,7 @@ const apiProxy = createApiProxy();
 
 vi.mock("@/utils/apiClient", () => ({
   api: apiProxy,
+  default: apiProxy,
 }));
 
 vi.mock("@/api/aiClient", () => ({

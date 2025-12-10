@@ -31,6 +31,10 @@ import {
   updateConversationHistory,
 } from "./memoryStore.js";
 import logger from "../../utils/logger.js";
+import {
+  deriveCorrelationInsights,
+  formatCorrelationNarrative,
+} from "../../utils/correlationEngine.js";
 
 /**
  * AI Module Registry
@@ -416,11 +420,7 @@ async function executeSleepCoach({
     metadata: {
       model: result.model,
       provider: result.provider,
-      usage: result.usage,
-    },
-  };
-}
-
+      usage: result.usage
 /**
  * Execute Mental Health Coach
  */

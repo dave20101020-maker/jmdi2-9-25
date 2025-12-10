@@ -13,6 +13,37 @@ import {
 } from "@/tests/testUtils";
 import { toast } from "sonner";
 
+vi.mock("framer-motion", async () => {
+  const React = await vi.importActual<typeof import("react")>("react");
+  const Noop = React.forwardRef(({ children, ...props }, ref) => (
+    <div ref={ref} {...props}>
+      {children}
+    </div>
+  ));
+
+  return {
+    __esModule: true,
+    motion: new Proxy({}, { get: () => Noop }),
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => (
+      <>{children}</>
+    ),
+  };
+});
+
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
