@@ -4,6 +4,7 @@ import { PILLARS } from "@/config/pillars";
 import NSButton from "@/components/ui/NSButton";
 import { cn } from "@/utils";
 import "@/App.css";
+import NorthStarAssistant from "@/ai/NorthStarAssistant";
 
 const ROUTES = Object.freeze({
   dashboard: "/dashboard",
@@ -159,6 +160,7 @@ export default function MainLayout() {
           <Outlet />
         </main>
       </div>
+      <NorthStarAssistant />
     </div>
   );
 }

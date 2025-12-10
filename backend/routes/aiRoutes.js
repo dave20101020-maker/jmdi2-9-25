@@ -23,6 +23,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import { FEATURE_KEYS } from "../utils/entitlements.js";
 import { validate } from "../middleware/validate.js";
 import { recordEvent } from "../utils/eventLogger.js";
+import { applyAiDisclaimer } from "../src/ai/disclaimer.js";
 
 const router = express.Router();
 

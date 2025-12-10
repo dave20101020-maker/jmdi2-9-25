@@ -113,6 +113,8 @@ app.use("/api/ai", aiRoutes);
 
 // NorthStar Orchestrator Routes (new)
 app.use("/api/orchestrator", orchestratorRoutes);
+// Alias orchestrator chat under /api/ai for the assistant UI
+app.use("/api/ai", orchestratorRoutes);
 
 // Unified AI Orchestrator Routes (all modules integrated)
 app.use("/api/ai/unified", aiUnifiedRoutes);
