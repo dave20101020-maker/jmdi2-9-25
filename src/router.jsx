@@ -4,6 +4,18 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RouteLoader from "@/components/fallbacks/RouteLoader";
 import GlobalErrorBoundary from "@/components/shared/ErrorBoundary";
 import { NAMED_ROUTES } from "@/config/routes";
+import pillarDetailScreens from "@/pages/pillars/PillarDetailScreens";
+
+const {
+  SleepPillarPage,
+  DietPillarPage,
+  ExercisePillarPage,
+  PhysicalHealthPillarPage,
+  MentalHealthPillarPage,
+  FinancesPillarPage,
+  SocialPillarPage,
+  SpiritualityPillarPage,
+} = pillarDetailScreens;
 
 const lazyPage = (loader, displayName) => {
   const Component = lazy(loader);
@@ -36,45 +48,6 @@ const CoachSelectPage = lazyPage(
 const CoachPage = lazyPage(() => import("@/pages/Coach"), "CoachPage");
 const ProfilePage = lazyPage(() => import("@/pages/Profile"), "ProfilePage");
 const SettingsPage = lazyPage(() => import("@/pages/Settings"), "SettingsPage");
-const SleepPage = lazyPage(() => import("@/pages/Sleep"), "SleepPage");
-const DietPage = lazyPage(() => import("@/pages/Diet"), "DietPage");
-const ExercisePage = lazyPage(() => import("@/pages/Exercise"), "ExercisePage");
-const PhysicalHealthPage = lazyPage(
-  () => import("@/pages/PhysicalHealth"),
-  "PhysicalHealthPage"
-);
-const MentalHealthPage = lazyPage(
-  () => import("@/pages/MentalHealth"),
-  "MentalHealthPage"
-);
-const FinancesPage = lazyPage(() => import("@/pages/Finances"), "FinancesPage");
-const SocialPage = lazyPage(() => import("@/pages/Social"), "SocialPage");
-const SpiritualityPage = lazyPage(
-  () => import("@/pages/Spirituality"),
-  "SpiritualityPage"
-);
-const OnboardingPage = lazyPage(
-  () => import("@/pages/Onboarding"),
-  "OnboardingPage"
-);
-const CRITICAL_ROUTES = [DashboardPage, OnboardingPage];
-const MyPlansPage = lazyPage(() => import("@/pages/MyPlans"), "MyPlansPage");
-const PlanDetailPage = lazyPage(
-  () => import("@/pages/PlanDetail"),
-  "PlanDetailPage"
-);
-const DailyProgressPage = lazyPage(
-  () => import("@/pages/DailyProgress"),
-  "DailyProgressPage"
-);
-const WeeklyReflectionPage = lazyPage(
-  () => import("@/pages/WeeklyReflection"),
-  "WeeklyReflectionPage"
-);
-const WeeklyReportPage = lazyPage(
-  () => import("@/pages/WeeklyReport"),
-  "WeeklyReportPage"
-);
 const UpgradePage = lazyPage(() => import("@/pages/Upgrade"), "UpgradePage");
 const PricingPage = lazyPage(() => import("@/pages/Pricing"), "PricingPage");
 const PrivacyPage = lazyPage(
@@ -134,67 +107,23 @@ const PillarPage = lazyPage(
   () => import(/* webpackChunkName: "pillar-generic" */ "@/pages/Pillar"),
   "PillarPage"
 );
-const SleepDashboardPage = lazyPage(
-  () =>
-    import(
-      /* webpackChunkName: "pillar-sleep" */ "@/pages/pillars/SleepDashboard"
-    ),
-  "SleepDashboardPage"
+const CRITICAL_ROUTES = [DashboardPage, OnboardingPage];
+const MyPlansPage = lazyPage(() => import("@/pages/MyPlans"), "MyPlansPage");
+const PlanDetailPage = lazyPage(
+  () => import("@/pages/PlanDetail"),
+  "PlanDetailPage"
 );
-const DietDashboardPage = lazyPage(
-  () =>
-    import(
-      /* webpackChunkName: "pillar-diet" */ "@/pages/pillars/DietDashboard"
-    ),
-  "DietDashboardPage"
+const DailyProgressPage = lazyPage(
+  () => import("@/pages/DailyProgress"),
+  "DailyProgressPage"
 );
-const ExerciseDashboardPage = lazyPage(
-  () =>
-    import(
-      /* webpackChunkName: "pillar-exercise" */
-      "@/pages/pillars/ExerciseDashboard"
-    ),
-  "ExerciseDashboardPage"
+const WeeklyReflectionPage = lazyPage(
+  () => import("@/pages/WeeklyReflection"),
+  "WeeklyReflectionPage"
 );
-const PhysicalHealthDashboardPage = lazyPage(
-  () =>
-    import(
-      /* webpackChunkName: "pillar-physical" */
-      "@/pages/pillars/PhysicalHealthDashboard"
-    ),
-  "PhysicalHealthDashboardPage"
-);
-const MentalHealthDashboardPage = lazyPage(
-  () =>
-    import(
-      /* webpackChunkName: "pillar-mental" */
-      "@/pages/pillars/MentalHealthDashboard"
-    ),
-  "MentalHealthDashboardPage"
-);
-const FinancesDashboardPage = lazyPage(
-  () =>
-    import(
-      /* webpackChunkName: "pillar-finances" */
-      "@/pages/pillars/FinancesDashboard"
-    ),
-  "FinancesDashboardPage"
-);
-const SocialDashboardPage = lazyPage(
-  () =>
-    import(
-      /* webpackChunkName: "pillar-social" */
-      "@/pages/pillars/SocialDashboard"
-    ),
-  "SocialDashboardPage"
-);
-const SpiritualityDashboardPage = lazyPage(
-  () =>
-    import(
-      /* webpackChunkName: "pillar-spirituality" */
-      "@/pages/pillars/SpiritualityDashboard"
-    ),
-  "SpiritualityDashboardPage"
+const WeeklyReportPage = lazyPage(
+  () => import("@/pages/WeeklyReport"),
+  "WeeklyReportPage"
 );
 const LoginPage = lazyPage(() => import("@/pages/Login"), "LoginPage");
 const RegisterPage = lazyPage(() => import("@/pages/Register"), "RegisterPage");
@@ -266,49 +195,49 @@ const routeConfig = [
   {
     key: "sleep",
     path: NAMED_ROUTES.Sleep,
-    Component: SleepPage,
+    Component: SleepPillarPage,
     label: "sleep",
   },
   {
     key: "diet",
     path: NAMED_ROUTES.Diet,
-    Component: DietPage,
+    Component: DietPillarPage,
     label: "nutrition",
   },
   {
     key: "exercise",
     path: NAMED_ROUTES.Exercise,
-    Component: ExercisePage,
+    Component: ExercisePillarPage,
     label: "exercise",
   },
   {
     key: "physical-health",
     path: NAMED_ROUTES.PhysicalHealth,
-    Component: PhysicalHealthPage,
+    Component: PhysicalHealthPillarPage,
     label: "physical health",
   },
   {
     key: "mental-health",
     path: NAMED_ROUTES.MentalHealth,
-    Component: MentalHealthPage,
+    Component: MentalHealthPillarPage,
     label: "mental health",
   },
   {
     key: "finances",
     path: NAMED_ROUTES.Finances,
-    Component: FinancesPage,
+    Component: FinancesPillarPage,
     label: "finances",
   },
   {
     key: "social",
     path: NAMED_ROUTES.Social,
-    Component: SocialPage,
+    Component: SocialPillarPage,
     label: "social",
   },
   {
     key: "spirituality",
     path: NAMED_ROUTES.Spirituality,
-    Component: SpiritualityPage,
+    Component: SpiritualityPillarPage,
     label: "spirituality",
   },
   {
@@ -493,49 +422,49 @@ const routeConfig = [
   {
     key: "pillar-sleep",
     path: "pillar/sleep",
-    Component: SleepDashboardPage,
+    Component: SleepPillarPage,
     label: "sleep insights",
   },
   {
     key: "pillar-diet",
     path: "pillar/diet",
-    Component: DietDashboardPage,
+    Component: DietPillarPage,
     label: "diet insights",
   },
   {
     key: "pillar-exercise",
     path: "pillar/exercise",
-    Component: ExerciseDashboardPage,
+    Component: ExercisePillarPage,
     label: "exercise insights",
   },
   {
     key: "pillar-physical-health",
     path: "pillar/physical-health",
-    Component: PhysicalHealthDashboardPage,
+    Component: PhysicalHealthPillarPage,
     label: "physical pillar",
   },
   {
     key: "pillar-mental-health",
     path: "pillar/mental-health",
-    Component: MentalHealthDashboardPage,
+    Component: MentalHealthPillarPage,
     label: "mental pillar",
   },
   {
     key: "pillar-finances",
     path: "pillar/finances",
-    Component: FinancesDashboardPage,
+    Component: FinancesPillarPage,
     label: "finance pillar",
   },
   {
     key: "pillar-social",
     path: "pillar/social",
-    Component: SocialDashboardPage,
+    Component: SocialPillarPage,
     label: "social pillar",
   },
   {
     key: "pillar-spirituality",
     path: "pillar/spirituality",
-    Component: SpiritualityDashboardPage,
+    Component: SpiritualityPillarPage,
     label: "spiritual pillar",
   },
 ];
