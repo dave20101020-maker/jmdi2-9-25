@@ -29,9 +29,11 @@ import integrationsRoutes from "./routes/integrations.js";
 import insightsRoutes from "./routes/insights.js";
 import progressRoutes from "./routes/progress.js";
 import checkinRoutes from "./routes/checkin.js";
+import pagesRoutes from "./routes/pages.js";
 import pillarExperienceRoutes from "./routes/pillarsExperienceRoutes.js";
 import publicPagesRoutes from "./routes/publicPages.js";
 import navRoutes from "./routes/navRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 const envName = process.env.NODE_ENV || "development";
 
@@ -88,7 +90,14 @@ app.use((req, res, next) => {
 });
 
 app.use(cookieParser());
-app.use(express.json({ limit: "10mb" }));
+app.use(
+  express.json({
+    limit: "10mb",
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // Health check endpoint
@@ -125,7 +134,10 @@ app.use("/api/user", userRoutes);
 app.use("/api/integrations", integrationsRoutes);
 app.use("/api/insights", insightsRoutes);
 app.use("/api/progress", progressRoutes);
+app.use("/api/checkin", checkinRoutes);
+app.use("/api/pages", pagesRoutes);
 app.use("/api/nav", navRoutes);
+app.use("/api/payments", paymentRoutes);
 app.use("/", publicPagesRoutes);
 
 // Connect to MongoDB

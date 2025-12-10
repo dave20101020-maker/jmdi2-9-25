@@ -97,8 +97,9 @@ router.get("/checkout", (req, res) => {
     ok: true,
     page: NAV_PAGES.find((page) => page.id === "checkout"),
     data: {
-      message: "Checkout placeholder — payments are disabled in this preview.",
-      actions: ["start-checkout", "view-plans"],
+      message:
+        "Checkout ready — POST /api/payments/checkout-session to begin and /api/payments/portal for billing.",
+      actions: ["start-checkout", "view-plans", "manage-billing"],
     },
   });
 });

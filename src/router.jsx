@@ -115,6 +115,7 @@ const AchievementsPage = lazyPage(
   "AchievementsPage"
 );
 const CheckInsPage = lazyPage(() => import("@/pages/CheckIns"), "CheckInsPage");
+const PillarsPage = lazyPage(() => import("@/pages/Pillars"), "PillarsPage");
 const MessagesPage = lazyPage(() => import("@/pages/Messages"), "MessagesPage");
 const NotificationsPage = lazyPage(
   () => import("@/pages/Notifications"),
@@ -445,6 +446,13 @@ const routeConfig = [
     path: NAMED_ROUTES.CheckIns,
     Component: CheckInsPage,
     label: "check-ins",
+  },
+  {
+    key: "pillars",
+    path: NAMED_ROUTES.Pillars,
+    Component: PillarsPage,
+    label: "pillars",
+    isProtected: false,
   },
   {
     key: "messages",

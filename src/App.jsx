@@ -19,6 +19,8 @@ import Privacy from "./pages/compliance/Privacy";
 import Terms from "./pages/compliance/Terms";
 import TrustCenter from "./pages/compliance/TrustCenter";
 import queryClient from "./app/queryClient";
+import Pillars from "@/pages/Pillars";
+import { NAMED_ROUTES } from "@/config/routes";
 
 function AppRoutes() {
   return (
@@ -65,6 +67,7 @@ function AppRoutes() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/trust-center" element={<TrustCenter />} />
+        <Route path={NAMED_ROUTES.Pillars} element={<Pillars />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

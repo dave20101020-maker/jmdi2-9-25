@@ -39,6 +39,8 @@ export const NAMED_ROUTES = Object.freeze({
   Feedback: "/feedback",
   Meditation: "/meditation",
   Achievements: "/achievements",
+  CheckIns: "/check-ins",
+  Pillars: "/pillars",
   AdminDashboard: "/admin",
   GoogleOAuthCallback: "/auth/google/callback",
   FacebookOAuthCallback: "/auth/facebook/callback",
