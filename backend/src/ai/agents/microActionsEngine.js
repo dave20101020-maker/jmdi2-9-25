@@ -1,32 +1,35 @@
 /**
  * Micro-Actions Engine
- * 
+ *
  * Each agent produces tiny 2-5 min quick-win micro-actions
  * Examples: 5-min meditation, 10-min walk, drink water
  * Stored with habits for easy access
- * 
+ *
  * File: backend/src/ai/agents/microActionsEngine.js
  */
 
-import OpenAI from 'openai';
+import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openaiApiKey = process.env.OPENAI_API_KEY;
+const openai = openaiApiKey
+  ? new OpenAI({
+      apiKey: openaiApiKey,
+    })
+  : null;
 
 /**
  * Micro-action template structure
  */
 const microActionTemplate = {
-  pillar: 'string',
-  title: 'string', // Short action name (5 words max)
-  description: 'string', // How to do it (1-2 sentences)
-  duration: 'number', // Minutes (2-5)
-  difficulty: 'easy' | 'medium', // Only easy/medium for quick wins
-  energy: 'low' | 'medium', // Energy required
-  tools: ['array of items needed'], // What you need
-  benefits: ['array of benefits'], // Quick wins you'll get
-  motivation: 'string', // Why it matters
+  pillar: "string",
+  title: "string", // Short action name (5 words max)
+  description: "string", // How to do it (1-2 sentences)
+  duration: "number", // Minutes (2-5)
+  difficulty: "easy" | "medium", // Only easy/medium for quick wins
+  energy: "low" | "medium", // Energy required
+  tools: ["array of items needed"], // What you need
+  benefits: ["array of benefits"], // Quick wins you'll get
+  motivation: "string", // Why it matters
 };
 
 /**
@@ -36,238 +39,276 @@ const microActionTemplate = {
 const predefinedActions = {
   sleep: [
     {
-      title: 'Box Breathing for Sleep',
-      description: 'Breathe in for 4, hold for 4, out for 4, hold for 4. Repeat 5 times.',
+      title: "Box Breathing for Sleep",
+      description:
+        "Breathe in for 4, hold for 4, out for 4, hold for 4. Repeat 5 times.",
       duration: 3,
-      difficulty: 'easy',
-      energy: 'low',
+      difficulty: "easy",
+      energy: "low",
       tools: [],
-      benefits: ['reduces anxiety', 'calms nervous system', 'prepares for sleep'],
-      motivation: 'Deep breathing signals your body to rest.',
+      benefits: [
+        "reduces anxiety",
+        "calms nervous system",
+        "prepares for sleep",
+      ],
+      motivation: "Deep breathing signals your body to rest.",
     },
     {
-      title: 'Bedroom Temperature Check',
-      description: 'Check that your room is between 65-68°F. Adjust if needed.',
+      title: "Bedroom Temperature Check",
+      description: "Check that your room is between 65-68°F. Adjust if needed.",
       duration: 2,
-      difficulty: 'easy',
-      energy: 'low',
+      difficulty: "easy",
+      energy: "low",
       tools: [],
-      benefits: ['optimizes sleep environment', 'improves sleep quality'],
-      motivation: 'Temperature is a primary sleep trigger.',
+      benefits: ["optimizes sleep environment", "improves sleep quality"],
+      motivation: "Temperature is a primary sleep trigger.",
     },
     {
-      title: 'Screen Shutdown',
-      description: 'Put all screens away. No phones, tablets, computers for 30 min before bed.',
+      title: "Screen Shutdown",
+      description:
+        "Put all screens away. No phones, tablets, computers for 30 min before bed.",
       duration: 0,
-      difficulty: 'medium',
-      energy: 'low',
+      difficulty: "medium",
+      energy: "low",
       tools: [],
-      benefits: ['reduces blue light', 'increases melatonin', 'better sleep onset'],
-      motivation: 'Blue light suppresses melatonin production.',
+      benefits: [
+        "reduces blue light",
+        "increases melatonin",
+        "better sleep onset",
+      ],
+      motivation: "Blue light suppresses melatonin production.",
     },
   ],
   diet: [
     {
-      title: 'Hydration Boost',
-      description: 'Drink a full glass of water right now. Add lemon if you like.',
+      title: "Hydration Boost",
+      description:
+        "Drink a full glass of water right now. Add lemon if you like.",
       duration: 2,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['water', 'cup'],
-      benefits: ['increases hydration', 'boosts energy', 'aids digestion'],
-      motivation: 'Most people are chronically dehydrated.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["water", "cup"],
+      benefits: ["increases hydration", "boosts energy", "aids digestion"],
+      motivation: "Most people are chronically dehydrated.",
     },
     {
-      title: 'Snack Swap',
-      description: 'Replace your current snack with nuts, fruit, or yogurt.',
+      title: "Snack Swap",
+      description: "Replace your current snack with nuts, fruit, or yogurt.",
       duration: 1,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['healthy snack'],
-      benefits: ['better nutrition', 'stable energy', 'improved focus'],
-      motivation: 'Small swaps add up to big health changes.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["healthy snack"],
+      benefits: ["better nutrition", "stable energy", "improved focus"],
+      motivation: "Small swaps add up to big health changes.",
     },
     {
-      title: 'Meal Prep 3 Items',
-      description: 'Cut vegetables or portion proteins for the next 3 meals.',
+      title: "Meal Prep 3 Items",
+      description: "Cut vegetables or portion proteins for the next 3 meals.",
       duration: 5,
-      difficulty: 'medium',
-      energy: 'medium',
-      tools: ['cutting board', 'knife', 'containers'],
-      benefits: ['saves time', 'ensures healthy eating', 'reduces decision fatigue'],
-      motivation: 'Prep work eliminates unhealthy shortcuts.',
+      difficulty: "medium",
+      energy: "medium",
+      tools: ["cutting board", "knife", "containers"],
+      benefits: [
+        "saves time",
+        "ensures healthy eating",
+        "reduces decision fatigue",
+      ],
+      motivation: "Prep work eliminates unhealthy shortcuts.",
     },
   ],
   exercise: [
     {
-      title: 'Quick Walk',
-      description: 'Step outside and walk briskly for 5-10 minutes.',
+      title: "Quick Walk",
+      description: "Step outside and walk briskly for 5-10 minutes.",
       duration: 5,
-      difficulty: 'easy',
-      energy: 'medium',
+      difficulty: "easy",
+      energy: "medium",
       tools: [],
-      benefits: ['increases heart rate', 'boosts mood', 'clears mind'],
-      motivation: 'Movement is mood medicine.',
+      benefits: ["increases heart rate", "boosts mood", "clears mind"],
+      motivation: "Movement is mood medicine.",
     },
     {
-      title: 'Desk Stretches',
-      description: 'Do 5 minutes of neck, shoulder, and back stretches at your desk.',
+      title: "Desk Stretches",
+      description:
+        "Do 5 minutes of neck, shoulder, and back stretches at your desk.",
       duration: 5,
-      difficulty: 'easy',
-      energy: 'low',
+      difficulty: "easy",
+      energy: "low",
       tools: [],
-      benefits: ['releases tension', 'improves posture', 'increases circulation'],
-      motivation: 'Stretching prevents injury and stiffness.',
+      benefits: [
+        "releases tension",
+        "improves posture",
+        "increases circulation",
+      ],
+      motivation: "Stretching prevents injury and stiffness.",
     },
     {
-      title: 'Stair Challenge',
-      description: 'Climb stairs 3-5 times, resting between rounds.',
+      title: "Stair Challenge",
+      description: "Climb stairs 3-5 times, resting between rounds.",
       duration: 3,
-      difficulty: 'medium',
-      energy: 'high',
+      difficulty: "medium",
+      energy: "high",
       tools: [],
-      benefits: ['builds leg strength', 'cardio boost', 'burns calories'],
-      motivation: 'Stairs are a powerhouse workout.',
+      benefits: ["builds leg strength", "cardio boost", "burns calories"],
+      motivation: "Stairs are a powerhouse workout.",
     },
   ],
   mental_health: [
     {
-      title: '5-Minute Meditation',
-      description: 'Use a guided app (Calm, Headspace) or just focus on breathing.',
+      title: "5-Minute Meditation",
+      description:
+        "Use a guided app (Calm, Headspace) or just focus on breathing.",
       duration: 5,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['phone with meditation app'],
-      benefits: ['reduces stress', 'increases focus', 'improves mood'],
-      motivation: 'Meditation rewires your brain for calm.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["phone with meditation app"],
+      benefits: ["reduces stress", "increases focus", "improves mood"],
+      motivation: "Meditation rewires your brain for calm.",
     },
     {
-      title: 'Gratitude Journaling',
-      description: 'Write down 3 things you are grateful for today.',
+      title: "Gratitude Journaling",
+      description: "Write down 3 things you are grateful for today.",
       duration: 3,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['journal', 'pen'],
-      benefits: ['shifts mindset', 'increases happiness', 'boosts resilience'],
-      motivation: 'Gratitude is a superpower for mental health.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["journal", "pen"],
+      benefits: ["shifts mindset", "increases happiness", "boosts resilience"],
+      motivation: "Gratitude is a superpower for mental health.",
     },
     {
-      title: 'Reach Out to Friend',
-      description: 'Text or call one friend you haven\'t talked to recently.',
+      title: "Reach Out to Friend",
+      description: "Text or call one friend you haven't talked to recently.",
       duration: 5,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['phone'],
-      benefits: ['strengthens connection', 'combats loneliness', 'boosts mood'],
-      motivation: 'Connection is medicine for anxiety.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["phone"],
+      benefits: ["strengthens connection", "combats loneliness", "boosts mood"],
+      motivation: "Connection is medicine for anxiety.",
     },
   ],
   finances: [
     {
-      title: 'Track One Expense',
-      description: 'Log today\'s largest purchase into your budget app.',
+      title: "Track One Expense",
+      description: "Log today's largest purchase into your budget app.",
       duration: 2,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['budget app or spreadsheet'],
-      benefits: ['awareness', 'prevents overspending', 'accountability'],
-      motivation: 'What you track, you control.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["budget app or spreadsheet"],
+      benefits: ["awareness", "prevents overspending", "accountability"],
+      motivation: "What you track, you control.",
     },
     {
-      title: 'Review One Bill',
-      description: 'Check one monthly subscription. Cancel if unused.',
+      title: "Review One Bill",
+      description: "Check one monthly subscription. Cancel if unused.",
       duration: 5,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['phone or computer'],
-      benefits: ['saves money', 'reduces waste', 'clarity on spending'],
-      motivation: 'Small cuts compound over time.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["phone or computer"],
+      benefits: ["saves money", "reduces waste", "clarity on spending"],
+      motivation: "Small cuts compound over time.",
     },
     {
-      title: 'Save $5-10',
-      description: 'Transfer $5-10 to savings. No amount is too small.',
+      title: "Save $5-10",
+      description: "Transfer $5-10 to savings. No amount is too small.",
       duration: 2,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['banking app'],
-      benefits: ['builds savings habit', 'security', 'progress'],
-      motivation: 'Every dollar counts. Build momentum.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["banking app"],
+      benefits: ["builds savings habit", "security", "progress"],
+      motivation: "Every dollar counts. Build momentum.",
     },
   ],
   physical_health: [
     {
-      title: 'Posture Check',
-      description: 'Sit up straight, roll shoulders back, align ears over shoulders.',
+      title: "Posture Check",
+      description:
+        "Sit up straight, roll shoulders back, align ears over shoulders.",
       duration: 1,
-      difficulty: 'easy',
-      energy: 'low',
+      difficulty: "easy",
+      energy: "low",
       tools: [],
-      benefits: ['reduces pain', 'improves confidence', 'aids digestion'],
-      motivation: 'Posture affects both body and mind.',
+      benefits: ["reduces pain", "improves confidence", "aids digestion"],
+      motivation: "Posture affects both body and mind.",
     },
     {
-      title: 'Body Scan',
-      description: 'Mentally scan your body from head to toe. Notice where you hold tension.',
+      title: "Body Scan",
+      description:
+        "Mentally scan your body from head to toe. Notice where you hold tension.",
       duration: 3,
-      difficulty: 'easy',
-      energy: 'low',
+      difficulty: "easy",
+      energy: "low",
       tools: [],
-      benefits: ['increases body awareness', 'identifies tension', 'promotes relaxation'],
-      motivation: 'Awareness is the first step to healing.',
+      benefits: [
+        "increases body awareness",
+        "identifies tension",
+        "promotes relaxation",
+      ],
+      motivation: "Awareness is the first step to healing.",
     },
     {
-      title: 'Mobility Drill',
-      description: 'Do 2 minutes of hip circles, arm rotations, and neck rolls.',
+      title: "Mobility Drill",
+      description:
+        "Do 2 minutes of hip circles, arm rotations, and neck rolls.",
       duration: 2,
-      difficulty: 'easy',
-      energy: 'low',
+      difficulty: "easy",
+      energy: "low",
       tools: [],
-      benefits: ['improves range of motion', 'prevents injury', 'feels good'],
-      motivation: 'Mobility is quality of life.',
+      benefits: ["improves range of motion", "prevents injury", "feels good"],
+      motivation: "Mobility is quality of life.",
     },
   ],
   social: [
     {
-      title: 'Send a Compliment',
-      description: 'Message someone and tell them something you appreciate about them.',
+      title: "Send a Compliment",
+      description:
+        "Message someone and tell them something you appreciate about them.",
       duration: 2,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['phone'],
-      benefits: ['strengthens relationships', 'spreads joy', 'builds connection'],
-      motivation: 'Kindness comes back multiplied.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["phone"],
+      benefits: [
+        "strengthens relationships",
+        "spreads joy",
+        "builds connection",
+      ],
+      motivation: "Kindness comes back multiplied.",
     },
     {
-      title: 'Social Plan',
-      description: 'Schedule a 30-min call or coffee with a friend.',
+      title: "Social Plan",
+      description: "Schedule a 30-min call or coffee with a friend.",
       duration: 5,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['phone', 'calendar'],
-      benefits: ['combats loneliness', 'deepens bonds', 'gives you something to look forward to'],
-      motivation: 'Scheduled social time is more likely to happen.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["phone", "calendar"],
+      benefits: [
+        "combats loneliness",
+        "deepens bonds",
+        "gives you something to look forward to",
+      ],
+      motivation: "Scheduled social time is more likely to happen.",
     },
   ],
   spirituality: [
     {
-      title: 'Morning Intention',
-      description: 'Set one intention for the day. Write it down or say it aloud.',
+      title: "Morning Intention",
+      description:
+        "Set one intention for the day. Write it down or say it aloud.",
       duration: 2,
-      difficulty: 'easy',
-      energy: 'low',
-      tools: ['journal or paper'],
-      benefits: ['clarity', 'purpose', 'direction'],
-      motivation: 'Intention creates alignment.',
+      difficulty: "easy",
+      energy: "low",
+      tools: ["journal or paper"],
+      benefits: ["clarity", "purpose", "direction"],
+      motivation: "Intention creates alignment.",
     },
     {
-      title: 'Gratitude Walk',
-      description: 'Walk outside and notice 5 things you\'re grateful for.',
+      title: "Gratitude Walk",
+      description: "Walk outside and notice 5 things you're grateful for.",
       duration: 5,
-      difficulty: 'easy',
-      energy: 'medium',
+      difficulty: "easy",
+      energy: "medium",
       tools: [],
-      benefits: ['connects to purpose', 'increases happiness', 'mindfulness'],
-      motivation: 'Nature and gratitude are deeply connecting.',
+      benefits: ["connects to purpose", "increases happiness", "mindfulness"],
+      motivation: "Nature and gratitude are deeply connecting.",
     },
   ],
 };
@@ -314,19 +355,45 @@ export const generateMicroActions = async (pillar, context = {}) => {
       Format as JSON array with objects containing: 
       { title, description, duration, difficulty, tools, benefits, motivation }
       
-      ${context.score ? `Current ${pillar} score: ${context.score}/10` : ''}
-      ${context.trend ? `Trend: ${context.trend}` : ''}
+      ${context.score ? `Current ${pillar} score: ${context.score}/10` : ""}
+      ${context.trend ? `Trend: ${context.trend}` : ""}
     `;
 
+    if (!openai) {
+      console.warn(
+        "[microActionsEngine] OPENAI_API_KEY is not configured; returning default micro-action fallback."
+      );
+
+      return {
+        ok: false,
+        pillar,
+        actions: [
+          {
+            id: `${pillar}-default`,
+            pillar,
+            title: `Take a 5-minute break`,
+            description: `Pause what you are doing and take a moment to breathe and refocus.`,
+            duration: 5,
+            difficulty: "easy",
+            energyRequired: "low",
+            tools: [],
+            benefits: ["reduces stress", "increases clarity"],
+            motivation: "Small breaks boost productivity and wellbeing.",
+          },
+        ],
+      };
+    }
+
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: "gpt-4-turbo-preview",
       messages: [
         {
-          role: 'system',
-          content: 'You are a wellness coach who creates quick, achievable micro-actions. Always return valid JSON.',
+          role: "system",
+          content:
+            "You are a wellness coach who creates quick, achievable micro-actions. Always return valid JSON.",
         },
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ],
@@ -345,12 +412,12 @@ export const generateMicroActions = async (pillar, context = {}) => {
         id: `${pillar}-ai-${index}`,
         pillar,
         ...action,
-        difficulty: action.difficulty || 'easy',
-        energyRequired: action.energy || 'low',
+        difficulty: action.difficulty || "easy",
+        energyRequired: action.energy || "low",
       })),
     };
   } catch (error) {
-    console.error('Generate micro-actions error:', error);
+    console.error("Generate micro-actions error:", error);
     // Return default action on error
     return {
       ok: false,
@@ -362,11 +429,11 @@ export const generateMicroActions = async (pillar, context = {}) => {
           title: `Take a 5-minute break`,
           description: `Pause what you are doing and take a moment to breathe and refocus.`,
           duration: 5,
-          difficulty: 'easy',
-          energyRequired: 'low',
+          difficulty: "easy",
+          energyRequired: "low",
           tools: [],
-          benefits: ['reduces stress', 'increases clarity'],
-          motivation: 'Small breaks boost productivity and wellbeing.',
+          benefits: ["reduces stress", "increases clarity"],
+          motivation: "Small breaks boost productivity and wellbeing.",
         },
       ],
     };
@@ -382,11 +449,11 @@ export const generateMicroActions = async (pillar, context = {}) => {
  */
 export const completeMicroAction = async (userId, actionId, pillar) => {
   try {
-    const Entry = (await import('../../models/Entry.js')).default;
+    const Entry = (await import("../../models/Entry.js")).default;
 
     const entry = await Entry.create({
       userId,
-      type: 'micro-action',
+      type: "micro-action",
       pillar,
       date: new Date(),
       score: 100, // Full points for completing a micro-action
@@ -402,7 +469,7 @@ export const completeMicroAction = async (userId, actionId, pillar) => {
       entry,
     };
   } catch (error) {
-    console.error('Complete micro-action error:', error);
+    console.error("Complete micro-action error:", error);
     return {
       ok: false,
       error: error.message,
