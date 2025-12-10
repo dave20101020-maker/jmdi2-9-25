@@ -604,17 +604,6 @@ function DashboardContent({ user }) {
           />
         </div>
 
-        <section className="ns-card mt-8 flex flex-col items-center gap-4 text-center">
-          <p className="text-xs uppercase tracking-[0.4em] text-white/40">
-            Orbit Map
-          </p>
-          <LifeOrbitVisualizer pillars={orbitPillars} />
-          <p className="text-white/60 text-sm max-w-xl">
-            Each pillar orbits your average life score. Watch for low-flying
-            planets—they highlight where to focus today.
-          </p>
-        </section>
-
         {/* Life Score Hero */}
         <div className="text-center mt-8 mb-8">
           <div className="flex justify-center">
