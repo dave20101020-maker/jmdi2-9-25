@@ -10,12 +10,21 @@
 
 import OpenAI from "openai";
 
-const openaiApiKey = process.env.OPENAI_API_KEY;
-const openai = openaiApiKey
-  ? new OpenAI({
-      apiKey: openaiApiKey,
-    })
-  : null;
+const getOpenAIClient = () => {
+  if (!process.env.OPENAI_API_KEY) return null;
+
+  try {
+    return new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  } catch (error) {
+    console.warn(
+      "[microActionsEngine] OpenAI client initialization failed:",
+      error?.message
+    );
+    return null;
+  }
+};
 
 /**
  * Micro-action template structure
@@ -359,28 +368,14 @@ export const generateMicroActions = async (pillar, context = {}) => {
       ${context.trend ? `Trend: ${context.trend}` : ""}
     `;
 
+    const openai = getOpenAIClient();
     if (!openai) {
-      console.warn(
-        "[microActionsEngine] OPENAI_API_KEY is not configured; returning default micro-action fallback."
-      );
-
       return {
         ok: false,
         pillar,
-        actions: [
-          {
-            id: `${pillar}-default`,
-            pillar,
-            title: `Take a 5-minute break`,
-            description: `Pause what you are doing and take a moment to breathe and refocus.`,
-            duration: 5,
-            difficulty: "easy",
-            energyRequired: "low",
-            tools: [],
-            benefits: ["reduces stress", "increases clarity"],
-            motivation: "Small breaks boost productivity and wellbeing.",
-          },
-        ],
+        message:
+          "OpenAI is not configured. Provide OPENAI_API_KEY to enable generated micro-actions.",
+        actions: [],
       };
     }
 

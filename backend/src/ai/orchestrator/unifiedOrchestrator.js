@@ -34,7 +34,7 @@ import logger from "../../utils/logger.js";
 import {
   deriveCorrelationInsights,
   formatCorrelationNarrative,
-} from "../../utils/correlationEngine.js";
+} from "../../../utils/correlationEngine.js";
 
 /**
  * AI Module Registry
@@ -106,15 +106,14 @@ export async function orchestrateAI({
   options = {},
 }) {
   try {
-    // Validate inputs
     if (!userId) {
       throw new Error("userId is required");
     }
+
     if (!message || typeof message !== "string" || !message.trim()) {
       throw new Error("Valid message is required");
     }
 
-    // Load user memory
     const memory = context.memory || (await loadMemory(userId));
 
     // STEP 1: Crisis Check (always runs first unless explicitly disabled)
@@ -145,12 +144,10 @@ export async function orchestrateAI({
     let selectedModule = module;
 
     if (!selectedModule) {
-      // If pillar provided, map to coach
       if (pillar) {
         selectedModule =
           PILLAR_TO_COACH[pillar] || AI_MODULES.MENTAL_HEALTH_COACH;
       } else {
-        // Route based on message content
         selectedModule = await routeToModule(message, context);
       }
     }
@@ -420,7 +417,10 @@ async function executeSleepCoach({
     metadata: {
       model: result.model,
       provider: result.provider,
-      usage: result.usage
+      usage: result.usage,
+    },
+  };
+}
 /**
  * Execute Mental Health Coach
  */

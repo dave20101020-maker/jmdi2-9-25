@@ -15,19 +15,24 @@ import { Toaster as SonnerToaster } from "sonner";
 import AuthGuard from "./components/auth/AuthGuard";
 import CheckIns from "./pages/CheckIns";
 import PillarPage from "./pages/pillars/PillarPage";
-import SleepPillar from "./pages/pillars/SleepPillar";
-import DietPillar from "./pages/pillars/DietPillar";
-import ExercisePillar from "./pages/pillars/ExercisePillar";
-import PhysicalHealthPillar from "./pages/pillars/PhysicalHealthPillar";
-import MentalHealthPillar from "./pages/pillars/MentalHealthPillar";
-import FinancesPillar from "./pages/pillars/FinancesPillar";
-import SocialPillar from "./pages/pillars/SocialPillar";
-import SpiritualityPillar from "./pages/pillars/SpiritualityPillar";
+import {
+  SleepPillarPage,
+  DietPillarPage,
+  ExercisePillarPage,
+  PhysicalHealthPillarPage,
+  MentalHealthPillarPage,
+  FinancesPillarPage,
+  SocialPillarPage,
+  SpiritualityPillarPage,
+} from "./pages/pillars/PillarDetailScreens";
 import queryClient from "./app/queryClient";
 import Pillars from "@/pages/Pillars";
 import { NAMED_ROUTES } from "@/config/routes";
 import CoachHub from "./pages/coach/CoachHub";
 import NorthStarAssistant from "@/ai/NorthStarAssistant";
+import Privacy from "./pages/compliance/Privacy";
+import Terms from "./pages/compliance/Terms";
+import TrustCenter from "./pages/compliance/TrustCenter";
 
 function AppRoutes() {
   return (
@@ -57,7 +62,7 @@ function AppRoutes() {
           path="/pillars/sleep"
           element={
             <AuthGuard>
-              <SleepPillar />
+              <SleepPillarPage />
             </AuthGuard>
           }
         />
@@ -65,7 +70,7 @@ function AppRoutes() {
           path="/pillars/diet"
           element={
             <AuthGuard>
-              <DietPillar />
+              <DietPillarPage />
             </AuthGuard>
           }
         />
@@ -73,7 +78,7 @@ function AppRoutes() {
           path="/pillars/exercise"
           element={
             <AuthGuard>
-              <ExercisePillar />
+              <ExercisePillarPage />
             </AuthGuard>
           }
         />
@@ -81,7 +86,7 @@ function AppRoutes() {
           path="/pillars/physical_health"
           element={
             <AuthGuard>
-              <PhysicalHealthPillar />
+              <PhysicalHealthPillarPage />
             </AuthGuard>
           }
         />
@@ -89,7 +94,7 @@ function AppRoutes() {
           path="/pillars/mental_health"
           element={
             <AuthGuard>
-              <MentalHealthPillar />
+              <MentalHealthPillarPage />
             </AuthGuard>
           }
         />
@@ -97,7 +102,7 @@ function AppRoutes() {
           path="/pillars/finances"
           element={
             <AuthGuard>
-              <FinancesPillar />
+              <FinancesPillarPage />
             </AuthGuard>
           }
         />
@@ -105,7 +110,7 @@ function AppRoutes() {
           path="/pillars/social"
           element={
             <AuthGuard>
-              <SocialPillar />
+              <SocialPillarPage />
             </AuthGuard>
           }
         />
@@ -113,7 +118,7 @@ function AppRoutes() {
           path="/pillars/spirituality"
           element={
             <AuthGuard>
-              <SpiritualityPillar />
+              <SpiritualityPillarPage />
             </AuthGuard>
           }
         />
