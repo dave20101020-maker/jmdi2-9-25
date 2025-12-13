@@ -42,6 +42,12 @@ export default function NorthStarAssistant() {
   }>([]);
   const [loading, setLoading] = useState(false);
   const [routeNote, setRouteNote] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<{
+    status?: number;
+    body?: string;
+    url?: string;
+  } | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   const activeAgent = useMemo(
     () => getAgentById(activeAgentId) || PILLAR_AI_AGENTS[0],
@@ -61,6 +67,8 @@ export default function NorthStarAssistant() {
     setInput("");
     setLoading(true);
     setRouteNote(null);
+    setDiagnostics(null);
+    setShowDetails(false);
 
     try {
       let responseText = DEMO_MODE
@@ -77,8 +85,10 @@ export default function NorthStarAssistant() {
         responseText =
           apiResponse?.message ||
           "NorthStar is temporarily unavailable. Try again soon or switch to demo mode for local suggestions.";
+        setDiagnostics(apiResponse?.diagnostics || null);
       } else if (apiResponse?.response || apiResponse?.text) {
         responseText = apiResponse.response || apiResponse.text;
+        setDiagnostics(apiResponse?.diagnostics || null);
       } else if (DEMO_MODE) {
         responseText = `Here's a NorthStar sample plan for ${activeAgent.name}: try one quick win and let me know how it feels.`;
       }
@@ -116,6 +126,15 @@ export default function NorthStarAssistant() {
           agentName: "NorthStar AI",
         },
       ]);
+      setDiagnostics(
+        error && typeof error === "object"
+          ? {
+              status: (error as any)?.status,
+              body: (error as any)?.message,
+              url: "/api/ai",
+            }
+          : null
+      );
     } finally {
       setLoading(false);
     }
@@ -176,6 +195,52 @@ export default function NorthStarAssistant() {
             <div className="flex items-start gap-2 bg-amber-500/10 text-amber-200 text-xs px-4 py-2 border-b border-amber-400/40">
               <ShieldCheck className="h-4 w-4 mt-0.5" />
               <p>{routeNote}</p>
+            </div>
+          )}
+
+          {diagnostics && (
+            <div className="px-4 py-2 text-xs text-amber-100 bg-amber-500/10 border-b border-amber-400/30 flex items-center justify-between gap-2">
+              <div>
+                <p className="font-semibold text-amber-100">
+                  {diagnostics.status
+                    ? `AI issue (status ${diagnostics.status})`
+                    : "AI issue: connection"}
+                </p>
+                <p className="text-amber-200/80">
+                  Try again in a moment or view details for diagnostics.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-400/50 text-amber-100 hover:bg-amber-500/10"
+                onClick={() => setShowDetails((v) => !v)}
+              >
+                {showDetails ? "Hide details" : "View details"}
+              </Button>
+            </div>
+          )}
+
+          {diagnostics && showDetails && (
+            <div className="px-4 py-3 text-xs bg-slate-900/80 border-b border-slate-800 space-y-1">
+              <div className="flex gap-2">
+                <span className="text-slate-400 w-16">Status</span>
+                <span className="text-slate-100">
+                  {diagnostics.status ?? "n/a"}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-slate-400 w-16">URL</span>
+                <span className="text-slate-100 break-all">
+                  {diagnostics.url || "/api/ai"}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-slate-400 w-16">Body</span>
+                <span className="text-slate-100 break-all whitespace-pre-wrap">
+                  {(diagnostics.body || "(empty)").toString().slice(0, 800)}
+                </span>
+              </div>
             </div>
           )}
 

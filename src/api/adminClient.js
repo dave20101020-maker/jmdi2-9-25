@@ -1,8 +1,8 @@
-import axios from 'axios';
+import axios from "axios";
 
 /**
  * Admin Client API Wrapper
- * 
+ *
  * Centralizes all admin API calls with:
  * - Base URL configuration
  * - Error handling
@@ -10,7 +10,11 @@ import axios from 'axios';
  * - Response formatting
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
+  "/api";
 
 const adminClient = {
   /**
@@ -23,13 +27,13 @@ const adminClient = {
         `${API_BASE_URL}/api/admin/users/count`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
       return response.data;
     } catch (error) {
-      console.error('Failed to fetch user count:', error);
+      console.error("Failed to fetch user count:", error);
       throw error;
     }
   },
@@ -44,13 +48,13 @@ const adminClient = {
         `${API_BASE_URL}/api/admin/ai/usage-summary`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
       return response.data;
     } catch (error) {
-      console.error('Failed to fetch AI usage summary:', error);
+      console.error("Failed to fetch AI usage summary:", error);
       throw error;
     }
   },
@@ -61,17 +65,14 @@ const adminClient = {
    */
   getDashboardStats: async () => {
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/api/admin/dashboard`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
+      const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
       return response.data;
     } catch (error) {
-      console.error('Failed to fetch dashboard stats:', error);
+      console.error("Failed to fetch dashboard stats:", error);
       throw error;
     }
   },
@@ -82,24 +83,21 @@ const adminClient = {
    */
   checkAdminAccess: async () => {
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/api/admin/access`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
+      const response = await axios.get(`${API_BASE_URL}/api/admin/access`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
       return response.data.isAdmin;
     } catch (error) {
       // 403 means user exists but isn't admin, which is expected
       if (error.response?.status === 403) {
         return false;
       }
-      console.error('Failed to check admin access:', error);
+      console.error("Failed to check admin access:", error);
       throw error;
     }
-  }
+  },
 };
 
 export { adminClient };

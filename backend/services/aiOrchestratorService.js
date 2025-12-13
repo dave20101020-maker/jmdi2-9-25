@@ -17,6 +17,134 @@ import PillarCheckIn from "../models/PillarCheckIn.js";
 import Habit from "../models/Habit.js";
 import logger from "../utils/logger.js";
 
+// Resilience controls
+const MAX_RETRIES = 3;
+const BASE_BACKOFF_MS = 250;
+const CIRCUIT_FAILURE_THRESHOLD = 5;
+const CIRCUIT_OPEN_MS = 2 * 60 * 1000; // 2 minutes
+
+const circuitState = {
+  failureCount: 0,
+  openUntil: 0,
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const extractStatus = (err) => {
+  if (!err) return undefined;
+  if (err.status) return err.status;
+  if (err.response?.status) return err.response.status;
+  if (err.code === "ETIMEDOUT" || err.code === "ESOCKETTIMEDOUT") return 408;
+  if (err.code === "ECONNRESET") return 502;
+  return undefined;
+};
+
+const isTransient = (status, err) => {
+  if (!status) {
+    const code = err?.code?.toLowerCase?.();
+    return code?.includes("timeout") || code === "ecconnreset";
+  }
+  return [408, 502, 503, 504].includes(status);
+};
+
+const isCircuitOpen = () => Date.now() < circuitState.openUntil;
+
+const openCircuit = (label) => {
+  circuitState.openUntil = Date.now() + CIRCUIT_OPEN_MS;
+  logger.warn("AI circuit opened", {
+    label,
+    failureCount: circuitState.failureCount,
+    retryAt: new Date(circuitState.openUntil).toISOString(),
+  });
+};
+
+const recordFailure = (label) => {
+  circuitState.failureCount += 1;
+  if (
+    circuitState.failureCount >= CIRCUIT_FAILURE_THRESHOLD &&
+    !isCircuitOpen()
+  ) {
+    openCircuit(label);
+  }
+};
+
+const recordSuccess = (label) => {
+  if (circuitState.failureCount > 0 || isCircuitOpen()) {
+    logger.info("AI circuit reset", {
+      label,
+      previousFailures: circuitState.failureCount,
+    });
+  }
+  circuitState.failureCount = 0;
+  circuitState.openUntil = 0;
+};
+
+async function runWithResilience(label, fn) {
+  if (isCircuitOpen()) {
+    return {
+      ok: false,
+      error: true,
+      message:
+        "AI temporarily unavailable. Please try again in a couple of minutes.",
+      circuitOpen: true,
+      retryAt: new Date(circuitState.openUntil).toISOString(),
+    };
+  }
+
+  let lastError;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+    try {
+      const result = await fn();
+
+      // If downstream signals a transient failure via status, retry
+      const transientStatus = extractStatus(result);
+      if (result?.ok === false && isTransient(transientStatus, result)) {
+        throw result;
+      }
+
+      recordSuccess(label);
+      return result;
+    } catch (err) {
+      lastError = err;
+      const status = extractStatus(err);
+
+      if (!isTransient(status, err)) {
+        // Non-transient: reset circuit and bubble
+        recordSuccess(label);
+        throw err;
+      }
+
+      recordFailure(label);
+
+      const backoff = Math.min(BASE_BACKOFF_MS * 2 ** attempt, 2000);
+      logger.warn("AI transient error — retrying", {
+        label,
+        attempt: attempt + 1,
+        status,
+        backoffMs: backoff,
+        message: err?.message,
+      });
+
+      if (attempt < MAX_RETRIES - 1) {
+        await sleep(backoff);
+      }
+    }
+  }
+
+  const status = extractStatus(lastError);
+  return {
+    ok: false,
+    error: true,
+    status,
+    message: "AI temporarily unavailable after retries",
+    circuitOpen: isCircuitOpen(),
+    retryAt: isCircuitOpen()
+      ? new Date(circuitState.openUntil).toISOString()
+      : undefined,
+  };
+}
+
 /**
  * Process AI chat message with unified orchestrator
  */
@@ -44,14 +172,16 @@ export async function processAIChat({
     };
 
     // Orchestrate AI response
-    const result = await orchestrateAI({
-      userId: userId.toString(),
-      message,
-      pillar,
-      module,
-      context,
-      options,
-    });
+    const result = await runWithResilience("processAIChat", () =>
+      orchestrateAI({
+        userId: userId.toString(),
+        message,
+        pillar,
+        module,
+        context,
+        options,
+      })
+    );
 
     return result;
   } catch (error) {
@@ -83,13 +213,15 @@ export async function generateJournalingPrompt({
     const message =
       customMessage || `Generate a ${promptType} journaling prompt`;
 
-    const result = await orchestrateAI({
-      userId: userId.toString(),
-      message,
-      module: AI_MODULES.JOURNALING_AGENT,
-      options: { promptType },
-      context: { skipCrisisCheck: true },
-    });
+    const result = await runWithResilience("generateJournalingPrompt", () =>
+      orchestrateAI({
+        userId: userId.toString(),
+        message,
+        module: AI_MODULES.JOURNALING_AGENT,
+        options: { promptType },
+        context: { skipCrisisCheck: true },
+      })
+    );
 
     return result;
   } catch (error) {
@@ -127,19 +259,21 @@ export async function generateAdaptivePlan({
 
     const message = `Create a ${timeframe} wellness plan focusing on ${focus}`;
 
-    const result = await orchestrateAI({
-      userId: userId.toString(),
-      message,
-      module: AI_MODULES.ADAPTIVE_PLANNER,
-      context: {
-        skipCrisisCheck: true,
-        assessments,
-        recentCheckIns: checkIns,
-        habits,
-        goals: [], // Add goals when available
-        userProfile: user,
-      },
-    });
+    const result = await runWithResilience("generateAdaptivePlan", () =>
+      orchestrateAI({
+        userId: userId.toString(),
+        message,
+        module: AI_MODULES.ADAPTIVE_PLANNER,
+        context: {
+          skipCrisisCheck: true,
+          assessments,
+          recentCheckIns: checkIns,
+          habits,
+          goals: [], // Add goals when available
+          userProfile: user,
+        },
+      })
+    );
 
     return result;
   } catch (error) {
@@ -185,18 +319,20 @@ export async function analyzeCorrelations({ userId, timeframe = 30 }) {
       .filter((ci) => ci.pillar === "mental_health")
       .map((ci) => ({ date: ci.createdAt, score: ci.score, data: ci.data }));
 
-    const result = await orchestrateAI({
-      userId: userId.toString(),
-      message: "Analyze my wellness patterns and correlations",
-      module: AI_MODULES.CORRELATION_ENGINE,
-      context: {
-        skipCrisisCheck: true,
-        checkIns,
-        habits,
-        sleepData,
-        moodData,
-      },
-    });
+    const result = await runWithResilience("analyzeCorrelations", () =>
+      orchestrateAI({
+        userId: userId.toString(),
+        message: "Analyze my wellness patterns and correlations",
+        module: AI_MODULES.CORRELATION_ENGINE,
+        context: {
+          skipCrisisCheck: true,
+          checkIns,
+          habits,
+          sleepData,
+          moodData,
+        },
+      })
+    );
 
     return result;
   } catch (error) {
@@ -219,13 +355,17 @@ export async function analyzeCorrelations({ userId, timeframe = 30 }) {
  */
 export async function generateMicroActionsForPillar({ userId, pillar }) {
   try {
-    const result = await orchestrateAI({
-      userId: userId.toString(),
-      message: `Generate quick actions for ${pillar}`,
-      module: AI_MODULES.MICRO_ACTIONS,
-      pillar,
-      context: { skipCrisisCheck: true },
-    });
+    const result = await runWithResilience(
+      "generateMicroActionsForPillar",
+      () =>
+        orchestrateAI({
+          userId: userId.toString(),
+          message: `Generate quick actions for ${pillar}`,
+          module: AI_MODULES.MICRO_ACTIONS,
+          pillar,
+          context: { skipCrisisCheck: true },
+        })
+    );
 
     return result;
   } catch (error) {
@@ -316,14 +456,16 @@ export async function executeWellnessWorkflow({ userId, workflowType }) {
       PillarCheckIn.find({ userId }).sort({ createdAt: -1 }).limit(20).lean(),
     ]);
 
-    const result = await orchestrateWorkflow({
-      userId: userId.toString(),
-      workflow,
-      context: {
-        userProfile: user,
-        recentCheckIns: checkIns,
-      },
-    });
+    const result = await runWithResilience("executeWellnessWorkflow", () =>
+      orchestrateWorkflow({
+        userId: userId.toString(),
+        workflow,
+        context: {
+          userProfile: user,
+          recentCheckIns: checkIns,
+        },
+      })
+    );
 
     return result;
   } catch (error) {

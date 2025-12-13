@@ -33,8 +33,10 @@ import pagesRoutes from "./routes/pages.js";
 import publicPagesRoutes from "./routes/publicPages.js";
 import navRoutes from "./routes/navRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import debugAiTestRoutes from "./routes/debugAiTest.js";
 
 const envName = process.env.NODE_ENV || "development";
+const providerKey = process.env.OPENAI_API_KEY || process.env.AI_PROVIDER_KEY;
 
 // Environment Variables
 const PORT = process.env.PORT || 5000;
@@ -47,6 +49,13 @@ if (!JWT_SECRET && envName === "production") {
   process.exit(1);
 }
 
+if (!providerKey && envName === "production") {
+  logger.error(
+    "FATAL: AI provider key (OPENAI_API_KEY or AI_PROVIDER_KEY) is required in production"
+  );
+  process.exit(1);
+}
+
 if (!MONGO_URI) {
   logger.warn("MONGO_URI not set — MongoDB connection will be skipped");
 }
@@ -55,32 +64,45 @@ if (!JWT_SECRET) {
   logger.warn("JWT_SECRET not set — using default (NOT SECURE for production)");
 }
 
+if (!providerKey) {
+  logger.warn("AI provider key not set — AI features will be disabled");
+}
+
 const codespaceOrigin = process.env.CODESPACE_NAME
   ? `https://${process.env.CODESPACE_NAME}-5173.app.github.dev`
   : null;
 
-const allowedOrigins = ["http://localhost:5173", codespaceOrigin];
+const envOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((entry) => entry.trim())
+  .filter(Boolean);
+
+const allowedOrigins = Array.from(
+  new Set(["http://localhost:5173", codespaceOrigin, ...envOrigins])
+);
 
 const app = express();
 
 // Middleware
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      const isAllowed = allowedOrigins.some((entry) => {
-        if (!entry) return false;
-        if (entry instanceof RegExp) return entry.test(origin);
-        return origin === entry;
-      });
-      if (isAllowed) return callback(null, true);
-      return callback(new Error(`CORS blocked origin: ${origin}`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const isAllowed = allowedOrigins.some((entry) => {
+      if (!entry) return false;
+      if (entry instanceof RegExp) return entry.test(origin);
+      return origin === entry;
+    });
+    if (isAllowed) return callback(null, true);
+    return callback(new Error(`CORS blocked origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // Request logging with Winston
 app.use(morgan("combined", { stream: logger.stream }));
@@ -116,6 +138,25 @@ app.get("/health", (req, res) => {
     message: "NorthStar Backend is running",
   });
 });
+
+// AI provider health endpoint
+app.get("/api/ai/unified/health", (req, res) => {
+  const present = Boolean(providerKey);
+  res.json({
+    provider_key_present: present,
+    ai_provider_status: present ? "ok" : "not-configured",
+  });
+});
+
+// Simple CORS test endpoint
+app.get("/api/test-cors", (req, res) => {
+  res.status(200).json({ ok: true, message: "CORS ok" });
+});
+
+// Dev-only AI debug route
+if (envName !== "production") {
+  app.use("/api/debug/ai", debugAiTestRoutes);
+}
 
 // AI Routes (legacy)
 app.use("/api/ai", aiRoutes);
