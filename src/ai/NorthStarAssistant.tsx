@@ -9,6 +9,10 @@ import {
   mapFrontendToBackendPillar,
 } from "@/data/pillarAgents";
 import { cn } from "@/utils";
+import {
+  normalizeAiDiagnosticsFromError,
+  renderAiDiagnosticLabel,
+} from "@/ai/diagnostics";
 
 const DEMO_MODE =
   (import.meta.env.VITE_DEMO_MODE || "").toLowerCase() === "true";
@@ -126,16 +130,7 @@ export default function NorthStarAssistant() {
           agentName: "NorthStar AI",
         },
       ]);
-      if (error && typeof error === "object") {
-        const typed = error as { status?: number; message?: string };
-        setDiagnostics({
-          status: typed.status,
-          body: typed.message,
-          url: "/api/ai",
-        });
-      } else {
-        setDiagnostics(null);
-      }
+      setDiagnostics(normalizeAiDiagnosticsFromError(error, "/api/ai"));
     } finally {
       setLoading(false);
     }
@@ -144,6 +139,10 @@ export default function NorthStarAssistant() {
   const toggleAgent = (id: string) => {
     setActiveAgentId(id);
     setRouteNote(null);
+  };
+  const renderDiagnosticLabel = renderAiDiagnosticLabel;
+
+    return "AI service unavailable.";
   };
 
   return (
@@ -203,9 +202,7 @@ export default function NorthStarAssistant() {
             <div className="px-4 py-2 text-xs text-amber-100 bg-amber-500/10 border-b border-amber-400/30 flex items-center justify-between gap-2">
               <div>
                 <p className="font-semibold text-amber-100">
-                  {diagnostics.status
-                    ? `AI issue (status ${diagnostics.status})`
-                    : "AI issue: connection"}
+                  {renderDiagnosticLabel(diagnostics)}
                 </p>
                 <p className="text-amber-200/80">
                   Try again in a moment or view details for diagnostics.

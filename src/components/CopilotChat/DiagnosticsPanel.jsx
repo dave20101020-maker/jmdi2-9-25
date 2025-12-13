@@ -9,7 +9,7 @@ export default function DiagnosticsPanel({ open, onClose, diagnostics }) {
     { label: "Status", value: diagnostics?.status ?? "n/a" },
     { label: "Code", value: diagnostics?.code || "AI-UNKNOWN" },
     { label: "Message", value: diagnostics?.message || "(none)" },
-    { label: "URL", value: diagnostics?.url || "/api/ai/unified/chat" },
+    { label: "URL", value: diagnostics?.url || "/api/ai" },
     {
       label: "Body",
       value: diagnostics?.body

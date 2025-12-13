@@ -14,7 +14,7 @@ export default function DiagnosticsPanel() {
 
   const copyPayload = async () => {
     const payload = {
-      url: diagnostics?.url || "/api/ai/unified/chat",
+      url: diagnostics?.url || "/api/ai",
       status: diagnostics?.status ?? "n/a",
       code: diagnostics?.code || "AI-UNKNOWN",
       message: diagnostics?.message || "",
@@ -54,7 +54,7 @@ export default function DiagnosticsPanel() {
         <InfoRow label="Code" value={diagnostics?.code || "AI-UNKNOWN"} />
         <InfoRow
           label="URL"
-          value={diagnostics?.url || "/api/ai/unified/chat"}
+          value={diagnostics?.url || "/api/ai"}
           isMonospace
         />
         <InfoRow label="Message" value={diagnostics?.message || "(none)"} />

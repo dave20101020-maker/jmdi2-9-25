@@ -1,5 +1,9 @@
 import { Component } from "react";
 import { AlertCircle, RefreshCw, Home } from "lucide-react";
+import {
+  normalizeAiDiagnosticsFromError,
+  renderAiDiagnosticLabel,
+} from "@/ai/diagnostics";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -24,13 +28,31 @@ class AIErrorBoundary extends Component {
       errorType: "unknown", // 'api', 'network', 'timeout', 'validation', 'unknown'
       errorCount: 0,
       isRecoverable: true,
+      diagnostics: null,
     };
   }
 
   static getDerivedStateFromError(error) {
+    const diagnostics = normalizeAiDiagnosticsFromError(error, "/api/ai");
+
     // Determine error type
     let errorType = "unknown";
     let isRecoverable = true;
+
+    if (diagnostics.status === 0 && diagnostics.body === "timeout") {
+      errorType = "timeout";
+    } else if (
+      diagnostics.status === 0 &&
+      diagnostics.body === "network_error"
+    ) {
+      errorType = "network";
+    } else if (typeof diagnostics.status === "number") {
+      if (diagnostics.status === 400) {
+        errorType = "validation";
+      } else {
+        errorType = "api";
+      }
+    }
 
     if (error.message?.includes("API")) {
       errorType = "api";
@@ -54,6 +76,7 @@ class AIErrorBoundary extends Component {
       error,
       errorType,
       isRecoverable,
+      diagnostics,
     };
   }
 
@@ -91,7 +114,11 @@ class AIErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
-      const { error, errorType, isRecoverable, errorCount } = this.state;
+      const { error, errorType, isRecoverable, errorCount, diagnostics } =
+        this.state;
+      const normalizedLabel = diagnostics
+        ? renderAiDiagnosticLabel(diagnostics)
+        : null;
 
       // Custom fallback if provided
       if (this.props.fallback) {
@@ -123,7 +150,7 @@ class AIErrorBoundary extends Component {
 
               {/* Error Description */}
               <p className="text-sm text-orange-600 dark:text-orange-300 mb-3">
-                {this.getErrorMessage(errorType)}
+                {normalizedLabel || this.getErrorMessage(errorType)}
               </p>
 
               {/* Development Error Details */}

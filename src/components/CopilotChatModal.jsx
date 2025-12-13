@@ -4,6 +4,11 @@ import { X, Send, Loader2, AlertTriangle } from "lucide-react";
 import DiagnosticsPanel from "./CopilotChat/DiagnosticsPanel";
 import useDiagnosticsStore from "@/store/diagnosticsStore";
 import { apiClient } from "@/utils/apiClient";
+import {
+  normalizeAiDiagnosticsFromError,
+  renderAiDiagnosticLabel,
+} from "@/ai/diagnostics";
+import { useAuth } from "@/hooks/useAuth";
 
 const fallbackReply = (prompt) =>
   `Mock reply for: "${prompt}". The AI service is unavailable (503).`;
@@ -61,11 +66,31 @@ export default function CopilotChatModal({ open, onClose }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [accessIssue, setAccessIssue] = useState(null);
+  const { user, initializing, demoMode } = useAuth();
+  const isAuthenticated = Boolean(user) || demoMode;
   const { crisisState, evaluateCrisisSignal, resetCrisis } =
     useCrisisDetection();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const setDiagnosticsStore = useDiagnosticsStore((s) => s.setDiagnostics);
   const containerRef = useRef(null);
+
+  const hasAiConsent = () => {
+    try {
+      const legacy = JSON.parse(localStorage.getItem("aiConsent") || "null");
+      if (legacy?.aiConsent === true) return true;
+    } catch {
+      // ignore
+    }
+    try {
+      const modern = JSON.parse(
+        localStorage.getItem("ai_usage_consent") || "null"
+      );
+      if (modern?.aiFeatures === true) return true;
+    } catch {
+      // ignore
+    }
+    return false;
+  };
 
   useEffect(() => {
     if (open && containerRef.current) {
@@ -151,6 +176,32 @@ export default function CopilotChatModal({ open, onClose }) {
 
   const sendMessage = async () => {
     if (!input.trim()) return;
+
+    // Defensive: re-check auth/consent at send time.
+    // FloatingCopilotButton already gates modal opening, but state can change.
+    if (initializing || !isAuthenticated) {
+      setAccessIssue({
+        type: "auth",
+        title: "Sign in to continue",
+        message: "Your session is missing or expired. Sign in to chat.",
+        primaryCta: { label: "Sign in", href: "/login" },
+        secondaryCta: { label: "Create account", href: "/register" },
+      });
+      return;
+    }
+
+    if (!hasAiConsent()) {
+      setAccessIssue({
+        type: "consent",
+        title: "Consent required",
+        message:
+          "We need your consent to enable AI chat. Review and grant consent in Settings.",
+        primaryCta: { label: "Review consent", href: "/settings" },
+        secondaryCta: { label: "Sign in", href: "/login" },
+      });
+      return;
+    }
+
     const prompt = input.trim();
     setInput("");
     setSending(true);
@@ -175,10 +226,18 @@ export default function CopilotChatModal({ open, onClose }) {
       ]);
       evaluateCrisisSignal(data);
     } catch (err) {
+      const normalizedDiagnostics = normalizeAiDiagnosticsFromError(
+        err,
+        "/api/ai"
+      );
+      const diagnosticLabel = renderAiDiagnosticLabel(normalizedDiagnostics);
+
       const mapped = mapError({
-        status: err?.status,
+        status: normalizedDiagnostics.status,
         message: err?.message,
-        timeout: err?.name === "AbortError",
+        timeout:
+          normalizedDiagnostics.status === 0 &&
+          normalizedDiagnostics.body === "timeout",
         code: err?.code,
         body: err?.body,
       });
@@ -195,19 +254,19 @@ export default function CopilotChatModal({ open, onClose }) {
         ]);
       }
       setError({
-        status: err?.status,
-        message: mapped.friendly,
+        status: normalizedDiagnostics.status,
+        message: diagnosticLabel,
         code: mapped.code,
-        body: err?.message || err?.body,
+        body: normalizedDiagnostics.body,
         timestamp: new Date().toISOString(),
-        url: "/api/ai/unified/chat",
+        url: normalizedDiagnostics.url,
       });
       setDiagnosticsStore({
-        status: err?.status,
-        body: err?.message || err?.body,
+        status: normalizedDiagnostics.status,
+        body: normalizedDiagnostics.body,
         code: mapped.code,
-        message: mapped.friendly,
-        url: "/api/ai/unified/chat",
+        message: diagnosticLabel,
+        url: normalizedDiagnostics.url,
       });
     } finally {
       setSending(false);
@@ -245,7 +304,7 @@ export default function CopilotChatModal({ open, onClose }) {
                   {error.message || "AI issue"}
                 </p>
                 <p className="text-amber-200/80">
-                  {`Status: ${error.status || "n/a"}`} · Code:{" "}
+                  {`Status: ${error.status ?? "n/a"}`} · Code:{" "}
                   {error.code || "AI-ERROR"}
                 </p>
               </div>

@@ -22,37 +22,31 @@ export default function AuthGuard({
   const location = useLocation();
   const redirectTarget = redirectTo || "/login";
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isFetching, isError, error } = useQuery({
     queryKey: ["session"],
     queryFn: async () => normalizeUser(await api.me()),
     retry: false,
   });
 
-  if (isLoading) {
+  if (isLoading || (isFetching && !data)) {
     return <RouteLoader message="Verifying your NorthStar session..." />;
   }
 
   const status =
     // @ts-expect-error axios/fetch error normalisation
     error?.status || error?.statusCode || error?.response?.status;
-  if (isError && status === 401) {
-    return (
-      <Navigate
-        to={redirectTarget}
-        replace
-        state={{ from: location.pathname || "/" }}
-      />
-    );
+  if (isError && (status === 401 || status === 403)) {
+    return <Navigate to={redirectTarget} replace state={{ from: location }} />;
   }
 
+  // Avoid redirecting during unknown/network/server errors.
+  if (isError) {
+    return <RouteLoader message="Unable to verify your session right now." />;
+  }
+
+  // Session call succeeded but no user was returned.
   if (!data) {
-    return (
-      <Navigate
-        to={redirectTarget}
-        replace
-        state={{ from: location.pathname || "/" }}
-      />
-    );
+    return <Navigate to={redirectTarget} replace state={{ from: location }} />;
   }
 
   return <>{children}</>;
