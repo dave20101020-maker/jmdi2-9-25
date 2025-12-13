@@ -10,11 +10,56 @@ import axios from "axios";
  * - Response formatting
  */
 
-const API_BASE_URL =
+const rawEnvBase =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_BACKEND_URL ||
-  "/api";
+  "";
+
+const isCodespacesHost = (hostname) =>
+  typeof hostname === "string" && hostname.endsWith(".app.github.dev");
+
+const toOriginOnly = (value) => {
+  if (!value) return "";
+  if (typeof value !== "string") return "";
+  if (value.startsWith("/")) return "";
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "";
+  }
+};
+
+const computeApiOrigin = () => {
+  const currentOrigin =
+    typeof window !== "undefined" && window.location
+      ? window.location.origin
+      : "";
+  const envOrigin = toOriginOnly(rawEnvBase);
+
+  if (!envOrigin) return currentOrigin;
+
+  if (typeof window !== "undefined" && window.location) {
+    const currentHost = window.location.hostname;
+    const envHost = (() => {
+      try {
+        return new URL(envOrigin).hostname;
+      } catch {
+        return "";
+      }
+    })();
+
+    if (isCodespacesHost(currentHost) && isCodespacesHost(envHost)) {
+      if (currentHost !== envHost) {
+        return currentOrigin;
+      }
+    }
+  }
+
+  return envOrigin;
+};
+
+const API_ORIGIN = computeApiOrigin() || "";
 
 const adminClient = {
   /**
@@ -23,14 +68,11 @@ const adminClient = {
    */
   getUserCount: async () => {
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/api/admin/users/count`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const response = await axios.get(`${API_ORIGIN}/api/admin/users/count`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
       return response.data;
     } catch (error) {
       console.error("Failed to fetch user count:", error);
@@ -45,7 +87,7 @@ const adminClient = {
   getAIUsageSummary: async () => {
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/api/admin/ai/usage-summary`,
+        `${API_ORIGIN}/api/admin/ai/usage-summary`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -65,7 +107,7 @@ const adminClient = {
    */
   getDashboardStats: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard`, {
+      const response = await axios.get(`${API_ORIGIN}/api/admin/dashboard`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -83,7 +125,7 @@ const adminClient = {
    */
   checkAdminAccess: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/admin/access`, {
+      const response = await axios.get(`${API_ORIGIN}/api/admin/access`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },

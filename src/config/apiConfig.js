@@ -5,12 +5,48 @@
  * Import this file to get URLs instead of hardcoding them in components.
  */
 
-// Base URL for all API calls
-export const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
+const normalizeOriginBase = (value) => {
+  if (!value) return "";
+  const trimmed = String(value).trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  if (trimmed === "/api") return "";
+  if (trimmed.endsWith("/api")) return trimmed.slice(0, -"/api".length);
+  return trimmed;
+};
+
+const isStaleCodespacesOrigin = (originBase) => {
+  if (typeof window === "undefined") return false;
+  try {
+    const currentHost = window.location?.hostname || "";
+    if (!currentHost.endsWith(".app.github.dev")) return false;
+
+    const url = new URL(originBase);
+    const targetHost = url.hostname || "";
+    if (!targetHost.endsWith(".app.github.dev")) return false;
+
+    const slugFromHost = (host) => {
+      const match = host.match(/^(.*)-\d+\.app\.github\.dev$/);
+      return match ? match[1] : null;
+    };
+
+    const currentSlug = slugFromHost(currentHost);
+    const targetSlug = slugFromHost(targetHost);
+    return Boolean(currentSlug && targetSlug && currentSlug !== targetSlug);
+  } catch {
+    return false;
+  }
+};
+
+// Base URL for all API calls (origin only). Endpoints below already include `/api/...`.
+const envOriginBase = normalizeOriginBase(
   import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  "/api";
+    import.meta.env.VITE_BACKEND_URL ||
+    import.meta.env.VITE_API_URL ||
+    ""
+);
+
+export const API_BASE_URL =
+  envOriginBase && isStaleCodespacesOrigin(envOriginBase) ? "" : envOriginBase;
 
 /**
  * AI Service Endpoints

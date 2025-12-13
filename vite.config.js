@@ -7,8 +7,8 @@ const isCodespaces = Boolean(process.env.CODESPACES);
 const codespaceDomain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
 const codespaceName = process.env.CODESPACE_NAME;
 
-const defaultCodespaceHost =
-  "fictional-disco-x5797q7rr56wf9v7-5173.app.github.dev";
+// Avoid baking a stale Codespaces hostname into the config.
+const defaultCodespaceHost = "localhost";
 const codespacesHmrHost =
   isCodespaces && codespaceDomain && codespaceName
     ? `${codespaceName}-${devPort}.${codespaceDomain}`
@@ -33,11 +33,13 @@ if (!isCodespacesTarget) {
   hmrConfig.port = devPort;
 }
 
-// Backend proxy setup: route /api to backend during dev
-const backendPort = process.env.BACKEND_PORT || 3000;
+// Backend proxy setup: route /api to backend during dev.
+// Default backend/server.js listens on 5000.
+const backendPort = Number(
+  process.env.BACKEND_PORT || process.env.PORT || 5000
+);
 const backendUrl =
   process.env.VITE_API_PROXY_TARGET ||
-  process.env.VITE_BACKEND_URL ||
   process.env.BACKEND_URL ||
   `http://localhost:${backendPort}`;
 

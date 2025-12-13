@@ -126,15 +126,16 @@ export default function NorthStarAssistant() {
           agentName: "NorthStar AI",
         },
       ]);
-      setDiagnostics(
-        error && typeof error === "object"
-          ? {
-              status: (error as any)?.status,
-              body: (error as any)?.message,
-              url: "/api/ai",
-            }
-          : null
-      );
+      if (error && typeof error === "object") {
+        const typed = error as { status?: number; message?: string };
+        setDiagnostics({
+          status: typed.status,
+          body: typed.message,
+          url: "/api/ai",
+        });
+      } else {
+        setDiagnostics(null);
+      }
     } finally {
       setLoading(false);
     }

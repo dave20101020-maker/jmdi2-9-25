@@ -56,6 +56,7 @@ const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [initializing, setInitializing] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
   const loadingRef = useRef(false);
 
@@ -84,6 +85,7 @@ export function AuthProvider({ children }) {
     const load = async () => {
       if (loadingRef.current) return;
       loadingRef.current = true;
+      setLoading(true);
       try {
         await refreshUser();
         setAuthError(null);
@@ -94,6 +96,7 @@ export function AuthProvider({ children }) {
       } finally {
         if (!cancelled) {
           setInitializing(false);
+          setLoading(false);
         }
         loadingRef.current = false;
       }
@@ -189,7 +192,7 @@ export function AuthProvider({ children }) {
     return {
       user,
       initializing,
-      loading: initializing,
+      loading,
       error: authError,
       demoMode: false,
       signIn,
@@ -203,6 +206,7 @@ export function AuthProvider({ children }) {
   }, [
     user,
     initializing,
+    loading,
     authError,
     signIn,
     signUp,

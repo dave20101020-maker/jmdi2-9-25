@@ -5,14 +5,16 @@ import ConnectionIssue from "@/components/fallbacks/ConnectionIssue";
 import RouteLoader from "@/components/fallbacks/RouteLoader";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function ProtectedRoute({ children, redirectTo = "/sign-in" }) {
+// DEPRECATED: The active router uses `AuthGuard` (see `src/components/auth/AuthGuard`).
+// This component remains to avoid breaking legacy imports (e.g., `src/router.jsx`).
+export default function ProtectedRoute({ children, redirectTo = "/login" }) {
   const DISABLE_PROTECTION = import.meta.env.VITE_DISABLE_PROTECTION === "true";
   const { user, initializing, error, demoMode } = useAuth();
   const DEMO_INIT_TIMEOUT_MS = Number(
     import.meta.env.VITE_DEMO_INIT_TIMEOUT_MS || 3000
   );
   const location = useLocation();
-  const redirectTarget = redirectTo || "/sign-in";
+  const redirectTarget = redirectTo || "/login";
   const shouldStoreReturnPath = location.pathname !== redirectTarget;
   const [expired, setExpired] = React.useState(false);
 

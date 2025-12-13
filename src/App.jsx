@@ -5,6 +5,7 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import AppShell from "./components/layout/AppShell";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
+import ForgotPassword from "./pages/auth/ForgotPassword";
 import Onboarding from "./pages/Onboarding";
 import DashboardNorthStar from "./pages/northstar/DashboardNorthStar";
 import Habits from "./pages/Habits";
@@ -52,6 +53,13 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<SignIn />} />
       <Route path="/register" element={<SignUp />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+
+      <Route path="/sign-in" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/sign-up"
+        element={<Navigate to="/register" replace />} // legacy alias
+      />
 
       <Route element={<AppShell />}>
         <Route index element={<Navigate to="/dashboard" replace />} />

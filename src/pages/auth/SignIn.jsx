@@ -81,7 +81,7 @@ export default function SignIn() {
 
   const redirectCandidate = location.state?.from?.pathname;
   const redirectPath =
-    redirectCandidate && redirectCandidate !== "/sign-in"
+    redirectCandidate && redirectCandidate !== "/login"
       ? redirectCandidate
       : "/dashboard";
   const benefits = useMemo(
@@ -281,7 +281,7 @@ export default function SignIn() {
       aside={missionAside}
       footer={
         <>
-          New here? <Link to="/sign-up">Create an account</Link>
+          New here? <Link to="/register">Create an account</Link>
         </>
       }
     >

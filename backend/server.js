@@ -34,6 +34,7 @@ import publicPagesRoutes from "./routes/publicPages.js";
 import navRoutes from "./routes/navRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import debugAiTestRoutes from "./routes/debugAiTest.js";
+import { primeProviderHealth } from "./utils/providerHealth.js";
 
 const envName = process.env.NODE_ENV || "development";
 const providerKey = process.env.OPENAI_API_KEY || process.env.AI_PROVIDER_KEY;
@@ -49,13 +50,6 @@ if (!JWT_SECRET && envName === "production") {
   process.exit(1);
 }
 
-if (!providerKey && envName === "production") {
-  logger.error(
-    "FATAL: AI provider key (OPENAI_API_KEY or AI_PROVIDER_KEY) is required in production"
-  );
-  process.exit(1);
-}
-
 if (!MONGO_URI) {
   logger.warn("MONGO_URI not set — MongoDB connection will be skipped");
 }
@@ -65,8 +59,17 @@ if (!JWT_SECRET) {
 }
 
 if (!providerKey) {
+  if (envName !== "development") {
+    logger.error(
+      "FATAL: AI provider key (OPENAI_API_KEY or AI_PROVIDER_KEY) is required outside development"
+    );
+    process.exit(1);
+  }
   logger.warn("AI provider key not set — AI features will be disabled");
 }
+
+// Kick off a non-blocking provider health probe so the first health request is warm
+primeProviderHealth();
 
 const codespaceOrigin = process.env.CODESPACE_NAME
   ? `https://${process.env.CODESPACE_NAME}-5173.app.github.dev`

@@ -53,8 +53,11 @@ function pickSeverity(score, bands = []) {
 }
 
 function buildResult(definition, { score, totalPossible, severity }) {
-  const percentile = totalPossible ? Math.round((score / totalPossible) * 100) : null;
-  const recs = DOMAIN_RECOMMENDATIONS[definition.domain] || DEFAULT_RECOMMENDATIONS;
+  const percentile = totalPossible
+    ? Math.round((score / totalPossible) * 100)
+    : null;
+  const recs =
+    DOMAIN_RECOMMENDATIONS[definition.domain] || DEFAULT_RECOMMENDATIONS;
   const interpretation = severity
     ? `${definition.name} suggests ${severity.toLowerCase()}.`
     : `${definition.name} responses are incomplete.`;
@@ -81,7 +84,9 @@ function sumResponses(definition, responses) {
 
 function defaultLikert(definition, responses) {
   const score = sumResponses(definition, responses);
-  const maxOption = definition.responseOptions?.[definition.responseOptions.length - 1]?.value ?? 4;
+  const maxOption =
+    definition.responseOptions?.[definition.responseOptions.length - 1]
+      ?.value ?? 4;
   const totalPossible = definition.questions.length * maxOption;
   const severity = pickSeverity(score, definition.severityBands);
   return buildResult(definition, { score, totalPossible, severity });
@@ -126,4 +131,3 @@ export function scoreAllAssessments(allResponses = {}) {
     return acc;
   }, {});
 }
-*** End Patch

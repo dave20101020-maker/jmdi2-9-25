@@ -1,28 +1,100 @@
 // src/utils/apiClient.js
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL ||
+const normalizeOriginBase = (value) => {
+  if (!value) return "";
+  const trimmed = String(value).trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+
+  // Allow legacy values like "/api" or "https://host/.../api".
+  if (trimmed === "/api") return "";
+  if (trimmed.endsWith("/api")) return trimmed.slice(0, -"/api".length);
+
+  return trimmed;
+};
+
+const isStaleCodespacesOrigin = (originBase) => {
+  if (typeof window === "undefined") return false;
+  try {
+    const currentHost = window.location?.hostname || "";
+    if (!currentHost.endsWith(".app.github.dev")) return false;
+
+    const url = new URL(originBase);
+    const targetHost = url.hostname || "";
+    if (!targetHost.endsWith(".app.github.dev")) return false;
+
+    const slugFromHost = (host) => {
+      const match = host.match(/^(.*)-\d+\.app\.github\.dev$/);
+      return match ? match[1] : null;
+    };
+
+    const currentSlug = slugFromHost(currentHost);
+    const targetSlug = slugFromHost(targetHost);
+    return Boolean(currentSlug && targetSlug && currentSlug !== targetSlug);
+  } catch {
+    return false;
+  }
+};
+
+const envOriginBase = normalizeOriginBase(
   import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  "/api";
+    import.meta.env.VITE_BACKEND_URL ||
+    import.meta.env.VITE_API_URL ||
+    ""
+);
 
-async function request(method, path, body) {
-  const options = {
-    method,
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-  };
+// If a stale Codespaces origin is baked into env, ignore it and rely on `/api` proxy.
+const DEFAULT_ORIGIN_BASE =
+  envOriginBase && isStaleCodespacesOrigin(envOriginBase) ? "" : envOriginBase;
 
-  if (body) {
-    options.body = JSON.stringify(body);
+const API_PREFIX = "/api";
+
+const normalizePath = (path = "/") => {
+  if (path.startsWith("http")) return path;
+  return path.startsWith("/") ? path : `/${path}`;
+};
+
+const normalizeApiPath = (path = "/") => {
+  const normalized = normalizePath(path);
+  if (normalized === API_PREFIX) return "/";
+  if (normalized.startsWith(`${API_PREFIX}/`)) {
+    return normalized.slice(API_PREFIX.length) || "/";
+  }
+  return normalized;
+};
+
+export class APIClient {
+  constructor(baseUrl = DEFAULT_ORIGIN_BASE) {
+    this.baseUrl = normalizeOriginBase(baseUrl);
   }
 
-  try {
-    const res = await fetch(`${BASE_URL}${path}`, options);
+  buildUrl(path) {
+    const apiPath = normalizeApiPath(path);
+    if (!this.baseUrl) {
+      return `${API_PREFIX}${apiPath}`;
+    }
+    return `${this.baseUrl}${API_PREFIX}${apiPath}`;
+  }
+
+  async refreshSession() {
+    const res = await fetch(this.buildUrl("/auth/refresh"), {
+      method: "POST",
+      credentials: "include",
+    });
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Request failed: ${res.status} - ${text}`);
+      let parsed;
+      try {
+        parsed = text ? JSON.parse(text) : null;
+      } catch {
+        parsed = null;
+      }
+      const message =
+        parsed?.message || parsed?.error || text || "Unable to refresh session";
+      const error = new Error(message);
+      error.status = res.status;
+      error.body = parsed || text;
+      throw error;
     }
 
     try {
@@ -30,38 +102,125 @@ async function request(method, path, body) {
     } catch {
       return null;
     }
-  } catch (err) {
-    // Network or DNS error: return demo-safe defaults to prevent UI crashes
-    if (method === "GET") return [];
-    return { ok: false, error: "connection" };
+  }
+
+  emit(eventName, detail) {
+    try {
+      window.dispatchEvent(new CustomEvent(eventName, { detail }));
+    } catch (_) {
+      // noop when window is unavailable
+    }
+  }
+
+  async request(path, options = {}) {
+    const {
+      method = "GET",
+      body,
+      headers = {},
+      retryOnUnauthorized = true,
+    } = options;
+
+    const url = this.buildUrl(path);
+    const init = {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      credentials: "include",
+    };
+
+    if (body !== undefined) {
+      init.body = typeof body === "string" ? body : JSON.stringify(body);
+    }
+
+    let res;
+    try {
+      res = await fetch(url, init);
+    } catch (err) {
+      if (method === "GET") return [];
+      return { ok: false, error: "connection" };
+    }
+
+    const text = await res.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+
+    if (res.status === 401 && retryOnUnauthorized) {
+      try {
+        await this.refreshSession();
+        return this.request(path, {
+          method,
+          body,
+          headers,
+          retryOnUnauthorized: false,
+        });
+      } catch (refreshError) {
+        this.emit("api-error", { status: 401, error: refreshError });
+        this.emit("auth-required", { reason: "refresh-failed" });
+        const error = new Error(
+          refreshError?.message || data?.message || "Unauthorized"
+        );
+        error.status = 401;
+        throw error;
+      }
+    }
+
+    if (!res.ok) {
+      this.emit("api-error", { status: res.status, body: data });
+      const error = new Error(data?.message || text || "Request failed");
+      error.status = res.status;
+      throw error;
+    }
+
+    return data;
+  }
+
+  get(path) {
+    return this.request(path, { method: "GET" });
+  }
+
+  post(path, body) {
+    return this.request(path, { method: "POST", body });
+  }
+
+  put(path, body) {
+    return this.request(path, { method: "PUT", body });
+  }
+
+  delete(path) {
+    return this.request(path, { method: "DELETE" });
+  }
+
+  login(email, password) {
+    return this.post("/auth/login", { email, password });
+  }
+
+  logout() {
+    return this.post("/auth/logout");
+  }
+
+  register(email, password, name) {
+    return this.post("/auth/register", { email, password, name });
+  }
+
+  me() {
+    return this.get("/auth/me").then((payload) => {
+      if (payload && typeof payload === "object") {
+        return payload.data ?? payload.user ?? payload;
+      }
+      return payload;
+    });
+  }
+
+  authMe() {
+    return this.me();
   }
 }
-
-const baseApi = {
-  get: (path) => request("GET", path),
-
-  post: (path, body) => request("POST", path, body),
-
-  put: (path, body) => request("PUT", path, body),
-
-  delete: (path) => request("DELETE", path),
-
-  // --------------------------
-  // Auth Endpoints (demo-safe)
-  // --------------------------
-  login: (email, password) =>
-    request("POST", "/auth/login", { email, password }),
-
-  logout: () => request("POST", "/auth/logout"),
-
-  register: (email, password, name) =>
-    request("POST", "/auth/register", { email, password, name }),
-
-  me: () => request("GET", "/auth/me"),
-
-  // ⭐ Compatibility with old code ⭐
-  authMe: () => request("GET", "/auth/me"),
-};
 
 const toKebab = (s) =>
   s
@@ -73,10 +232,25 @@ const toKebab = (s) =>
     .replace(/^-+/, "")
     .toLowerCase();
 
+const client = new APIClient();
+
+const baseApi = {
+  request: client.request.bind(client),
+  get: client.get.bind(client),
+  post: client.post.bind(client),
+  put: client.put.bind(client),
+  delete: client.delete.bind(client),
+  login: client.login.bind(client),
+  logout: client.logout.bind(client),
+  register: client.register.bind(client),
+  me: client.me.bind(client),
+  authMe: client.authMe.bind(client),
+};
+
 const dynamic = new Proxy(baseApi, {
   get(target, prop) {
     if (prop in target) return target[prop];
-    // Special cases commonly used in app
+
     if (prop === "aiCoach") {
       return async (payload) => {
         const DEMO = import.meta.env.VITE_DEMO_MODE === "true";
@@ -93,31 +267,38 @@ const dynamic = new Proxy(baseApi, {
             },
           };
         }
-        return request("POST", "/ai/coach", payload);
+        return client.post("/ai/coach", payload);
       };
     }
+
     if (prop === "authUpdateMe") {
-      return (data) => request("PUT", "/auth/me", data);
+      return (data) => client.put("/auth/me", data);
     }
+
     if (prop === "getPillarContent") {
-      return () => request("GET", "/content");
+      return () => client.get("/content");
     }
+
     if (prop === "getNotifications") {
-      return () => request("GET", "/notifications");
+      return () => client.get("/notifications");
     }
+
     if (prop === "ai") {
-      return (path, body) => request("POST", `/ai/${path}`, body);
+      return (path, body) => client.post(`/ai/${path}`, body);
     }
+
     if (prop === "sendMessage") {
-      return (body) => request("POST", "/messages", body);
+      return (body) => client.post("/messages", body);
     }
+
     if (prop === "getConversation") {
-      return (id) => request("GET", `/messages/${id}`);
+      return (id) => client.get(`/messages/${id}`);
     }
+
     if (prop === "listFriends") {
-      return () => request("GET", "/friends");
+      return () => client.get("/friends");
     }
-    // Generic inference by method prefix
+
     const name = String(prop);
     const lower = name.toLowerCase();
     let method = "GET";
@@ -125,22 +306,27 @@ const dynamic = new Proxy(baseApi, {
       lower.startsWith("create") ||
       lower.startsWith("log") ||
       lower.startsWith("post")
-    )
+    ) {
       method = "POST";
-    else if (
+    } else if (
       lower.startsWith("update") ||
       lower.startsWith("put") ||
       lower.startsWith("patch")
-    )
+    ) {
       method = "PUT";
-    else if (lower.startsWith("delete") || lower.startsWith("remove"))
+    } else if (lower.startsWith("delete") || lower.startsWith("remove")) {
       method = "DELETE";
+    }
     const path = "/" + toKebab(name).replace(/_/g, "-");
     return (bodyOrParams) =>
-      request(method, path, method === "GET" ? undefined : bodyOrParams);
+      client.request(path, {
+        method,
+        body: method === "GET" ? undefined : bodyOrParams,
+      });
   },
 });
 
 export const api = dynamic;
+export const apiClient = client;
 
 export default api;

@@ -21,6 +21,7 @@ import { aiRateLimitMiddleware } from "../middleware/rateLimiter.js";
 import { sanitizationMiddleware } from "../middleware/sanitization.js";
 import { FEATURE_KEYS } from "../utils/entitlements.js";
 import aiOrchestratorService from "../services/aiOrchestratorService.js";
+import { getProviderHealth } from "../utils/providerHealth.js";
 
 const router = express.Router();
 
@@ -250,30 +251,31 @@ router.post(
 
 /**
  * GET /api/ai/unified/health
- * Health check endpoint
+ * Structured AI provider health check
  */
-router.get("/health", (req, res) => {
-  res.json({
-    ok: true,
-    service: "Unified AI Orchestrator",
-    status: "operational",
-    timestamp: new Date().toISOString(),
-    modules: [
-      "sleep_coach",
-      "mental_health_coach",
-      "diet_coach",
-      "fitness_coach",
-      "physical_health_coach",
-      "finances_coach",
-      "social_coach",
-      "spirituality_coach",
-      "crisis_handler",
-      "correlation_engine",
-      "journaling_agent",
-      "adaptive_planner",
-      "micro_actions",
-    ],
-  });
-});
+router.get(
+  "/health",
+  asyncHandler(async (req, res) => {
+    try {
+      const health = await getProviderHealth();
+
+      return res.json({
+        server: "ok",
+        ai_provider_present: health.aiProviderPresent,
+        ai_provider_status: health.aiProviderStatus,
+        last_provider_check: health.lastProviderCheck,
+      });
+    } catch (error) {
+      return res.status(503).json({
+        server: "error",
+        ai_provider_present: false,
+        ai_provider_status: "error",
+        last_provider_check: new Date().toISOString(),
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+    }
+  })
+);
 
 export default router;

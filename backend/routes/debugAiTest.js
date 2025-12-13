@@ -1,16 +1,14 @@
 import express from "express";
-import OpenAI from "openai";
 import logger from "../utils/logger.js";
+import { orchestrateAI } from "../src/ai/orchestrator/unifiedOrchestrator.js";
+import { callProviderWithResilience } from "../src/services/aiProviderWrapper.js";
 
 const router = express.Router();
 
 const providerKey = process.env.OPENAI_API_KEY || process.env.AI_PROVIDER_KEY;
-const client = providerKey
-  ? new OpenAI({ apiKey: providerKey, timeout: 15_000 })
-  : null;
 
 router.get("/", async (_req, res) => {
-  if (!client) {
+  if (!providerKey) {
     return res.status(503).json({
       ok: false,
       message: "Provider key missing. Set OPENAI_API_KEY or AI_PROVIDER_KEY.",
@@ -19,25 +17,29 @@ router.get("/", async (_req, res) => {
 
   try {
     const started = Date.now();
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are a quick connectivity probe." },
-        { role: "user", content: "Say 'pong' if you can read this." },
-      ],
-      max_tokens: 5,
-    });
+    const result = await callProviderWithResilience("debugAiTest", () =>
+      orchestrateAI({
+        userId: "debug-probe",
+        message: "Connectivity test: say pong if you can read this.",
+        module: "ai_chat",
+        context: { skipCrisisCheck: true },
+        options: { temperature: 0.2, maxTokens: 16 },
+      })
+    );
 
     const durationMs = Date.now() - started;
     logger.info("Debug AI test success", {
       durationMs,
-      model: completion?.model,
-      usage: completion?.usage,
-      raw: completion,
+      result,
     });
 
-    const reply = completion?.choices?.[0]?.message?.content?.trim();
-    return res.json({ ok: true, durationMs, reply });
+    const reply =
+      result?.reply || result?.response || result?.text || result?.message;
+    return res.json({
+      ok: true,
+      durationMs,
+      reply_preview: typeof reply === "string" ? reply.slice(0, 160) : "",
+    });
   } catch (err) {
     logger.error("Debug AI test failed", {
       error: err?.message,
@@ -49,7 +51,6 @@ router.get("/", async (_req, res) => {
     return res.status(502).json({
       ok: false,
       message: "Provider call failed",
-      error: err?.message,
     });
   }
 });

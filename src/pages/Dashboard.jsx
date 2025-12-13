@@ -18,7 +18,9 @@ import {
 import { format, differenceInCalendarDays } from "date-fns";
 import ScoreOrb from "@/components/shared/ScoreOrb";
 import DailySummary from "@/components/shared/DailySummary";
+import AIInsightFeed from "@/components/ai/AIInsightFeed";
 import AIInsights from "@/ai/AIInsights";
+import MultiPillarStreaks from "@/components/dashboard/MultiPillarStreaks";
 import {
   buildAdaptiveCoachContext,
   buildAdaptiveCoachProfile,
@@ -409,6 +411,66 @@ function DashboardContent({ user }) {
     return map;
   }, [entries]);
 
+  const pillarStreaks = useMemo(() => {
+    const todayKey = format(new Date(), "yyyy-MM-dd");
+
+    const sets = entries.reduce((acc, entry) => {
+      if (!entry?.pillar || !entry.date) return acc;
+      const key = entry.pillar;
+      if (!acc[key]) acc[key] = new Set();
+      acc[key].add(entry.date);
+      return acc;
+    }, {});
+
+    const calcCurrent = (set) => {
+      if (!set || set.size === 0) return 0;
+      let count = 0;
+      let cursor = new Date();
+      while (set.has(format(cursor, "yyyy-MM-dd"))) {
+        count += 1;
+        cursor = new Date(cursor.getTime() - 86400000);
+      }
+      return count;
+    };
+
+    const calcLongest = (set) => {
+      if (!set || set.size === 0) return 0;
+      const sorted = [...set]
+        .map((d) => new Date(d))
+        .filter((d) => !Number.isNaN(d.getTime()))
+        .sort((a, b) => a - b);
+      let longest = 1;
+      let current = 1;
+      for (let i = 1; i < sorted.length; i += 1) {
+        const diff = differenceInCalendarDays(sorted[i], sorted[i - 1]);
+        if (diff === 1) {
+          current += 1;
+        } else if (diff === 0) {
+          continue;
+        } else {
+          longest = Math.max(longest, current);
+          current = 1;
+        }
+      }
+      longest = Math.max(longest, current);
+      return longest;
+    };
+
+    return accessiblePillarArray.map((pillar) => {
+      const set = sets[pillar.id];
+      const lastDate = latestEntryByPillar[pillar.id]?.date || null;
+      return {
+        id: pillar.id,
+        name: pillar.name,
+        current: calcCurrent(set),
+        longest: calcLongest(set),
+        lastDate,
+        path: `/pillars/${pillar.id}`,
+        hasToday: set ? set.has(todayKey) : false,
+      };
+    });
+  }, [accessiblePillarArray, entries, latestEntryByPillar]);
+
   const habitConsistencyByPillar = useMemo(() => {
     const map = {};
     habits.forEach((habit) => {
@@ -506,6 +568,39 @@ function DashboardContent({ user }) {
   const comBPrimaryFocus = comBInsights?.primaryFocus || null;
   const comBRecommendedActions = comBInsights?.recommendedActions || [];
   const comBDeficits = comBInsights?.deficits || null;
+
+  const aiInsightFeedItems = useMemo(() => {
+    if (!comBRecommendedActions.length) return [];
+    return comBRecommendedActions
+      .map((action, index) => {
+        const pillar = accessiblePillarArray.find(
+          (p) => p.id === action.pillarId
+        );
+        const latest = latestEntryByPillar[action.pillarId];
+        const lastEntryDays = latest?.date
+          ? Math.max(
+              0,
+              differenceInCalendarDays(new Date(), new Date(latest.date))
+            )
+          : null;
+        const recencyScore =
+          lastEntryDays === null ? 40 : Math.max(0, 100 - lastEntryDays * 3);
+        const relevanceScore = Math.max(0, 100 - index * 8);
+        return {
+          id: action.id,
+          pillarId: action.pillarId,
+          pillarName: pillar?.name || action.pillarId,
+          pillarPath: pillar ? `/pillars/${pillar.id}` : null,
+          focusArea: action.focusArea,
+          title: action.label,
+          summary: action.description,
+          microActions: action.microActions || [],
+          lastEntryDays,
+          sortScore: recencyScore + relevanceScore,
+        };
+      })
+      .sort((a, b) => b.sortScore - a.sortScore);
+  }, [accessiblePillarArray, comBRecommendedActions, latestEntryByPillar]);
 
   const adaptiveCoachProfile = useMemo(() => {
     if (!user) return null;
@@ -901,6 +996,12 @@ function DashboardContent({ user }) {
           </div>
         </div>
 
+        <MultiPillarStreaks
+          overallCurrent={streak.currentStreak}
+          overallLongest={streak.longestStreak || user?.longest_streak || 0}
+          pillarStreaks={pillarStreaks}
+        />
+
         <AIErrorBoundary showHelp={true}>
           <AIInsights
             entries={entries}
@@ -911,6 +1012,11 @@ function DashboardContent({ user }) {
             user={user}
           />
         </AIErrorBoundary>
+
+        <AIInsightFeed
+          items={aiInsightFeedItems}
+          primaryFocus={comBPrimaryFocus}
+        />
 
         {/* Talk to NorthStar */}
         <div className="my-8">

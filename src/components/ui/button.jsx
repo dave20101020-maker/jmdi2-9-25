@@ -4,5 +4,5 @@ export const buttonVariants = {
   primary: "ns-button--primary",
   secondary: "ns-button--secondary",
   ghost: "ns-button--ghost",
-  outline: "ns-button--outline",
+  danger: "ns-button--danger",
 };

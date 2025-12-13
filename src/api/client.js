@@ -1,10 +1,57 @@
 import axios from "axios";
 
-const API_BASE_URL =
+const rawEnvBase =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_BACKEND_URL ||
-  "/api";
+  "";
+
+const isCodespacesHost = (hostname) =>
+  typeof hostname === "string" && hostname.endsWith(".app.github.dev");
+
+const toOriginOnly = (value) => {
+  if (!value) return "";
+  if (typeof value !== "string") return "";
+  if (value.startsWith("/")) return "";
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "";
+  }
+};
+
+const computeApiOrigin = () => {
+  const currentOrigin =
+    typeof window !== "undefined" && window.location
+      ? window.location.origin
+      : "";
+  const envOrigin = toOriginOnly(rawEnvBase);
+
+  if (!envOrigin) return currentOrigin;
+
+  if (typeof window !== "undefined" && window.location) {
+    const currentHost = window.location.hostname;
+    const envHost = (() => {
+      try {
+        return new URL(envOrigin).hostname;
+      } catch {
+        return "";
+      }
+    })();
+
+    if (isCodespacesHost(currentHost) && isCodespacesHost(envHost)) {
+      if (currentHost !== envHost) {
+        return currentOrigin;
+      }
+    }
+  }
+
+  return envOrigin;
+};
+
+// Note: Most callers pass paths that already include `/api/...`.
+// Keep this base URL origin-only to avoid `/api/api/...` duplication.
+const API_BASE_URL = computeApiOrigin() || "";
 
 const client = axios.create({
   baseURL: API_BASE_URL,

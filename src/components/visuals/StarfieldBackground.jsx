@@ -6,6 +6,8 @@ export default function StarfieldBackground() {
 
   useEffect(() => {
     let scene, camera, renderer, particles;
+    let rafId;
+    let disposed = false;
     const particleCount = 1000;
     const speedFactor = 0.005;
 
@@ -61,7 +63,8 @@ export default function StarfieldBackground() {
     scene.add(particles);
 
     const animate = () => {
-      requestAnimationFrame(animate);
+      if (disposed) return;
+      rafId = requestAnimationFrame(animate);
       particles.rotation.x += speedFactor * 0.1;
       particles.rotation.y += speedFactor * 0.2;
       particles.rotation.z += speedFactor * 0.05;
@@ -80,7 +83,19 @@ export default function StarfieldBackground() {
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      renderer.dispose();
+
+      disposed = true;
+      if (typeof rafId === "number") {
+        cancelAnimationFrame(rafId);
+      }
+
+      if (particles) {
+        scene?.remove?.(particles);
+        particles.geometry?.dispose?.();
+        particles.material?.dispose?.();
+      }
+
+      renderer?.dispose?.();
     };
   }, []);
 

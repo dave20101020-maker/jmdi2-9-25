@@ -29,6 +29,30 @@ const modules = [
   "Calendar sync toggle",
 ];
 
+const goalTree = [
+  {
+    label: "Wellbeing",
+    items: [
+      { label: "Sleep 7.5h", children: ["Consistent wake", "Wind-down 10:30"] },
+      { label: "Move 4x/week", children: ["2x strength", "2x cardio"] },
+    ],
+  },
+  {
+    label: "Career",
+    items: [
+      { label: "Upskill AI", children: ["Course", "Portfolio"] },
+      { label: "Leadership", children: ["Mentor", "Stakeholder comms"] },
+    ],
+  },
+  {
+    label: "Finances",
+    items: [
+      { label: "Buffer 6mo", children: ["Auto-save", "Trim expenses"] },
+      { label: "Invest", children: ["Index fund", "401k max"] },
+    ],
+  },
+];
+
 export default function LifePlanningAI() {
   const [calendarSync, setCalendarSync] = useState(true);
   const [decision, setDecision] = useState("");
@@ -106,8 +130,46 @@ export default function LifePlanningAI() {
             </div>
           ))}
         </div>
+        <div className={`${themeTokens.panel} p-3 space-y-3`}>
+          <p className="text-sm font-semibold text-white">
+            Goal breakdown tree
+          </p>
+          <div className="space-y-2 text-sm text-white/80">
+            {goalTree.map((branch) => (
+              <div
+                key={branch.label}
+                className="rounded-lg border border-white/10 bg-white/5 p-3"
+              >
+                <p className="text-white font-semibold mb-2">{branch.label}</p>
+                <div className="space-y-1">
+                  {branch.items.map((item) => (
+                    <div key={item.label}>
+                      <p className="text-white/90 font-semibold">
+                        {item.label}
+                      </p>
+                      <div className="ml-3 text-white/70 text-xs flex flex-wrap gap-1">
+                        {item.children.map((child) => (
+                          <span
+                            key={child}
+                            className="rounded-full bg-white/10 px-2 py-0.5"
+                          >
+                            {child}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
         <div className={`${themeTokens.panel} p-3 space-y-2`}>
           <p className="text-sm font-semibold text-white">Calendar sync</p>
+          <p className="text-xs text-white/70">
+            Placeholder sync surface for Google / Outlook. No external calls
+            yet.
+          </p>
           <div className="flex items-center gap-2 text-sm text-white/70">
             <input
               type="checkbox"

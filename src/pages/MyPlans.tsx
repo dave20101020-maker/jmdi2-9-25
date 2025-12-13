@@ -857,6 +857,10 @@ export default function MyPlans() {
             <div className="mb-8">
               <h2 className="text-xl font-bold text-white mb-4">
                 Create New Plan
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {pillarsArray.map((pillar) => (
+                  <button
                     key={pillar.id}
                     onClick={() => handlePillarSelect(pillar)}
                     className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all hover:-translate-y-1 group"

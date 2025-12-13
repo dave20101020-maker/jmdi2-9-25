@@ -211,7 +211,7 @@ export default function SignUp() {
       aside={missionAside}
       footer={
         <>
-          Already have access? <Link to="/sign-in">Sign in</Link>
+          Already have access? <Link to="/login">Sign in</Link>
         </>
       }
     >

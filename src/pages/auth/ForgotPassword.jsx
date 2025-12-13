@@ -62,7 +62,7 @@ export default function ForgotPassword() {
       footer={
         <>
           Remembered your password?{" "}
-          <Link to="/sign-in">Head back to sign in</Link>
+          <Link to="/login">Head back to sign in</Link>
         </>
       }
     >

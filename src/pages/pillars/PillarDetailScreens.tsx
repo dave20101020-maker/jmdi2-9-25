@@ -1,17 +1,29 @@
 import React from "react";
 import PillarPage from "./PillarPage";
 
-const buildPillarScreen = (pillarId: string) => () =>
-  <PillarPage pillarIdOverride={pillarId} />;
+const buildPillarScreen = (pillarId: string, displayName: string) => {
+  const Component = () => <PillarPage pillarIdOverride={pillarId} />;
+  Component.displayName = `${displayName}PillarPage`;
+  return Component;
+};
 
-export const SleepPillarPage = buildPillarScreen("sleep");
-export const DietPillarPage = buildPillarScreen("diet");
-export const ExercisePillarPage = buildPillarScreen("exercise");
-export const PhysicalHealthPillarPage = buildPillarScreen("physical-health");
-export const MentalHealthPillarPage = buildPillarScreen("mental-health");
-export const FinancesPillarPage = buildPillarScreen("finances");
-export const SocialPillarPage = buildPillarScreen("social");
-export const SpiritualityPillarPage = buildPillarScreen("spirituality");
+export const SleepPillarPage = buildPillarScreen("sleep", "Sleep");
+export const DietPillarPage = buildPillarScreen("diet", "Diet");
+export const ExercisePillarPage = buildPillarScreen("exercise", "Exercise");
+export const PhysicalHealthPillarPage = buildPillarScreen(
+  "physical-health",
+  "PhysicalHealth"
+);
+export const MentalHealthPillarPage = buildPillarScreen(
+  "mental-health",
+  "MentalHealth"
+);
+export const FinancesPillarPage = buildPillarScreen("finances", "Finances");
+export const SocialPillarPage = buildPillarScreen("social", "Social");
+export const SpiritualityPillarPage = buildPillarScreen(
+  "spirituality",
+  "Spirituality"
+);
 
 const pillarScreens = {
   sleep: SleepPillarPage,

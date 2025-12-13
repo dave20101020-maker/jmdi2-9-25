@@ -140,7 +140,12 @@ export default function Register() {
     >
       <div className="ns-auth-stack" data-testid="register-screen">
         {formError && (
-          <div className="ns-alert" role="alert" data-testid="register-error">
+          <div
+            className="ns-alert"
+            role="alert"
+            aria-live="polite"
+            data-testid="register-error"
+          >
             {formError}
           </div>
         )}
@@ -206,8 +211,7 @@ export default function Register() {
           />
           <NSButton
             type="submit"
-            size="lg"
-            fullWidth
+            className="w-full"
             loading={isSubmitting}
             disabled={isSubmitting}
             data-testid="register-submit-button"

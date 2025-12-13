@@ -127,7 +127,12 @@ export default function Login() {
     >
       <div className="ns-auth-stack" data-testid="login-screen">
         {formError && (
-          <div className="ns-alert" role="alert" data-testid="login-error">
+          <div
+            className="ns-alert"
+            role="alert"
+            aria-live="polite"
+            data-testid="login-error"
+          >
             {formError}
           </div>
         )}
@@ -166,8 +171,7 @@ export default function Login() {
           />
           <NSButton
             type="submit"
-            size="lg"
-            fullWidth
+            className="w-full"
             loading={isSubmitting}
             disabled={isSubmitting}
             data-testid="login-submit-button"

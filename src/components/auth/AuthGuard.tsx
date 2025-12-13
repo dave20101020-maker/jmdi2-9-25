@@ -4,8 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import RouteLoader from "@/components/fallbacks/RouteLoader";
 import { api } from "@/utils/apiClient";
 
-const normalizeUser = (payload: any) =>
-  payload?.data ?? payload?.user ?? payload;
+const normalizeUser = (payload: unknown) => {
+  if (payload && typeof payload === "object") {
+    const asRecord = payload as Record<string, unknown>;
+    return (asRecord.data as unknown) ?? (asRecord.user as unknown) ?? payload;
+  }
+  return payload;
+};
 
 export default function AuthGuard({
   children,

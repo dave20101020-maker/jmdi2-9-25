@@ -415,12 +415,44 @@ export const challengeSchemas = {
 // Friend/Social validation schemas
 export const friendSchemas = {
   sendRequest: z.object({
-    recipientId: z.string().regex(/^[a-f\d]{24}$/i, "Invalid user ID"),
+    friendId: z
+      .string()
+      .min(1, "friendId (id, email, or username) is required"),
+    note: z.string().max(300).optional(),
   }),
 
-  respondRequest: z.object({
-    requestId: z.string().regex(/^[a-f\d]{24}$/i, "Invalid request ID"),
-    action: z.enum(["accept", "decline"]),
+  respondRequest: z
+    .object({
+      requestId: z
+        .string()
+        .regex(/^[a-f\d]{24}$/i, "Invalid request ID")
+        .optional(),
+      requesterId: z
+        .string()
+        .min(1, "requesterId is required when requestId is not provided")
+        .optional(),
+      action: z.enum(["accept", "decline"]),
+    })
+    .refine((data) => data.requestId || data.requesterId, {
+      message: "requestId or requesterId required",
+      path: ["requestId"],
+    }),
+
+  updatePrivacy: z.object({
+    shareInsights: z.boolean(),
+  }),
+
+  createMiniChallenge: z.object({
+    target: z.string().min(1, "target (id, email, or username) is required"),
+    templateId: z.string().min(1),
+    title: z.string().max(200).optional(),
+    description: z.string().max(500).optional(),
+    reward: z.string().max(100).optional(),
+    note: z.string().max(400).optional(),
+  }),
+
+  updateMiniChallenge: z.object({
+    status: z.enum(["sent", "accepted", "completed", "dismissed"]),
   }),
 };
 

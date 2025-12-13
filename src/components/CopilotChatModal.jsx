@@ -1,14 +1,70 @@
-import React, { useEffect, useRef, useState } from "react";
-import { X, Send, Loader2 } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { X, Send, Loader2, AlertTriangle } from "lucide-react";
+import DiagnosticsPanel from "./CopilotChat/DiagnosticsPanel";
+import useDiagnosticsStore from "@/store/diagnosticsStore";
+import { apiClient } from "@/utils/apiClient";
 
 const fallbackReply = (prompt) =>
   `Mock reply for: "${prompt}". The AI service is unavailable (503).`;
+
+const useCrisisDetection = () => {
+  const [crisisState, setCrisisState] = useState(null);
+
+  const evaluateCrisisSignal = useCallback((payload) => {
+    if (!payload || typeof payload !== "object") return;
+
+    const flags = Array.isArray(payload.flags)
+      ? payload.flags.map((flag) => flag?.toString().toLowerCase())
+      : [];
+    const riskLevel = (payload.riskLevel || payload.risk_level || "")
+      .toString()
+      .toLowerCase();
+    const mentalRisk = (
+      payload.mentalHealthRisk ||
+      payload.mental_health_risk ||
+      payload?.mental_health?.risk ||
+      ""
+    )
+      .toString()
+      .toLowerCase();
+    const hasCrisisFlag = flags.some((flag) => flag && flag.includes("crisis"));
+    const hasHighRisk = [riskLevel, mentalRisk].some((lvl) =>
+      ["high", "severe"].includes(lvl)
+    );
+    const crisisField =
+      payload.crisis === true ||
+      payload.isCrisis === true ||
+      payload.crisis_mode === true;
+
+    if (crisisField || hasCrisisFlag || hasHighRisk) {
+      setCrisisState({
+        title: "Crisis Mode",
+        detail:
+          payload.crisisSummary ||
+          payload.summary ||
+          payload.message ||
+          "Potential crisis language detected. Consider using the Emergency Toolkit.",
+        riskLevel: riskLevel || mentalRisk || "high",
+      });
+    }
+  }, []);
+
+  const resetCrisis = useCallback(() => setCrisisState(null), []);
+
+  return { crisisState, evaluateCrisisSignal, resetCrisis };
+};
 
 export default function CopilotChatModal({ open, onClose }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
+  const [accessIssue, setAccessIssue] = useState(null);
+  const { crisisState, evaluateCrisisSignal, resetCrisis } =
+    useCrisisDetection();
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const setDiagnosticsStore = useDiagnosticsStore((s) => s.setDiagnostics);
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -17,7 +73,81 @@ export default function CopilotChatModal({ open, onClose }) {
     }
   }, [open, messages]);
 
+  useEffect(() => {
+    if (open) {
+      setAccessIssue(null);
+      resetCrisis();
+    }
+  }, [open, resetCrisis]);
+
   if (!open) return null;
+
+  const mapError = ({ status, message, timeout, code, body }) => {
+    const normalizedCode = (code || body?.code || "").toString().toLowerCase();
+    const normalizedMessage = (message || body?.message || "")
+      .toString()
+      .toLowerCase();
+    const consentRequired =
+      normalizedCode.includes("consent") ||
+      normalizedMessage.includes("consent required") ||
+      normalizedMessage.includes("consent") ||
+      body?.reason === "consent_required";
+
+    if (timeout) {
+      return {
+        friendly: "AI provider timed out. Please try again.",
+        code: "AI-TIMEOUT",
+      };
+    }
+
+    if (status === 401) {
+      return {
+        friendly: "Sign in required to use NorthStar AI.",
+        code: "AI-401",
+        accessIssue: {
+          type: "auth",
+          title: "Sign in to continue",
+          message: "Your session is missing or expired. Sign in to chat.",
+          primaryCta: { label: "Sign in", href: "/login" },
+          secondaryCta: { label: "Create account", href: "/register" },
+        },
+      };
+    }
+
+    if (consentRequired) {
+      return {
+        friendly: "Consent required before using NorthStar AI.",
+        code: "AI-CONSENT-REQUIRED",
+        accessIssue: {
+          type: "consent",
+          title: "Consent required",
+          message:
+            "We need your consent to enable AI chat. Review and grant consent in Settings.",
+          primaryCta: { label: "Review consent", href: "/settings" },
+          secondaryCta: { label: "Sign in", href: "/login" },
+        },
+      };
+    }
+
+    if (status === 429) {
+      return {
+        friendly: "Rate limited. Try again in a few moments.",
+        code: "AI-429",
+      };
+    }
+
+    if (status === 503) {
+      return {
+        friendly: "AI temporarily unavailable (503). Using fallback reply.",
+        code: "AI-503",
+      };
+    }
+
+    return {
+      friendly: message || "AI service temporarily unavailable.",
+      code: status ? `AI-${status}` : "AI-ERROR",
+    };
+  };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -25,53 +155,60 @@ export default function CopilotChatModal({ open, onClose }) {
     setInput("");
     setSending(true);
     setError(null);
+    setAccessIssue(null);
+    setShowDiagnostics(false);
 
     const userMsg = { id: crypto.randomUUID(), role: "user", text: prompt };
     setMessages((prev) => [...prev, userMsg]);
 
     try {
-      const res = await fetch("/api/ai/unified/chat", {
+      const data = await apiClient.request("/ai/unified/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ message: prompt }),
+        body: { message: prompt },
+        retryOnUnauthorized: false,
       });
 
-      const text = await res.text();
-      let data;
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        data = { raw: text };
-      }
-
-      if (!res.ok) {
-        const reply =
-          res.status === 503
-            ? fallbackReply(prompt)
-            : data?.message || "AI temporarily unavailable";
-        setMessages((prev) => [
-          ...prev,
-          { id: crypto.randomUUID(), role: "assistant", text: reply },
-        ]);
-        setError({ status: res.status, body: text });
-      } else {
-        const reply = data?.reply || data?.response || data?.text || "Okay.";
-        setMessages((prev) => [
-          ...prev,
-          { id: crypto.randomUUID(), role: "assistant", text: reply },
-        ]);
-      }
-    } catch (err) {
+      const reply = data?.reply || data?.response || data?.text || "Okay.";
       setMessages((prev) => [
         ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          text: fallbackReply(prompt),
-        },
+        { id: crypto.randomUUID(), role: "assistant", text: reply },
       ]);
-      setError({ message: err?.message });
+      evaluateCrisisSignal(data);
+    } catch (err) {
+      const mapped = mapError({
+        status: err?.status,
+        message: err?.message,
+        timeout: err?.name === "AbortError",
+        code: err?.code,
+        body: err?.body,
+      });
+      if (mapped?.accessIssue) {
+        setAccessIssue(mapped.accessIssue);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            text: mapped.friendly || fallbackReply(prompt),
+          },
+        ]);
+      }
+      setError({
+        status: err?.status,
+        message: mapped.friendly,
+        code: mapped.code,
+        body: err?.message || err?.body,
+        timestamp: new Date().toISOString(),
+        url: "/api/ai/unified/chat",
+      });
+      setDiagnosticsStore({
+        status: err?.status,
+        body: err?.message || err?.body,
+        code: mapped.code,
+        message: mapped.friendly,
+        url: "/api/ai/unified/chat",
+      });
     } finally {
       setSending(false);
     }
@@ -100,8 +237,26 @@ export default function CopilotChatModal({ open, onClose }) {
         </div>
 
         {error && (
-          <div className="px-4 py-2 text-xs text-amber-100 bg-amber-500/10 border-b border-amber-400/30">
-            Connection issue. Status: {error.status || "n/a"}. Using mock reply.
+          <div className="px-4 py-2 text-xs text-amber-100 bg-amber-500/10 border-b border-amber-400/30 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-300" />
+              <div>
+                <p className="font-semibold text-amber-100">
+                  {error.message || "AI issue"}
+                </p>
+                <p className="text-amber-200/80">
+                  {`Status: ${error.status || "n/a"}`} · Code:{" "}
+                  {error.code || "AI-ERROR"}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDiagnostics(true)}
+              className="text-amber-100 underline decoration-amber-300/60 decoration-dashed text-xs"
+            >
+              View diagnostics
+            </button>
           </div>
         )}
 
@@ -137,6 +292,70 @@ export default function CopilotChatModal({ open, onClose }) {
           ))}
         </div>
 
+        {crisisState && (
+          <div className="border-t border-rose-900/60 bg-rose-950/40 px-4 py-3 text-sm text-rose-50 flex flex-col gap-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-rose-300 mt-[2px]" />
+              <div>
+                <p className="font-semibold text-rose-100">
+                  {crisisState.title || "Crisis Mode"}
+                </p>
+                <p className="text-rose-50/90">{crisisState.detail}</p>
+                <p className="text-[11px] text-rose-100/70">
+                  Risk level: {crisisState.riskLevel || "high"}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to="/pillars/mental_health"
+                className="inline-flex items-center justify-center rounded-lg bg-white text-rose-900 px-3 py-2 text-sm font-semibold shadow hover:brightness-95"
+              >
+                Open Emergency Toolkit
+              </Link>
+              <button
+                type="button"
+                onClick={resetCrisis}
+                className="inline-flex items-center justify-center rounded-lg border border-rose-700 px-3 py-2 text-sm font-semibold text-rose-50 hover:border-rose-500"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        {accessIssue && (
+          <div className="border-t border-slate-800 bg-amber-950/30 px-4 py-3 text-sm text-amber-50 flex flex-col gap-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-300 mt-[2px]" />
+              <div>
+                <p className="font-semibold text-amber-100">
+                  {accessIssue.title}
+                </p>
+                <p className="text-amber-50/90">{accessIssue.message}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {accessIssue.primaryCta && (
+                <Link
+                  to={accessIssue.primaryCta.href}
+                  className="inline-flex items-center justify-center rounded-lg bg-ns-gold px-3 py-2 text-sm font-semibold text-ns-navy shadow hover:brightness-95"
+                >
+                  {accessIssue.primaryCta.label}
+                </Link>
+              )}
+              {accessIssue.secondaryCta && (
+                <Link
+                  to={accessIssue.secondaryCta.href}
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500"
+                >
+                  {accessIssue.secondaryCta.label}
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="border-t border-slate-800 bg-slate-950 p-3 flex items-center gap-2">
           <input
             type="text"
@@ -150,11 +369,12 @@ export default function CopilotChatModal({ open, onClose }) {
                 sendMessage();
               }
             }}
+            disabled={sending || Boolean(accessIssue)}
           />
           <button
             type="button"
             onClick={sendMessage}
-            disabled={sending || !input.trim()}
+            disabled={sending || !input.trim() || Boolean(accessIssue)}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500 text-slate-900 font-semibold disabled:opacity-60"
             aria-label="Send"
           >
@@ -166,6 +386,12 @@ export default function CopilotChatModal({ open, onClose }) {
           </button>
         </div>
       </div>
+
+      <DiagnosticsPanel
+        open={showDiagnostics}
+        onClose={() => setShowDiagnostics(false)}
+        diagnostics={error}
+      />
     </div>
   );
 }

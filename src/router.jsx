@@ -59,7 +59,7 @@ const TermsPage = lazyPage(
   "TermsPage"
 );
 const TrustCenterPage = lazyPage(
-  () => import("@/pages/compliance/TrustCenter"),
+  () => import("@/pages/compliance/TrustCenter.jsx"),
   "TrustCenterPage"
 );
 const GoalsPage = lazyPage(() => import("@/pages/Goals"), "GoalsPage");
@@ -106,6 +106,10 @@ const AdminAnalyticsPage = lazyPage(
 const PillarPage = lazyPage(
   () => import(/* webpackChunkName: "pillar-generic" */ "@/pages/Pillar"),
   "PillarPage"
+);
+const OnboardingPage = lazyPage(
+  () => import("@/pages/Onboarding"),
+  "OnboardingPage"
 );
 const CRITICAL_ROUTES = [DashboardPage, OnboardingPage];
 const MyPlansPage = lazyPage(() => import("@/pages/MyPlans"), "MyPlansPage");

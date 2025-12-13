@@ -1,7 +1,12 @@
 import React, { useEffect, useState, useContext } from "react";
+import { Link } from "react-router-dom";
+import { api } from "@/utils/apiClient";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import HealthIntegrations from "@/components/HealthIntegrations";
 import { AppSettingsContext } from "@/context/AppSettingsContext.jsx";
+import DiagnosticsPanel from "./Settings/DiagnosticsPanel";
+import { NAMED_ROUTES } from "@/config/routes";
 
 export default function Settings() {
   const { settings, setSetting } = useContext(AppSettingsContext);
@@ -14,6 +19,14 @@ export default function Settings() {
   );
   const [tone, setTone] = useState(settings.aiCoach?.tone || "warm");
   const [model, setModel] = useState(settings.aiCoach?.model || "default");
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [authForm, setAuthForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    newEmail: "",
+  });
 
   useEffect(() => {
     setSetting("reduceMotion", reduceMotion);
@@ -28,6 +41,77 @@ export default function Settings() {
     setSetting("aiCoach", { persona, tone, model });
   }, [persona, tone, model, setSetting]);
 
+  const handleChangePassword = async () => {
+    if (!authForm.newPassword || !authForm.currentPassword) {
+      toast.error("Enter current and new password");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      // TODO: replace with real change-password endpoint when available
+      await api.authUpdateMe({ password: authForm.newPassword });
+      toast.success("Password updated (stub)");
+      setAuthForm((v) => ({ ...v, currentPassword: "", newPassword: "" }));
+    } catch (err) {
+      console.error("change password", err);
+      toast.error("Unable to change password yet (stub)");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleChangeEmail = async () => {
+    if (!authForm.newEmail) {
+      toast.error("Enter a new email");
+      return;
+    }
+    setChangingEmail(true);
+    try {
+      // TODO: replace with real change-email endpoint when available
+      await api.authUpdateMe({ email: authForm.newEmail });
+      toast.success("Email updated (stub)");
+      setAuthForm((v) => ({ ...v, newEmail: "" }));
+    } catch (err) {
+      console.error("change email", err);
+      toast.error("Unable to change email yet (stub)");
+    } finally {
+      setChangingEmail(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+      window.location.href = "/sign-in";
+    } catch (err) {
+      console.error("logout", err);
+      toast.error("Logout failed. Try again.");
+    }
+  };
+
+  const handleDataExport = async () => {
+    try {
+      // TODO: wire to real export endpoint. For now, mock a JSON blob.
+      const mock = {
+        status: "export_pending",
+        generatedAt: new Date().toISOString(),
+      };
+      const blob = new Blob([JSON.stringify(mock, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "northstar-data-export.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Data export generated (stub)");
+    } catch (err) {
+      console.error("export", err);
+      toast.error("Failed to export data");
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="mb-6">
@@ -38,11 +122,12 @@ export default function Settings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="integrations">Health Integrations</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
           <TabsTrigger value="ai">AI Coach</TabsTrigger>
+          <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="integrations" className="mt-6">
@@ -50,11 +135,141 @@ export default function Settings() {
         </TabsContent>
 
         <TabsContent value="account" className="mt-6">
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h2 className="text-xl font-semibold">Account Settings</h2>
-            <p className="text-white/60">
-              Account management features coming soon.
-            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    Change password
+                  </p>
+                  <p className="text-xs text-white/60">
+                    Updates your password. Stubbed until backend endpoint is
+                    ready.
+                  </p>
+                </div>
+                <input
+                  type="password"
+                  className="w-full rounded-lg border border-white/15 bg-transparent px-3 py-2 text-sm"
+                  placeholder="Current password"
+                  value={authForm.currentPassword}
+                  onChange={(e) =>
+                    setAuthForm((v) => ({
+                      ...v,
+                      currentPassword: e.target.value,
+                    }))
+                  }
+                />
+                <input
+                  type="password"
+                  className="w-full rounded-lg border border-white/15 bg-transparent px-3 py-2 text-sm"
+                  placeholder="New password"
+                  value={authForm.newPassword}
+                  onChange={(e) =>
+                    setAuthForm((v) => ({ ...v, newPassword: e.target.value }))
+                  }
+                />
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg bg-ns-gold px-3 py-2 text-sm font-semibold text-ns-navy hover:brightness-95 disabled:opacity-60"
+                  onClick={handleChangePassword}
+                  disabled={changingPassword}
+                >
+                  {changingPassword ? "Updating..." : "Update password"}
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    Change email
+                  </p>
+                  <p className="text-xs text-white/60">
+                    Send verification to your new email. Stubbed until backend
+                    endpoint is ready.
+                  </p>
+                </div>
+                <input
+                  type="email"
+                  className="w-full rounded-lg border border-white/15 bg-transparent px-3 py-2 text-sm"
+                  placeholder="New email"
+                  value={authForm.newEmail}
+                  onChange={(e) =>
+                    setAuthForm((v) => ({ ...v, newEmail: e.target.value }))
+                  }
+                />
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-60"
+                  onClick={handleChangeEmail}
+                  disabled={changingEmail}
+                >
+                  {changingEmail ? "Updating..." : "Update email"}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-white">Logout</p>
+                <p className="text-xs text-white/60">
+                  End your session on this device.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-lg bg-red-500/20 px-3 py-2 text-sm font-semibold text-red-100 hover:bg-red-500/30"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-2">
+                <p className="text-sm font-semibold text-white">Data export</p>
+                <p className="text-xs text-white/60">
+                  Download a JSON export of your data. Stubbed for now.
+                </p>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/15"
+                  onClick={handleDataExport}
+                >
+                  Download JSON
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-2">
+                <p className="text-sm font-semibold text-white">Sync status</p>
+                <p className="text-xs text-white/60">
+                  View offline queue and pending sync items.
+                </p>
+                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70">
+                  {/* TODO: wire to offline queue store */}
+                  <p>Offline queue: 0 items</p>
+                  <p>Last sync: just now</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-red-900/40 bg-red-900/10 p-4 space-y-3">
+                <p className="text-sm font-semibold text-red-100">
+                  Dangerous reset
+                </p>
+                <p className="text-xs text-red-100/80">
+                  Reset cached data and queues on this device. Action is local
+                  and cannot be undone.
+                </p>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg bg-red-500/20 px-3 py-2 text-sm font-semibold text-red-100 hover:bg-red-500/30"
+                  onClick={() => setResetConfirmOpen(true)}
+                >
+                  Reset device cache
+                </button>
+              </div>
+            </div>
           </div>
         </TabsContent>
 
@@ -154,7 +369,64 @@ export default function Settings() {
             </div>
           </div>
         </TabsContent>
+
+        <TabsContent value="diagnostics" className="mt-6">
+          <DiagnosticsPanel />
+        </TabsContent>
       </Tabs>
+
+      {resetConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-red-900/50 bg-red-950/70 p-5 text-red-50 shadow-2xl">
+            <h3 className="text-lg font-semibold mb-2">Reset device cache?</h3>
+            <p className="text-sm text-red-100/90 mb-4">
+              This clears local cached data and offline queues on this device
+              only. You will remain signed in. This cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                className="rounded-lg border border-red-500/50 px-3 py-2 text-sm font-semibold text-red-100 hover:bg-red-500/10"
+                onClick={() => setResetConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-red-500/80 px-3 py-2 text-sm font-semibold text-red-50 hover:bg-red-500"
+                onClick={() => {
+                  // TODO: clear offline queues/storage when implemented
+                  toast.success("Local cache cleared (stub)");
+                  setResetConfirmOpen(false);
+                }}
+              >
+                Confirm reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-ns-card flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-[0.28em] text-white/60">
+            Trust Center
+          </p>
+          <h2 className="text-lg font-semibold text-white">
+            DPIA, LLM safety disclosures, and controls
+          </h2>
+          <p className="text-white/70 text-sm">
+            Review how NorthStar handles data, safety guardrails, and compliance
+            commitments.
+          </p>
+        </div>
+        <Link
+          to={NAMED_ROUTES.TrustCenter}
+          className="inline-flex items-center justify-center rounded-full bg-ns-gold px-4 py-2 text-sm font-semibold text-ns-navy hover:bg-ns-softGold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ns-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ns-navy"
+        >
+          Open Trust Center
+        </Link>
+      </div>
     </div>
   );
 }
