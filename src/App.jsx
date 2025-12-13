@@ -6,7 +6,7 @@ import AppShell from "./components/layout/AppShell";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import Onboarding from "./pages/Onboarding";
-import Dashboard from "./pages/Dashboard";
+import DashboardNorthStar from "./pages/northstar/DashboardNorthStar";
 import Habits from "./pages/Habits";
 import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
@@ -15,16 +15,14 @@ import { Toaster as SonnerToaster } from "sonner";
 import AuthGuard from "./components/auth/AuthGuard";
 import CheckIns from "./pages/CheckIns";
 import PillarPage from "./pages/pillars/PillarPage";
-import {
-  SleepPillarPage,
-  DietPillarPage,
-  ExercisePillarPage,
-  PhysicalHealthPillarPage,
-  MentalHealthPillarPage,
-  FinancesPillarPage,
-  SocialPillarPage,
-  SpiritualityPillarPage,
-} from "./pages/pillars/PillarDetailScreens";
+import SleepPillarSpec from "./pages/northstar/SleepPillarSpec";
+import DietPillarSpec from "./pages/northstar/DietPillarSpec";
+import ExercisePillarSpec from "./pages/northstar/ExercisePillarSpec";
+import MentalHealthPillarSpec from "./pages/northstar/MentalHealthPillarSpec";
+import PhysicalHealthPillarSpec from "./pages/northstar/PhysicalHealthPillarSpec";
+import FinancePillarSpec from "./pages/northstar/FinancePillarSpec";
+import SocialPillarSpec from "./pages/northstar/SocialPillarSpec";
+import SpiritualityPillarSpec from "./pages/northstar/SpiritualityPillarSpec";
 import queryClient from "./app/queryClient";
 import Pillars from "@/pages/Pillars";
 import { NAMED_ROUTES } from "@/config/routes";
@@ -33,6 +31,20 @@ import NorthStarAssistant from "@/ai/NorthStarAssistant";
 import Privacy from "./pages/compliance/Privacy";
 import Terms from "./pages/compliance/Terms";
 import TrustCenter from "./pages/compliance/TrustCenter";
+import SettingsNorthStar from "./pages/northstar/SettingsNorthStar";
+import TimelineNorthStar from "./pages/northstar/TimelineNorthStar";
+import NeuroShield from "./pages/northstar/NeuroShield";
+import LifePlanningAI from "./pages/northstar/LifePlanningAI";
+import Leaderboards from "./pages/northstar/Leaderboards";
+
+function AppLayout({ children }) {
+  return (
+    <div className="ns-app-surface">
+      <StarfieldBackground />
+      <div className="ns-app-surface__content relative z-10">{children}</div>
+    </div>
+  );
+}
 
 function AppRoutes() {
   return (
@@ -46,7 +58,7 @@ function AppRoutes() {
           path="/dashboard"
           element={
             <AuthGuard>
-              <Dashboard />
+              <DashboardNorthStar />
             </AuthGuard>
           }
         />
@@ -62,7 +74,7 @@ function AppRoutes() {
           path="/pillars/sleep"
           element={
             <AuthGuard>
-              <SleepPillarPage />
+              <SleepPillarSpec />
             </AuthGuard>
           }
         />
@@ -70,7 +82,7 @@ function AppRoutes() {
           path="/pillars/diet"
           element={
             <AuthGuard>
-              <DietPillarPage />
+              <DietPillarSpec />
             </AuthGuard>
           }
         />
@@ -78,7 +90,7 @@ function AppRoutes() {
           path="/pillars/exercise"
           element={
             <AuthGuard>
-              <ExercisePillarPage />
+              <ExercisePillarSpec />
             </AuthGuard>
           }
         />
@@ -86,7 +98,7 @@ function AppRoutes() {
           path="/pillars/physical_health"
           element={
             <AuthGuard>
-              <PhysicalHealthPillarPage />
+              <PhysicalHealthPillarSpec />
             </AuthGuard>
           }
         />
@@ -94,7 +106,7 @@ function AppRoutes() {
           path="/pillars/mental_health"
           element={
             <AuthGuard>
-              <MentalHealthPillarPage />
+              <MentalHealthPillarSpec />
             </AuthGuard>
           }
         />
@@ -102,7 +114,7 @@ function AppRoutes() {
           path="/pillars/finances"
           element={
             <AuthGuard>
-              <FinancesPillarPage />
+              <FinancePillarSpec />
             </AuthGuard>
           }
         />
@@ -110,7 +122,7 @@ function AppRoutes() {
           path="/pillars/social"
           element={
             <AuthGuard>
-              <SocialPillarPage />
+              <SocialPillarSpec />
             </AuthGuard>
           }
         />
@@ -118,7 +130,39 @@ function AppRoutes() {
           path="/pillars/spirituality"
           element={
             <AuthGuard>
-              <SpiritualityPillarPage />
+              <SpiritualityPillarSpec />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/timeline"
+          element={
+            <AuthGuard>
+              <TimelineNorthStar />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/neuroshield"
+          element={
+            <AuthGuard>
+              <NeuroShield />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/life-planning"
+          element={
+            <AuthGuard>
+              <LifePlanningAI />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/friends"
+          element={
+            <AuthGuard>
+              <Leaderboards />
             </AuthGuard>
           }
         />
@@ -127,6 +171,14 @@ function AppRoutes() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/trust-center" element={<TrustCenter />} />
+        <Route
+          path="/settings"
+          element={
+            <AuthGuard>
+              <SettingsNorthStar />
+            </AuthGuard>
+          }
+        />
         <Route path={NAMED_ROUTES.Pillars} element={<Pillars />} />
         <Route
           path="/coaches"
@@ -148,14 +200,11 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <BrowserRouter>
-          <div className="ns-app-surface">
-            <StarfieldBackground />
-            <div className="ns-app-surface__content">
-              <AppRoutes />
-              <NorthStarAssistant />
-              <SonnerToaster position="top-right" richColors closeButton />
-            </div>
-          </div>
+          <AppLayout>
+            <AppRoutes />
+            <NorthStarAssistant />
+            <SonnerToaster position="top-right" richColors closeButton />
+          </AppLayout>
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>

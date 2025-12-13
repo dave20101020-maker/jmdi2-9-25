@@ -1,63 +1,90 @@
-import React, { useMemo } from "react";
-import "./StarfieldBackground.css";
+import { useEffect, useRef } from "react";
+import * as THREE from "three";
 
-const STAR_COUNT = 90;
-const COMET_COUNT = 2;
+export default function StarfieldBackground() {
+  const canvasRef = useRef(null);
 
-export function StarfieldBackground() {
-  const stars = useMemo(
-    () =>
-      Array.from({ length: STAR_COUNT }).map((_, index) => ({
-        id: index,
-        top: Math.random() * 100,
-        left: Math.random() * 100,
-        size: 1 + Math.random() * 1.5,
-        delay: Math.random() * 8,
-        duration: 3 + Math.random() * 4,
-      })),
-    []
-  );
+  useEffect(() => {
+    let scene, camera, renderer, particles;
+    const particleCount = 1000;
+    const speedFactor = 0.005;
 
-  const comets = useMemo(
-    () =>
-      Array.from({ length: COMET_COUNT }).map((_, index) => ({
-        id: index,
-        fromSide: ["top", "right", "bottom", "left"][index % 4],
-        delay: index * 6 + Math.random() * 4,
-        duration: 6 + Math.random() * 4,
-      })),
-    []
-  );
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    camera.position.z = 5;
+
+    renderer = new THREE.WebGLRenderer({
+      canvas: canvasRef.current,
+      antialias: true,
+      alpha: true,
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const colors = [];
+    const color = new THREE.Color();
+
+    for (let i = 0; i < particleCount; i++) {
+      positions.push(
+        (Math.random() - 0.5) * 200,
+        (Math.random() - 0.5) * 200,
+        (Math.random() - 0.5) * 200
+      );
+
+      color.setHSL(0.6 + Math.random() * 0.1, 0.5, 0.7 + Math.random() * 0.2);
+      colors.push(color.r, color.g, color.b);
+    }
+
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(positions, 3)
+    );
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.1,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.7,
+      blending: THREE.AdditiveBlending,
+    });
+
+    particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      particles.rotation.x += speedFactor * 0.1;
+      particles.rotation.y += speedFactor * 0.2;
+      particles.rotation.z += speedFactor * 0.05;
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      renderer.dispose();
+    };
+  }, []);
 
   return (
-    <div className="ns-starfield" aria-hidden="true">
-      {stars.map((star) => (
-        <div
-          key={star.id}
-          className="ns-starfield__star"
-          style={{
-            top: `${star.top}%`,
-            left: `${star.left}%`,
-            width: `${star.size}px`,
-            height: `${star.size}px`,
-            animationDelay: `${star.delay}s`,
-            animationDuration: `${star.duration}s`,
-          }}
-        />
-      ))}
-
-      {comets.map((comet) => (
-        <div
-          key={comet.id}
-          className={`ns-starfield__comet ns-starfield__comet--${comet.fromSide}`}
-          style={{
-            animationDelay: `${comet.delay}s`,
-            animationDuration: `${comet.duration}s`,
-          }}
-        />
-      ))}
-    </div>
+    <canvas ref={canvasRef} className="fixed inset-0 -z-10 w-full h-full" />
   );
 }
-
-export default StarfieldBackground;

@@ -85,6 +85,8 @@ router.post(
     }),
   }),
   asyncHandler(async (req, res) => {
+    console.log("AI route hit");
+    console.log("Request body:", req.body);
     const { message, pillar, explicitMode } = req.body;
     const userId = getAuthenticatedUserId(req);
 
@@ -114,6 +116,7 @@ router.post(
         lastMessages = history;
       }
 
+      console.log("Calling OpenAI...");
       // Run orchestrator (which handles its own error catching)
       const result = await runNorthStarAI({
         userId,
@@ -123,6 +126,7 @@ router.post(
         memory,
         appItems: undefined, // Could be loaded from database
       });
+      console.log("OpenAI returned");
 
       if (!result.ok && result.error) {
         // AI unavailable - return fallback response

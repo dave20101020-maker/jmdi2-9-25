@@ -55,18 +55,27 @@ if (!JWT_SECRET) {
   logger.warn("JWT_SECRET not set — using default (NOT SECURE for production)");
 }
 
-const allowedOrigins = [
-  "https://fictional-disco-x5797q7rr56wf9v7-5173.app.github.dev",
-  "https://*.github.dev",
-  "http://localhost:5173",
-];
+const codespaceOrigin = process.env.CODESPACE_NAME
+  ? `https://${process.env.CODESPACE_NAME}-5173.app.github.dev`
+  : null;
+
+const allowedOrigins = ["http://localhost:5173", codespaceOrigin];
 
 const app = express();
 
 // Middleware
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const isAllowed = allowedOrigins.some((entry) => {
+        if (!entry) return false;
+        if (entry instanceof RegExp) return entry.test(origin);
+        return origin === entry;
+      });
+      if (isAllowed) return callback(null, true);
+      return callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -220,7 +229,7 @@ app.use((err, req, res, next) => {
 });
 
 if (process.env.NODE_ENV !== "test") {
-  app.listen(PORT, () => {
+  app.listen(PORT, "0.0.0.0", () => {
     logger.info("NorthStar Backend started", {
       port: PORT,
       environment: envName,

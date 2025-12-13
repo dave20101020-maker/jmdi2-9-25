@@ -1,12 +1,5 @@
 import React, { useMemo, useState } from "react";
-import {
-  Send,
-  MessageCircle,
-  Sparkles,
-  X,
-  Loader2,
-  ShieldCheck,
-} from "lucide-react";
+import { Send, Sparkles, X, Loader2, ShieldCheck, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendNorthStarMessage } from "@/api/ai";
 import {
@@ -134,9 +127,9 @@ export default function NorthStarAssistant() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center">
       {open && (
-        <div className="mb-3 w-[380px] max-w-[90vw] rounded-2xl border border-slate-800 bg-slate-900/95 shadow-2xl backdrop-blur">
+        <div className="pointer-events-auto mb-3 w-[min(420px,calc(100vw-2.5rem))] rounded-2xl border border-slate-800 bg-slate-950/95 shadow-[0_25px_80px_rgba(0,0,0,0.45)] backdrop-blur">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
@@ -261,16 +254,20 @@ export default function NorthStarAssistant() {
         </div>
       )}
 
-      <Button
+      <button
+        type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="shadow-lg"
-        variant="default"
-        size="lg"
-        aria-label={open ? "Hide NorthStar AI" : "Open NorthStar AI"}
+        aria-label={open ? "Hide NorthStar" : "Open NorthStar"}
+        className="pointer-events-auto relative inline-flex items-center gap-2 rounded-2xl px-5 py-3 font-semibold text-slate-900 shadow-[0_0_25px_rgba(251,191,36,0.55),0_0_45px_rgba(94,234,212,0.35)]"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 50%, rgba(255,242,204,0.95), rgba(251,191,36,0.9) 55%, rgba(255,215,128,0.75) 90%)",
+          border: "1px solid rgba(255, 225, 138, 0.85)",
+        }}
       >
-        <MessageCircle className="h-4 w-4 mr-2" />
-        {open ? "Hide NorthStar AI" : "NorthStar AI"}
-      </Button>
+        <Star className="h-4 w-4" />
+        <span className="text-sm tracking-wide">NorthStar</span>
+      </button>
     </div>
   );
 }

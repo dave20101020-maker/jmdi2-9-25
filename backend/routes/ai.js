@@ -1,4 +1,5 @@
 import express from "express";
+import OpenAI from "openai";
 import {
   coachAgent,
   dailyPlanAgent,
@@ -8,6 +9,48 @@ import {
 } from "../controllers/aiController.js";
 
 const router = express.Router();
+
+// Minimal, unauthenticated AI test route to verify OpenAI connectivity
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  timeout: 30_000,
+});
+
+router.post("/", async (req, res) => {
+  console.log("AI route hit");
+  console.log("Request body:", req.body);
+
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt required" });
+    }
+
+    console.log("Calling OpenAI...");
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are NorthStar AI." },
+        { role: "user", content: prompt },
+      ],
+    });
+
+    console.log("OpenAI returned");
+
+    const reply = completion?.choices?.[0]?.message?.content;
+
+    if (!reply) {
+      return res.status(500).json({ error: "Empty AI response" });
+    }
+
+    return res.json({ reply });
+  } catch (err) {
+    console.error("AI ERROR:", err);
+    return res.status(500).json({ error: err.message || "AI failure" });
+  }
+});
 
 import {
   authRequired,

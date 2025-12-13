@@ -1,19 +1,37 @@
 import React from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import { Home, Settings as SettingsIcon } from "lucide-react";
 import { themeTokens } from "../ThemeProvider";
 import { PILLARS } from "@/config/pillars";
 
 const primaryLinks = [
   { label: "Dashboard", path: "/dashboard" },
-  { label: "Habits", path: "/habits" },
-  { label: "Check-ins", path: "/check-ins" },
-  { label: "Pricing", path: "/pricing" },
+  { label: "Timeline", path: "/timeline" },
+  { label: "NeuroShield", path: "/neuroshield" },
+  { label: "Life Planning AI", path: "/life-planning" },
+  { label: "Friends", path: "/friends" },
+  { label: "Settings", path: "/settings" },
 ];
 
 const authLinks = [
   { label: "Login", path: "/login" },
   { label: "Register", path: "/register" },
   { label: "Onboarding", path: "/onboarding" },
+];
+
+const notificationDeck = [
+  {
+    title: "Crisis mode off",
+    body: "Monitoring language; toolkit ready if signals rise.",
+  },
+  {
+    title: "Goal roadmap",
+    body: "Week: lock sleep window, add 2x movement blocks.",
+  },
+  {
+    title: "AI priority",
+    body: "Wind-down 10:30 PM selected as highest impact tonight.",
+  },
 ];
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -144,15 +162,94 @@ export default function AppShell() {
         </header>
 
         <main className="flex-1">
-          <div className="mx-auto w-full max-w-6xl px-5 py-8">
-            <div className={`${themeTokens.panel} mb-6 p-4`}>
-              Navy + Gold AppShell ready for routed content.
+          <div className="mx-auto w-full max-w-6xl px-5 py-8 pb-28 lg:pb-12">
+            <div className="mb-6 grid gap-3 lg:grid-cols-3">
+              <div className={`${themeTokens.panel} p-4 space-y-2`}>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+                  Crisis Mode
+                </p>
+                <p className="text-sm text-white/80">
+                  Passive detection on. If distress signals rise, jump into the
+                  Emergency Coping Toolkit.
+                </p>
+                <NavLink
+                  to="/pillars/mental_health"
+                  className={themeTokens.buttonPrimary}
+                >
+                  Open toolkit
+                </NavLink>
+                <p className="text-[11px] text-white/50">
+                  Support only · not diagnostic.
+                </p>
+              </div>
+              <div className={`${themeTokens.panel} p-4 space-y-2`}>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+                  Smart notifications
+                </p>
+                <ul className="space-y-1 text-sm text-white/80 max-h-24 overflow-y-auto pr-1">
+                  {notificationDeck.map((item) => (
+                    <li key={item.title} className="flex items-start gap-2">
+                      <span
+                        className="mt-1 h-2 w-2 rounded-full bg-ns-gold"
+                        aria-hidden
+                      />
+                      <div>
+                        <p className="font-semibold text-white">{item.title}</p>
+                        <p className="text-white/60">{item.body}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className={`${themeTokens.panel} p-4 space-y-2`}>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+                  Goal roadmap
+                </p>
+                <p className="text-sm text-white/80">
+                  Quarter: stabilize sleep + buffer finances. Week: wind-down at
+                  10:30 PM, hydrate 3L, 2x workouts.
+                </p>
+                <NavLink to="/timeline" className={themeTokens.buttonGhost}>
+                  View timeline overlay
+                </NavLink>
+              </div>
             </div>
             <div className={themeTokens.card}>
               <Outlet />
             </div>
           </div>
         </main>
+
+        {/* Mobile bottom bar */}
+        <nav className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-[var(--ns-color-border)] bg-[var(--ns-color-background)]/90 backdrop-blur-md">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3 text-white/80">
+            <NavLink
+              to="/dashboard"
+              className={({ isActive }) =>
+                `flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  isActive ? "bg-white/10 text-white" : "hover:bg-white/5"
+                }`
+              }
+            >
+              <Home className="h-4 w-4" />
+              <span>Home</span>
+            </NavLink>
+
+            <div className="flex-1" aria-hidden />
+
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                `flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  isActive ? "bg-white/10 text-white" : "hover:bg-white/5"
+                }`
+              }
+            >
+              <SettingsIcon className="h-4 w-4" />
+              <span>Settings</span>
+            </NavLink>
+          </div>
+        </nav>
       </div>
     </div>
   );

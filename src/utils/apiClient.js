@@ -1,6 +1,9 @@
 // src/utils/apiClient.js
 
-const BASE_URL = import.meta.env.VITE_BACKEND_URL;
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
+  "http://localhost:5000";
 
 async function request(method, path, body) {
   const options = {
@@ -11,14 +14,6 @@ async function request(method, path, body) {
 
   if (body) {
     options.body = JSON.stringify(body);
-  }
-
-  const DEMO = import.meta.env.VITE_DEMO_MODE === "true";
-
-  // In demo mode, avoid backend calls and return safe defaults
-  if (DEMO) {
-    if (method === "GET") return [];
-    return { ok: true };
   }
 
   try {
@@ -67,11 +62,15 @@ const baseApi = {
   authMe: () => request("GET", "/auth/me"),
 };
 
-const toKebab = (s) => s
-  .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-  .replace(/^get|^create|^update|^delete|^log|^list|^post|^put|^patch|^ai/, "")
-  .replace(/^-+/, "")
-  .toLowerCase();
+const toKebab = (s) =>
+  s
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(
+      /^get|^create|^update|^delete|^log|^list|^post|^put|^patch|^ai/,
+      ""
+    )
+    .replace(/^-+/, "")
+    .toLowerCase();
 
 const dynamic = new Proxy(baseApi, {
   get(target, prop) {
@@ -87,7 +86,10 @@ const dynamic = new Proxy(baseApi, {
             focus_area: payload?.pillar || "General",
             top_insights: [],
             recommendations: [],
-            suggested_plan: { title: "Starter Plan", description: "Try a simple daily habit." },
+            suggested_plan: {
+              title: "Starter Plan",
+              description: "Try a simple daily habit.",
+            },
           };
         }
         return request("POST", "/ai/coach", payload);
@@ -118,11 +120,23 @@ const dynamic = new Proxy(baseApi, {
     const name = String(prop);
     const lower = name.toLowerCase();
     let method = "GET";
-    if (lower.startsWith("create") || lower.startsWith("log") || lower.startsWith("post")) method = "POST";
-    else if (lower.startsWith("update") || lower.startsWith("put") || lower.startsWith("patch")) method = "PUT";
-    else if (lower.startsWith("delete") || lower.startsWith("remove")) method = "DELETE";
+    if (
+      lower.startsWith("create") ||
+      lower.startsWith("log") ||
+      lower.startsWith("post")
+    )
+      method = "POST";
+    else if (
+      lower.startsWith("update") ||
+      lower.startsWith("put") ||
+      lower.startsWith("patch")
+    )
+      method = "PUT";
+    else if (lower.startsWith("delete") || lower.startsWith("remove"))
+      method = "DELETE";
     const path = "/" + toKebab(name).replace(/_/g, "-");
-    return (bodyOrParams) => request(method, path, method === "GET" ? undefined : bodyOrParams);
+    return (bodyOrParams) =>
+      request(method, path, method === "GET" ? undefined : bodyOrParams);
   },
 });
 

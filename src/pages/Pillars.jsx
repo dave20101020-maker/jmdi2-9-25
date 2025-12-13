@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { getPageManifest } from "@/api/pages";
 import { pillarPages } from "@/config/pageManifest";
 
-const PageCard = ({ title, summary, path }) => (
+const normalizePillarId = (pillarId = "") => pillarId.replace(/-/g, "_");
+
+const PageCard = ({ title, summary, id }) => (
   <Link
-    to={path}
+    to={`/pillars/${normalizePillarId(id)}`}
     className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
   >
     <div className="text-xs font-semibold uppercase tracking-wide text-blue-600">
