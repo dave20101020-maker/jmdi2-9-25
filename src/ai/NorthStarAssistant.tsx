@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Send, Sparkles, X, Loader2, ShieldCheck, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendNorthStarMessage } from "@/api/ai";
@@ -13,6 +14,7 @@ import {
   normalizeAiDiagnosticsFromError,
   renderAiDiagnosticLabel,
 } from "@/ai/diagnostics";
+import { getCurrentAIContext } from "@/ai/context";
 
 const DEMO_MODE =
   (import.meta.env.VITE_DEMO_MODE || "").toLowerCase() === "true";
@@ -53,6 +55,12 @@ export default function NorthStarAssistant() {
   } | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
+  const location = useLocation();
+  const aiContext = useMemo(
+    () => getCurrentAIContext(location),
+    [location.pathname, location.search, location.hash]
+  );
+
   const activeAgent = useMemo(
     () => getAgentById(activeAgentId) || PILLAR_AI_AGENTS[0],
     [activeAgentId]
@@ -61,11 +69,20 @@ export default function NorthStarAssistant() {
   const handleSend = async () => {
     if (!input.trim()) return;
     const backendPillar = mapFrontendToBackendPillar(activeAgent.id);
+
+    // If the user hasn't manually selected a coach, infer focus from the UI.
+    // Never block requests due to missing context.
+    const inferredPillar =
+      !backendPillar && aiContext.pillar !== "general"
+        ? aiContext.pillar
+        : null;
+    const inferredModule = !backendPillar ? aiContext.module : null;
+
     const newMessage = {
       id: newId(),
       role: "user" as const,
       text: input,
-      pillar: backendPillar,
+      pillar: backendPillar || inferredPillar,
     };
     setMessages((prev) => [...prev, newMessage]);
     setInput("");
@@ -81,8 +98,10 @@ export default function NorthStarAssistant() {
 
       const apiResponse = await sendNorthStarMessage({
         message: input,
-        pillar: backendPillar || undefined,
+        pillar: backendPillar || inferredPillar || undefined,
+        module: inferredModule || undefined,
         explicitMode: !!backendPillar,
+        context: aiContext,
       });
 
       if (apiResponse?.ok === false) {
@@ -142,8 +161,20 @@ export default function NorthStarAssistant() {
   };
   const renderDiagnosticLabel = renderAiDiagnosticLabel;
 
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    const onToggle = () => setOpen((v) => !v);
+
+    window.addEventListener("northstar:open", onOpen);
+    window.addEventListener("northstar:toggle", onToggle);
+    return () => {
+      window.removeEventListener("northstar:open", onOpen);
+      window.removeEventListener("northstar:toggle", onToggle);
+    };
+  }, []);
+
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center">
+    <div className="pointer-events-none fixed inset-x-0 bottom-20 md:bottom-4 z-50 flex justify-center">
       {open && (
         <div className="pointer-events-auto mb-3 w-[min(420px,calc(100vw-2.5rem))] rounded-2xl border border-slate-800 bg-slate-950/95 shadow-[0_25px_80px_rgba(0,0,0,0.45)] backdrop-blur">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
@@ -318,7 +349,7 @@ export default function NorthStarAssistant() {
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-label={open ? "Hide NorthStar" : "Open NorthStar"}
-        className="pointer-events-auto relative inline-flex items-center gap-2 rounded-2xl px-5 py-3 font-semibold text-slate-900 shadow-[0_0_25px_rgba(251,191,36,0.55),0_0_45px_rgba(94,234,212,0.35)]"
+        className="pointer-events-auto relative hidden md:inline-flex items-center gap-2 rounded-2xl px-5 py-3 font-semibold text-slate-900 shadow-[0_0_25px_rgba(251,191,36,0.55),0_0_45px_rgba(94,234,212,0.35)]"
         style={{
           background:
             "radial-gradient(circle at 50% 50%, rgba(255,242,204,0.95), rgba(251,191,36,0.9) 55%, rgba(255,215,128,0.75) 90%)",

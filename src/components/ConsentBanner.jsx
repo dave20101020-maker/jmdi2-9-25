@@ -18,26 +18,31 @@ export default function ConsentBanner({ onConsentGiven, onDismiss }) {
   const handleAcceptConsent = async () => {
     setIsLoading(true);
     try {
+      const consentTimestamp = new Date().toISOString();
+
       // Store consent in localStorage
       const consentData = {
         aiConsent: true,
-        consentTimestamp: new Date().toISOString(),
+        consentTimestamp,
         consentVersion: "1.0",
+        consents: {
+          gdpr: {
+            accepted: true,
+            version: "gdpr-2025.12",
+            timestamp: consentTimestamp,
+          },
+          clinical: {
+            accepted: true,
+            version: "clinical-2025.12",
+            timestamp: consentTimestamp,
+          },
+        },
       };
       localStorage.setItem("aiConsent", JSON.stringify(consentData));
 
       // Send to backend to track in user record
       try {
-        const method = hasConsent ? "PUT" : "POST";
-        const result =
-          method === "PUT"
-            ? await api.put("/user/consent", { consent: true })
-            : await api.post("/user/consent", { consent: true });
-
-        if (!response.ok) {
-          console.warn("Failed to save consent to backend:", response.status);
-          // Continue anyway - localStorage is sufficient fallback
-        }
+        await api.post("/user/consent", consentData);
       } catch (error) {
         console.warn("Could not reach backend for consent tracking:", error);
         // Continue anyway - localStorage consent is still valid

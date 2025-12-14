@@ -71,10 +71,22 @@ const roadmap = [
 ];
 
 const streaks = [
-  { label: "Check-in streak", value: 9 },
-  { label: "Workout streak", value: 5 },
-  { label: "Hydration streak", value: 6 },
+  { label: "Check-ins", value: 9 },
+  { label: "Workouts", value: 5 },
+  { label: "Hydration", value: 6 },
 ];
+
+const renderMomentumValue = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return "Today";
+  return n;
+};
+
+const renderMomentumNote = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return "Momentum resumes today";
+  return "Momentum";
+};
 
 export default function DashboardNorthStar() {
   const lifeScore = 74;
@@ -84,25 +96,27 @@ export default function DashboardNorthStar() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-white/60">
-            Dashboard
+            Mission Control
           </p>
           <h1 className="text-3xl font-semibold text-white">
-            NorthStar Mission
+            Your day, clarified
           </h1>
           <p className="text-sm text-white/70">
-            AI-prioritised focus, live roadmaps, and micro-insights across every
-            pillar.
+            One priority for today, plus the next best steps across your
+            pillars.
           </p>
         </div>
-        <Link to="/timeline" className={themeTokens.buttonPrimary}>
+        <Link to="/timeline" className={themeTokens.buttonGhost}>
           View Timeline
         </Link>
       </header>
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <article className={`${themeTokens.card} relative overflow-hidden p-4`}>
+        <article
+          className={`${themeTokens.card} order-2 lg:order-1 relative overflow-hidden p-4 opacity-90 md:opacity-100`}
+        >
           <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-            Unified Life Score
+            Overall progress
           </p>
           <div className="flex items-center gap-4">
             <div className="flex items-center justify-center">
@@ -112,14 +126,14 @@ export default function DashboardNorthStar() {
             </div>
             <div className="space-y-2">
               <div className="text-4xl font-bold text-white">{lifeScore}</div>
-              <p className="text-sm text-white/70">Weighted across 8 pillars</p>
+              <p className="text-sm text-white/70">Across 8 pillars</p>
               <div className="flex items-center gap-2 text-xs text-emerald-300">
                 <Sparkles className="h-4 w-4" />
-                AI trending +3 in next 7 days
+                Trend: +3 this week
               </div>
               <div className="flex items-center gap-2 text-xs text-amber-200">
                 <Shield className="h-4 w-4" />
-                Crisis mode off · monitoring
+                Crisis mode: off
               </div>
             </div>
           </div>
@@ -128,13 +142,15 @@ export default function DashboardNorthStar() {
           </div>
         </article>
 
-        <article className={`${themeTokens.card} p-4 space-y-3`}>
+        <article
+          className={`${themeTokens.card} order-1 lg:order-2 p-4 space-y-3 ring-1 ring-ns-gold/25`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-white/60">
                 Daily Focus
               </p>
-              <h2 className="text-lg font-semibold text-white">
+              <h2 className="text-xl font-semibold text-white">
                 Highest impact task
               </h2>
             </div>
@@ -145,7 +161,7 @@ export default function DashboardNorthStar() {
               Wind-down at 10:30 PM
             </p>
             <p className="text-xs text-white/70">
-              AI selected: improves sleep, mood, and cognitive risk score.
+              Chosen for impact: improves sleep, mood, and tomorrow's focus.
             </p>
             <div className="flex flex-wrap gap-2 text-[11px] text-white/70">
               <span className="rounded-full bg-white/10 px-2 py-1">Sleep</span>
@@ -158,9 +174,9 @@ export default function DashboardNorthStar() {
             </div>
             <Link
               to="/pillars/sleep"
-              className="inline-flex items-center gap-2 text-sm text-ns-gold"
+              className={`${themeTokens.buttonPrimary} inline-flex min-h-11 items-center justify-center gap-2`}
             >
-              View quick plan <ArrowRight className="h-4 w-4" />
+              Do now <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
           <details className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
@@ -168,21 +184,21 @@ export default function DashboardNorthStar() {
               Why this matters
             </summary>
             <p className="mt-2 text-white/70">
-              Improves sleep score, lowers cognitive risk indicators, and boosts
-              tomorrow's focus window.
+              A steady evening routine supports sleep quality and keeps
+              tomorrow's focus window easier to access.
             </p>
           </details>
         </article>
 
-        <article className={`${themeTokens.card} p-4 space-y-3`}>
+        <article
+          className={`${themeTokens.card} order-3 lg:order-3 p-4 space-y-3 opacity-90 md:opacity-100`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-                Smart Notifications
+                Insights
               </p>
-              <h2 className="text-lg font-semibold text-white">
-                AI-prioritised feed
-              </h2>
+              <h2 className="text-lg font-semibold text-white">Top signals</h2>
             </div>
             <BellRing className="h-5 w-5 text-amber-300" />
           </div>
@@ -195,191 +211,201 @@ export default function DashboardNorthStar() {
             ))}
           </div>
           <div className="flex items-center gap-2 text-xs text-white/60">
-            <Sparkles className="h-4 w-4" /> Context-aware · auto-sorted by
-            impact
+            <Sparkles className="h-4 w-4" /> Sorted by impact · context-aware
           </div>
         </article>
       </section>
 
-      <section className={`${themeTokens.card} p-4`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-              Pillars
-            </p>
-            <h2 className="text-lg font-semibold text-white">
-              Status overview
-            </h2>
-          </div>
-          <Link
-            to="/timeline"
-            className="text-sm text-ns-gold flex items-center gap-2"
-          >
-            View correlations <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-        <div className="grid gap-3 md:grid-cols-4 sm:grid-cols-2 mt-3">
-          {pillars.map((pillar) => (
-            <Link
-              key={pillar.id}
-              to={pillar.link}
-              className={`${themeTokens.panel} p-3 transition hover:border-ns-gold/60 hover:shadow-lg`}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-white">
-                  {pillar.label}
-                </p>
-                <span className="text-xs text-white/60">{pillar.score}</span>
-              </div>
-              <div className="mt-2 h-2 w-full rounded-full bg-white/10">
-                <div
-                  className="h-2 rounded-full bg-gradient-to-r from-ns-gold to-amber-400"
-                  style={{ width: `${pillar.score}%` }}
-                />
-              </div>
-              <p className="mt-2 text-[11px] text-white/60">
-                Roadmap tie-in: {roadmap[pillar.score % roadmap.length].detail}
-              </p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <article className={`${themeTokens.card} p-4 space-y-3`}>
-          <div className="flex items-center gap-2 text-white">
-            <LineChart className="h-5 w-5 text-cyan-300" />
+      <div className="space-y-6 opacity-90 md:opacity-100">
+        <section className={`${themeTokens.card} p-4`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-                Streaks
+                Pillars
               </p>
-              <h3 className="text-lg font-semibold">Consistency tracker</h3>
+              <h2 className="text-lg font-semibold text-white">
+                Status overview
+              </h2>
             </div>
+            <Link
+              to="/timeline"
+              className="text-sm text-ns-gold flex items-center gap-2"
+            >
+              View correlations <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            {streaks.map((streak) => (
-              <div
-                key={streak.label}
-                className={`${themeTokens.panel} p-3 text-center`}
+          <div className="grid gap-3 md:grid-cols-4 sm:grid-cols-2 mt-3">
+            {pillars.map((pillar) => (
+              <Link
+                key={pillar.id}
+                to={pillar.link}
+                className={`${themeTokens.panel} p-3 transition hover:border-ns-gold/60 hover:shadow-lg`}
               >
-                <p className="text-2xl font-bold text-white">{streak.value}</p>
-                <p className="text-xs text-white/60">{streak.label}</p>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-white/60">
-            Gentle reminders · no pressure mechanics
-          </p>
-        </article>
-
-        <article className={`${themeTokens.card} p-4 space-y-3`}>
-          <div className="flex items-center gap-2 text-white">
-            <AlarmClock className="h-5 w-5 text-emerald-300" />
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-                Crisis Mode
-              </p>
-              <h3 className="text-lg font-semibold">Detection prompt</h3>
-            </div>
-          </div>
-          <p className="text-sm text-white/70">
-            Monitoring language and check-ins. If risk signals rise, jump to the
-            emergency toolkit.
-          </p>
-          <Link
-            to="/pillars/mental_health"
-            className={themeTokens.buttonPrimary}
-          >
-            Open Emergency Toolkit
-          </Link>
-          <p className="text-[11px] text-white/50">
-            Not diagnostic. For support only.
-          </p>
-        </article>
-
-        <article className={`${themeTokens.card} p-4 space-y-3`}>
-          <div className="flex items-center gap-2 text-white">
-            <Brain className="h-5 w-5 text-purple-300" />
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-                Goal Roadmap
-              </p>
-              <h3 className="text-lg font-semibold">Visual reference</h3>
-            </div>
-          </div>
-          <ul className="space-y-2 text-sm text-white/80">
-            {roadmap.map((item) => (
-              <li key={item.label} className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-ns-gold" aria-hidden />
-                <div>
-                  <p className="font-semibold text-white">{item.label}</p>
-                  <p className="text-white/60">{item.detail}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-white">
+                    {pillar.label}
+                  </p>
+                  <span className="text-xs text-white/60">{pillar.score}</span>
                 </div>
-              </li>
+                <div className="mt-2 h-2 w-full rounded-full bg-white/10">
+                  <div
+                    className="h-2 rounded-full bg-gradient-to-r from-ns-gold to-amber-400"
+                    style={{ width: `${pillar.score}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] text-white/60">
+                  Roadmap tie-in:{" "}
+                  {roadmap[pillar.score % roadmap.length].detail}
+                </p>
+              </Link>
             ))}
-          </ul>
-          <Link
-            to="/timeline"
-            className="text-sm text-ns-gold flex items-center gap-2"
-          >
-            See timeline overlay <ArrowRight className="h-4 w-4" />
-          </Link>
-        </article>
-      </section>
-
-      <section className={`${themeTokens.card} p-4 space-y-3`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-white">
-            <Flame className="h-5 w-5 text-orange-300" />
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-                Navigation
-              </p>
-              <h3 className="text-lg font-semibold">All sections</h3>
-            </div>
           </div>
-          <Medal className="h-5 w-5 text-ns-gold" />
-        </div>
-        <div className="grid gap-2 md:grid-cols-4 sm:grid-cols-2 text-sm text-white">
-          {[
-            "Timeline",
-            "Sleep",
-            "Diet",
-            "Exercise",
-            "Mental Health",
-            "Physical Health",
-            "Finances",
-            "Social",
-            "Spirituality",
-            "NeuroShield",
-            "Life Planning AI",
-            "Friends & Leaderboard",
-            "Settings",
-          ].map((item) => (
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          <article className={`${themeTokens.card} p-4 space-y-3`}>
+            <div className="flex items-center gap-2 text-white">
+              <LineChart className="h-5 w-5 text-cyan-300" />
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+                  Momentum
+                </p>
+                <h3 className="text-lg font-semibold">Gentle progress</h3>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {streaks.map((streak) => (
+                <div
+                  key={streak.label}
+                  className={`${themeTokens.panel} p-3 text-center`}
+                >
+                  <p className="text-2xl font-bold text-white">
+                    {renderMomentumValue(streak.value)}
+                  </p>
+                  <p className="text-xs text-white/60">{streak.label}</p>
+                  <p className="mt-1 text-[11px] text-white/50">
+                    {renderMomentumNote(streak.value)}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-white/60">
+              No penalties · you can restart anytime
+            </p>
+          </article>
+
+          <article className={`${themeTokens.card} p-4 space-y-3`}>
+            <div className="flex items-center gap-2 text-white">
+              <AlarmClock className="h-5 w-5 text-emerald-300" />
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+                  Support
+                </p>
+                <h3 className="text-lg font-semibold">Quick help</h3>
+              </div>
+            </div>
+            <p className="text-sm text-white/70">
+              If you're feeling overwhelmed, open the toolkit for grounding and
+              next steps.
+            </p>
             <Link
-              key={item}
-              to={
-                item === "Timeline"
-                  ? "/timeline"
-                  : item === "NeuroShield"
-                  ? "/neuroshield"
-                  : item === "Life Planning AI"
-                  ? "/life-planning"
-                  : item === "Friends & Leaderboard"
-                  ? "/friends"
-                  : `/pillars/${item
-                      .toLowerCase()
-                      .replace(/ &.*$/, "")
-                      .replace(/ /g, "_")}`
-              }
-              className={`${themeTokens.panel} flex items-center justify-between p-3 hover:border-ns-gold/60`}
+              to="/pillars/mental_health"
+              className={themeTokens.buttonGhost}
             >
-              <span>{item}</span>
-              <ArrowRight className="h-4 w-4" />
+              Open toolkit
             </Link>
-          ))}
-        </div>
-      </section>
+            <p className="text-[11px] text-white/50">
+              Support only · not diagnostic.
+            </p>
+          </article>
+
+          <article className={`${themeTokens.card} p-4 space-y-3`}>
+            <div className="flex items-center gap-2 text-white">
+              <Brain className="h-5 w-5 text-purple-300" />
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+                  Goal Roadmap
+                </p>
+                <h3 className="text-lg font-semibold">Visual reference</h3>
+              </div>
+            </div>
+            <ul className="space-y-2 text-sm text-white/80">
+              {roadmap.map((item) => (
+                <li key={item.label} className="flex items-center gap-2">
+                  <span
+                    className="h-2 w-2 rounded-full bg-ns-gold"
+                    aria-hidden
+                  />
+                  <div>
+                    <p className="font-semibold text-white">{item.label}</p>
+                    <p className="text-white/60">{item.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <Link
+              to="/timeline"
+              className="text-sm text-ns-gold flex items-center gap-2"
+            >
+              See timeline overlay <ArrowRight className="h-4 w-4" />
+            </Link>
+          </article>
+        </section>
+
+        <section className={`${themeTokens.card} p-4 space-y-3`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-white">
+              <Flame className="h-5 w-5 text-orange-300" />
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+                  Navigation
+                </p>
+                <h3 className="text-lg font-semibold">All sections</h3>
+              </div>
+            </div>
+            <Medal className="h-5 w-5 text-ns-gold" />
+          </div>
+          <div className="grid gap-2 md:grid-cols-4 sm:grid-cols-2 text-sm text-white">
+            {[
+              "Timeline",
+              "Sleep",
+              "Diet",
+              "Exercise",
+              "Mental Health",
+              "Physical Health",
+              "Finances",
+              "Social",
+              "Spirituality",
+              "NeuroShield",
+              "Life Planning AI",
+              "Friends & Leaderboard",
+              "Settings",
+            ].map((item) => (
+              <Link
+                key={item}
+                to={
+                  item === "Timeline"
+                    ? "/timeline"
+                    : item === "NeuroShield"
+                    ? "/neuroshield"
+                    : item === "Life Planning AI"
+                    ? "/life-planning"
+                    : item === "Friends & Leaderboard"
+                    ? "/friends"
+                    : `/pillars/${item
+                        .toLowerCase()
+                        .replace(/ &.*$/, "")
+                        .replace(/ /g, "_")}`
+                }
+                className={`${themeTokens.panel} flex items-center justify-between p-3 hover:border-ns-gold/60`}
+              >
+                <span>{item}</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

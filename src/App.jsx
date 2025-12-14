@@ -38,6 +38,9 @@ import NeuroShield from "./pages/northstar/NeuroShield";
 import LifePlanningAI from "./pages/northstar/LifePlanningAI";
 import Leaderboards from "./pages/northstar/Leaderboards";
 import FloatingCopilotButton from "./components/FloatingCopilotButton";
+import Analytics from "./pages/Analytics";
+import WeeklyReflection from "./pages/WeeklyReflection";
+import WeeklyReport from "./pages/WeeklyReport";
 
 function AppLayout({ children }) {
   return (
@@ -194,6 +197,31 @@ function AppRoutes() {
           element={
             <AuthGuard>
               <CoachHub />
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/analytics"
+          element={
+            <AuthGuard>
+              <Analytics />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/weekly-reflection"
+          element={
+            <AuthGuard>
+              <WeeklyReflection />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/weekly-report"
+          element={
+            <AuthGuard>
+              <WeeklyReport />
             </AuthGuard>
           }
         />

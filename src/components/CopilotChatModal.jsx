@@ -1,6 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { X, Send, Loader2, AlertTriangle } from "lucide-react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Link, useLocation } from "react-router-dom";
+import { X, Send, Loader2, AlertTriangle, Shield } from "lucide-react";
 import DiagnosticsPanel from "./CopilotChat/DiagnosticsPanel";
 import useDiagnosticsStore from "@/store/diagnosticsStore";
 import { apiClient } from "@/utils/apiClient";
@@ -9,9 +15,11 @@ import {
   renderAiDiagnosticLabel,
 } from "@/ai/diagnostics";
 import { useAuth } from "@/hooks/useAuth";
+import { getCurrentAIContext } from "@/ai/context";
+import { PILLARS } from "@/config/pillars";
 
 const fallbackReply = (prompt) =>
-  `Mock reply for: "${prompt}". The AI service is unavailable (503).`;
+  `Mock reply for: "${prompt}". The AI service is temporarily unavailable.`;
 
 const useCrisisDetection = () => {
   const [crisisState, setCrisisState] = useState(null);
@@ -60,7 +68,7 @@ const useCrisisDetection = () => {
   return { crisisState, evaluateCrisisSignal, resetCrisis };
 };
 
-export default function CopilotChatModal({ open, onClose }) {
+export default function CopilotChatModal({ open, onClose, initialDraft }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -73,6 +81,37 @@ export default function CopilotChatModal({ open, onClose }) {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const setDiagnosticsStore = useDiagnosticsStore((s) => s.setDiagnostics);
   const containerRef = useRef(null);
+  const location = useLocation();
+  const aiContext = useMemo(
+    () => getCurrentAIContext(location),
+    [location.pathname, location.search, location.hash]
+  );
+
+  const [contextHint, setContextHint] = useState(null);
+  const [contextHintPhase, setContextHintPhase] = useState("hidden");
+
+  const contextLabel = useMemo(() => {
+    const path = String(location?.pathname || "/");
+    if (path === "/dashboard" || path === "/") return "Mission Control";
+
+    const pillarId = (aiContext?.pillar || "").toString().toLowerCase();
+    if (!pillarId || pillarId === "general") return null;
+
+    const match = (Array.isArray(PILLARS) ? PILLARS : []).find(
+      (p) => String(p?.id || "").toLowerCase() === pillarId
+    );
+
+    return match?.label ? String(match.label) : null;
+  }, [aiContext?.pillar, location?.pathname]);
+
+  const crisisUiLevel = useMemo(() => {
+    if (!crisisState) return "monitoring";
+    const level = String(crisisState?.riskLevel || "").toLowerCase();
+    if (["high", "severe", "critical"].some((v) => level.includes(v))) {
+      return "active";
+    }
+    return "elevated";
+  }, [crisisState]);
 
   const hasAiConsent = () => {
     try {
@@ -99,11 +138,56 @@ export default function CopilotChatModal({ open, onClose }) {
   }, [open, messages]);
 
   useEffect(() => {
+    if (!open) return;
+    if (typeof initialDraft !== "string" || !initialDraft.trim()) return;
+    // Only prefill if the user hasn't started typing and chat is empty.
+    setInput((current) => {
+      if (current && current.trim().length > 0) return current;
+      if (messages.length > 0) return current;
+      return initialDraft;
+    });
+  }, [initialDraft, messages.length, open]);
+
+  useEffect(() => {
     if (open) {
       setAccessIssue(null);
       resetCrisis();
     }
   }, [open, resetCrisis]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    // Only show the context hint on a fresh chat view.
+    if (messages.length > 0) return;
+
+    if (!contextLabel) {
+      setContextHint(null);
+      setContextHintPhase("hidden");
+      return;
+    }
+
+    setContextHint(contextLabel);
+    setContextHintPhase("visible");
+  }, [contextLabel, messages.length, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!contextHint || contextHintPhase !== "visible") return;
+
+    const hasFirstAssistantReply = messages.some(
+      (m) => m?.role === "assistant"
+    );
+    if (!hasFirstAssistantReply) return;
+
+    setContextHintPhase("fading");
+    const handle = window.setTimeout(() => {
+      setContextHint(null);
+      setContextHintPhase("hidden");
+    }, 450);
+
+    return () => window.clearTimeout(handle);
+  }, [contextHint, contextHintPhase, messages, open]);
 
   if (!open) return null;
 
@@ -163,7 +247,7 @@ export default function CopilotChatModal({ open, onClose }) {
 
     if (status === 503) {
       return {
-        friendly: "AI temporarily unavailable (503). Using fallback reply.",
+        friendly: "AI is temporarily unavailable. Using a fallback reply.",
         code: "AI-503",
       };
     }
@@ -213,9 +297,19 @@ export default function CopilotChatModal({ open, onClose }) {
     setMessages((prev) => [...prev, userMsg]);
 
     try {
+      // Inject UI-derived context into the existing unified chat API.
+      // This keeps the backend contract intact (pillar/module/options are supported)
+      // and makes responses feel aware of what the user is viewing.
       const data = await apiClient.request("/ai/unified/chat", {
         method: "POST",
-        body: { message: prompt },
+        body: {
+          message: prompt,
+          pillar: aiContext.pillar !== "general" ? aiContext.pillar : undefined,
+          module: aiContext.module || undefined,
+          options: {
+            uiContext: aiContext,
+          },
+        },
         retryOnUnauthorized: false,
       });
 
@@ -279,17 +373,22 @@ export default function CopilotChatModal({ open, onClose }) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
           <div>
             <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
-              Copilot
+              NorthStar AI
             </p>
-            <p className="text-sm text-slate-200">
-              Powered by /api/ai/unified/chat
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/60 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
+                <Shield className="h-3.5 w-3.5 text-slate-300" />
+                {crisisUiLevel === "monitoring" && "Monitoring"}
+                {crisisUiLevel === "elevated" && "Support available"}
+                {crisisUiLevel === "active" && "Support recommended"}
+              </span>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="h-8 w-8 inline-flex items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700"
-            aria-label="Close Copilot"
+            aria-label="Close NorthStar AI"
           >
             <X className="h-4 w-4" />
           </button>
@@ -303,10 +402,6 @@ export default function CopilotChatModal({ open, onClose }) {
                 <p className="font-semibold text-amber-100">
                   {error.message || "AI issue"}
                 </p>
-                <p className="text-amber-200/80">
-                  {`Status: ${error.status ?? "n/a"}`} · Code:{" "}
-                  {error.code || "AI-ERROR"}
-                </p>
               </div>
             </div>
             <button
@@ -314,7 +409,7 @@ export default function CopilotChatModal({ open, onClose }) {
               onClick={() => setShowDiagnostics(true)}
               className="text-amber-100 underline decoration-amber-300/60 decoration-dashed text-xs"
             >
-              View diagnostics
+              Details
             </button>
           </div>
         )}
@@ -323,6 +418,79 @@ export default function CopilotChatModal({ open, onClose }) {
           ref={containerRef}
           className="max-h-[50vh] min-h-[240px] overflow-y-auto px-4 py-3 space-y-3 bg-gradient-to-b from-slate-900/80 to-slate-950"
         >
+          {contextHint && (
+            <div
+              className={`inline-flex max-w-full items-center rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-[11px] font-semibold text-slate-200 transition-opacity duration-300 ${
+                contextHintPhase === "fading" ? "opacity-0" : "opacity-100"
+              }`}
+              aria-label={`Context: ${contextHint}`}
+            >
+              Context: {contextHint}
+            </div>
+          )}
+
+          {crisisUiLevel !== "monitoring" && (
+            <div
+              className={`rounded-xl border px-3 py-2 text-sm ${
+                crisisUiLevel === "active"
+                  ? "border-rose-400/30 bg-rose-500/10 text-rose-50"
+                  : "border-amber-400/30 bg-amber-500/10 text-amber-50"
+              }`}
+              role="status"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle
+                    className={`h-4 w-4 mt-[2px] ${
+                      crisisUiLevel === "active"
+                        ? "text-rose-200"
+                        : "text-amber-200"
+                    }`}
+                  />
+                  <div>
+                    <p className="font-semibold">
+                      {crisisUiLevel === "active"
+                        ? "Support tools are ready"
+                        : "Support is available"}
+                    </p>
+                    <p className="text-[13px] opacity-90">
+                      If you’re feeling overwhelmed, the toolkit can help with
+                      grounding steps and next actions.
+                    </p>
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-[12px] opacity-80">
+                        Why you’re seeing this
+                      </summary>
+                      <p className="mt-1 text-[12px] opacity-80">
+                        Some messages can indicate you may benefit from extra
+                        support. You’re in control—use what helps.
+                      </p>
+                    </details>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    to="/pillars/mental_health"
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg bg-white text-slate-950 px-3 py-2 text-sm font-semibold shadow hover:brightness-95"
+                  >
+                    Open toolkit
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={resetCrisis}
+                    className={`inline-flex min-h-10 items-center justify-center rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-white/5 ${
+                      crisisUiLevel === "active"
+                        ? "border-rose-400/40 text-rose-50"
+                        : "border-amber-400/40 text-amber-50"
+                    }`}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {messages.length === 0 && (
             <p className="text-sm text-slate-400">
               Ask anything to get started.
@@ -343,45 +511,13 @@ export default function CopilotChatModal({ open, onClose }) {
                 }`}
               >
                 <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 mb-1">
-                  {msg.role === "user" ? "You" : "Copilot"}
+                  {msg.role === "user" ? "You" : "NorthStar"}
                 </div>
                 {msg.text}
               </div>
             </div>
           ))}
         </div>
-
-        {crisisState && (
-          <div className="border-t border-rose-900/60 bg-rose-950/40 px-4 py-3 text-sm text-rose-50 flex flex-col gap-2">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-rose-300 mt-[2px]" />
-              <div>
-                <p className="font-semibold text-rose-100">
-                  {crisisState.title || "Crisis Mode"}
-                </p>
-                <p className="text-rose-50/90">{crisisState.detail}</p>
-                <p className="text-[11px] text-rose-100/70">
-                  Risk level: {crisisState.riskLevel || "high"}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                to="/pillars/mental_health"
-                className="inline-flex items-center justify-center rounded-lg bg-white text-rose-900 px-3 py-2 text-sm font-semibold shadow hover:brightness-95"
-              >
-                Open Emergency Toolkit
-              </Link>
-              <button
-                type="button"
-                onClick={resetCrisis}
-                className="inline-flex items-center justify-center rounded-lg border border-rose-700 px-3 py-2 text-sm font-semibold text-rose-50 hover:border-rose-500"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
 
         {accessIssue && (
           <div className="border-t border-slate-800 bg-amber-950/30 px-4 py-3 text-sm text-amber-50 flex flex-col gap-2">
@@ -419,7 +555,7 @@ export default function CopilotChatModal({ open, onClose }) {
           <input
             type="text"
             className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            placeholder="Ask Copilot..."
+            placeholder="Ask NorthStar..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {

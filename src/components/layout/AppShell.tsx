@@ -1,8 +1,8 @@
 import React from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Home, Settings as SettingsIcon } from "lucide-react";
 import { themeTokens } from "../ThemeProvider";
 import { PILLARS } from "@/config/pillars";
+import BottomNav from "@/components/navigation/BottomNav";
 
 const primaryLinks = [
   { label: "Dashboard", path: "/dashboard" },
@@ -47,7 +47,7 @@ export default function AppShell() {
   return (
     <div className={`flex min-h-screen ${themeTokens.surface}`}>
       <aside
-        className="hidden lg:flex w-72 flex-col gap-6 border-r border-[var(--ns-color-border)] bg-[var(--ns-color-background)]/80 px-6 py-8 backdrop-blur"
+        className="hidden md:flex w-72 flex-col gap-6 border-r border-[var(--ns-color-border)] bg-[var(--ns-color-background)]/80 px-6 py-8 backdrop-blur"
         aria-label="Primary navigation"
       >
         <div className="space-y-2">
@@ -162,7 +162,7 @@ export default function AppShell() {
         </header>
 
         <main className="flex-1">
-          <div className="mx-auto w-full max-w-6xl px-5 py-8 pb-28 lg:pb-12">
+          <div className="mx-auto w-full max-w-6xl px-5 py-8 pb-28 md:pb-12">
             <div className="mb-6 grid gap-3 lg:grid-cols-3">
               <div className={`${themeTokens.panel} p-4 space-y-2`}>
                 <p className="text-xs uppercase tracking-[0.3em] text-white/60">
@@ -220,36 +220,9 @@ export default function AppShell() {
           </div>
         </main>
 
-        {/* Mobile bottom bar */}
-        <nav className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-[var(--ns-color-border)] bg-[var(--ns-color-background)]/90 backdrop-blur-md">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3 text-white/80">
-            <NavLink
-              to="/dashboard"
-              className={({ isActive }) =>
-                `flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  isActive ? "bg-white/10 text-white" : "hover:bg-white/5"
-                }`
-              }
-            >
-              <Home className="h-4 w-4" />
-              <span>Home</span>
-            </NavLink>
-
-            <div className="flex-1" aria-hidden />
-
-            <NavLink
-              to="/settings"
-              className={({ isActive }) =>
-                `flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  isActive ? "bg-white/10 text-white" : "hover:bg-white/5"
-                }`
-              }
-            >
-              <SettingsIcon className="h-4 w-4" />
-              <span>Settings</span>
-            </NavLink>
-          </div>
-        </nav>
+        <div className="md:hidden">
+          <BottomNav />
+        </div>
       </div>
     </div>
   );

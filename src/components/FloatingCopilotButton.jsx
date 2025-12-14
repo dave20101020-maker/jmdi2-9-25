@@ -7,6 +7,7 @@ const CopilotChatModal = React.lazy(() => import("./CopilotChatModal"));
 export default function FloatingCopilotButton() {
   const [open, setOpen] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [initialDraft, setInitialDraft] = useState("");
   const { user, initializing, demoMode } = useAuth();
   const isAuthenticated = Boolean(user) || demoMode;
 
@@ -29,32 +30,31 @@ export default function FloatingCopilotButton() {
   }, [initializing, isAuthenticated]);
 
   useEffect(() => {
+    const onOpen = (e) => {
+      const draft = e?.detail?.draft;
+      setInitialDraft(typeof draft === "string" ? draft : "");
+
+      if (!isAuthenticated || initializing) {
+        setShowAuthPrompt(true);
+        return;
+      }
+
+      setShowAuthPrompt(false);
+      setOpen(true);
+    };
+
+    window.addEventListener("copilot:open", onOpen);
+    return () => window.removeEventListener("copilot:open", onOpen);
+  }, [initializing, isAuthenticated]);
+
+  useEffect(() => {
     if (!isAuthenticated && open) {
       setOpen(false);
     }
   }, [isAuthenticated, open]);
 
-  const handleActivate = () => {
-    if (!isAuthenticated || initializing) {
-      setShowAuthPrompt(true);
-      return;
-    }
-    setShowAuthPrompt(false);
-    setOpen(true);
-  };
-
   return (
     <>
-      <button
-        type="button"
-        aria-label="Open NorthStar Copilot"
-        title="NorthStar Copilot (Ctrl/Cmd+K)"
-        onClick={handleActivate}
-        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-ns-gold to-ns-softGold text-ns-navy font-semibold shadow-[0_18px_38px_rgba(0,0,0,0.35)] transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ns-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ns-navy"
-      >
-        NS
-      </button>
-
       {showAuthPrompt && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
           <div className="mb-4 w-[min(480px,calc(100vw-1.5rem))] rounded-2xl bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden">
@@ -107,7 +107,11 @@ export default function FloatingCopilotButton() {
             </div>
           }
         >
-          <CopilotChatModal open={open} onClose={() => setOpen(false)} />
+          <CopilotChatModal
+            open={open}
+            onClose={() => setOpen(false)}
+            initialDraft={initialDraft}
+          />
         </Suspense>
       )}
     </>
