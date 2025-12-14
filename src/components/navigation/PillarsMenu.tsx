@@ -4,6 +4,7 @@ import {
   Brain,
   Dumbbell,
   HeartPulse,
+  Home,
   Leaf,
   Moon,
   Sparkles,
@@ -157,6 +158,39 @@ export default function PillarsMenu({ open, onClose }: Props) {
 
           <div className="max-h-[55vh] overflow-y-auto p-3 pb-6">
             <div className="grid grid-cols-1 gap-2">
+              <NavLink
+                to="/dashboard"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center justify-between gap-3 rounded-2xl border border-[var(--ns-color-border)] px-4 py-3 text-sm font-semibold transition ${
+                    isActive
+                      ? "bg-white/10 text-white"
+                      : "text-white/80 hover:bg-white/5"
+                  }`
+                }
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-white/85"
+                    aria-hidden
+                  >
+                    <Home className="h-5 w-5" />
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-white">Dashboard</span>
+                    <span className="text-[12px] font-medium text-white/55">
+                      Mission Control
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-white/40" aria-hidden>
+                    →
+                  </span>
+                </div>
+              </NavLink>
+
               {pillars.map((pillar) => {
                 const Icon = iconByPillarId[pillar.id] || Sparkles;
                 const badge = mockedBadges[pillar.id] ?? null;

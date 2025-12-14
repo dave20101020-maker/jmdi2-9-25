@@ -60,7 +60,7 @@ export default function NavBar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
-            <Link to="/" className="text-xl font-bold text-yellow-400">
+            <Link to="/" className="text-xl font-bold text-ns-gold">
               ⭐ NorthStar
             </Link>
             {user && (
@@ -71,7 +71,7 @@ export default function NavBar() {
                     to={item.path}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                       isActive(item.path)
-                        ? "bg-yellow-400/20 text-yellow-400"
+                        ? "bg-ns-gold/15 text-ns-gold"
                         : "text-white/70 hover:text-white hover:bg-white/5"
                     }`}
                   >

@@ -310,9 +310,10 @@ export default function DashboardNorthStar() {
             </p>
             <Link
               to="/pillars/mental_health"
-              className={themeTokens.buttonGhost}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-white/70 hover:text-white transition-colors underline decoration-white/20 underline-offset-4"
             >
               Open toolkit
+              <ArrowRight className="h-4 w-4 text-white/50" aria-hidden />
             </Link>
             <p className="text-[11px] text-white/50">
               Support only · not diagnostic.

@@ -291,7 +291,7 @@ export default function PlanDetail() {
 
       if (isCompleting) {
         toast.success(
-          `✓ Habit completed! ${updatedData.streakCount} day streak`
+          `✓ Habit completed! ${updatedData.streakCount} day momentum`
         );
       } else {
         toast.info(`Habit uncompleted`);
@@ -467,7 +467,7 @@ export default function PlanDetail() {
             {planStreak > 0 && (
               <div className="flex items-center gap-1 text-orange-400 font-bold">
                 <Flame className="w-4 h-4" />
-                {planStreak} day streak
+                {planStreak} day momentum
               </div>
             )}
             {avgRating && (
@@ -483,19 +483,19 @@ export default function PlanDetail() {
               {planStreak >= 3 && (
                 <div className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 border border-green-500/40 rounded-full text-green-400 text-xs font-bold">
                   <Award className="w-3 h-3" />
-                  3-Day Strong!
+                  3-day momentum
                 </div>
               )}
               {planStreak >= 7 && (
                 <div className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 border border-blue-500/40 rounded-full text-blue-400 text-xs font-bold">
                   <Award className="w-3 h-3" />
-                  Week Warrior!
+                  7-day momentum
                 </div>
               )}
               {planStreak >= 21 && (
                 <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-500/20 border border-purple-500/40 rounded-full text-purple-400 text-xs font-bold">
                   <Award className="w-3 h-3" />
-                  21-Day Master!
+                  21-day momentum
                 </div>
               )}
             </div>
@@ -642,17 +642,17 @@ export default function PlanDetail() {
 
                           {streak >= 21 && (
                             <span className="text-xs text-purple-400 font-bold">
-                              21-Day Master!
+                              21-day momentum
                             </span>
                           )}
                           {streak >= 7 && streak < 21 && (
                             <span className="text-xs text-blue-400 font-bold">
-                              Week Warrior!
+                              7-day momentum
                             </span>
                           )}
                           {streak >= 3 && streak < 7 && (
                             <span className="text-xs text-green-400 font-bold">
-                              3-Day Strong!
+                              3-day momentum
                             </span>
                           )}
                         </div>

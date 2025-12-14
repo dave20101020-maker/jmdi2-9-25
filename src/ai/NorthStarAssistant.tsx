@@ -18,6 +18,7 @@ import { getCurrentAIContext } from "@/ai/context";
 
 const DEMO_MODE =
   (import.meta.env.VITE_DEMO_MODE || "").toLowerCase() === "true";
+const IS_DEV = import.meta.env.DEV;
 const newId = () =>
   typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
     ? crypto.randomUUID()
@@ -230,24 +231,27 @@ export default function NorthStarAssistant() {
             <div className="px-4 py-2 text-xs text-amber-100 bg-amber-500/10 border-b border-amber-400/30 flex items-center justify-between gap-2">
               <div>
                 <p className="font-semibold text-amber-100">
-                  {renderDiagnosticLabel(diagnostics)}
+                  {renderAiDiagnosticLabel(diagnostics)}
                 </p>
                 <p className="text-amber-200/80">
-                  Try again in a moment or view details for diagnostics.
+                  Try again in a moment. If it keeps happening, close and reopen
+                  this panel.
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-amber-400/50 text-amber-100 hover:bg-amber-500/10"
-                onClick={() => setShowDetails((v) => !v)}
-              >
-                {showDetails ? "Hide details" : "View details"}
-              </Button>
+              {IS_DEV && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-400/50 text-amber-100 hover:bg-amber-500/10"
+                  onClick={() => setShowDetails((v) => !v)}
+                >
+                  {showDetails ? "Hide details" : "View details"}
+                </Button>
+              )}
             </div>
           )}
 
-          {diagnostics && showDetails && (
+          {IS_DEV && diagnostics && showDetails && (
             <div className="px-4 py-3 text-xs bg-slate-900/80 border-b border-slate-800 space-y-1">
               <div className="flex gap-2">
                 <span className="text-slate-400 w-16">Status</span>
@@ -349,15 +353,19 @@ export default function NorthStarAssistant() {
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-label={open ? "Hide NorthStar" : "Open NorthStar"}
-        className="pointer-events-auto relative hidden md:inline-flex items-center gap-2 rounded-2xl px-5 py-3 font-semibold text-slate-900 shadow-[0_0_25px_rgba(251,191,36,0.55),0_0_45px_rgba(94,234,212,0.35)]"
-        style={{
-          background:
-            "radial-gradient(circle at 50% 50%, rgba(255,242,204,0.95), rgba(251,191,36,0.9) 55%, rgba(255,215,128,0.75) 90%)",
-          border: "1px solid rgba(255, 225, 138, 0.85)",
-        }}
+        className="pointer-events-auto relative hidden md:flex flex-col items-center justify-center rounded-2xl px-2 py-1 transition-transform duration-150 ease-out active:scale-95"
       >
-        <Star className="h-4 w-4" />
-        <span className="text-sm tracking-wide">NorthStar</span>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -top-1 h-16 w-16 rounded-3xl bg-ns-gold/25 blur-xl"
+        />
+        <span
+          className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-ns-gold text-ns-navy shadow-ns-card ring-2 ring-[var(--ns-color-border)] transition-transform duration-150 ease-out active:scale-[0.98]"
+          aria-hidden
+        >
+          <Sparkles className="h-7 w-7" />
+        </span>
+        <span className="mt-1 text-[11px] font-semibold text-white/85">AI</span>
       </button>
     </div>
   );

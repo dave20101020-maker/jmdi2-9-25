@@ -25,7 +25,7 @@ function PillarInner({ user }) {
   if (!hasAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="max-w-md text-center p-6 bg-[#0A1628]/60 rounded">
+        <div className="max-w-md text-center p-6 bg-[#0A1628]/60 border border-white/10 rounded-2xl">
           <div className="text-4xl mb-4">🔒</div>
           <h2 className="text-xl font-bold mb-2">Access Restricted</h2>
           <p className="text-white/70 mb-4">
@@ -35,7 +35,7 @@ function PillarInner({ user }) {
           <div className="flex gap-3 justify-center">
             <Link
               to="/pricing"
-              className="px-4 py-2 bg-yellow-400 rounded font-bold"
+              className="px-4 py-2 bg-ns-gold text-black rounded-lg font-bold"
             >
               Upgrade
             </Link>

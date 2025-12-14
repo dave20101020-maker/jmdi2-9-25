@@ -83,16 +83,16 @@ export const renderAiDiagnosticLabel = (d: AiDiagnostics) => {
   const status = typeof d.status === "number" ? d.status : undefined;
 
   if (status === 401) {
-    return "AI authentication error (401) — please sign in again.";
+    return "AI needs you to sign in again.";
   }
   if (status === 403) {
-    return "AI access denied (403).";
+    return "AI access is not available for this feature.";
   }
   if (status === 429) {
-    return "AI rate limit reached (429) — please wait a moment.";
+    return "AI is busy right now — please wait a moment.";
   }
   if (typeof status === "number" && status >= 500) {
-    return `AI backend error (status ${status}) — try again later.`;
+    return "AI is temporarily unavailable — try again later.";
   }
   if (status === 0 && d.body === "timeout") {
     return "AI provider timed out.";

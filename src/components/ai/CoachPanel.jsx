@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/apiClient";
 import { sanitizeText } from "@/utils/security";
+import { Skeleton } from "@/components/ui/skeleton";
+import { normalizeAiDiagnosticsFromError } from "@/ai/diagnostics";
 
 const stripHtmlTags = (value = "") => value.replace(/<[^>]+>/g, " ");
 
@@ -47,6 +49,8 @@ export default function CoachPanel({
         }
       } catch (err) {
         if (!mounted) return;
+        const diagnostics = normalizeAiDiagnosticsFromError(err, "/api/ai");
+        console.debug("CoachPanel AI error", diagnostics, err);
         // error may be object or string
         setError(err);
       } finally {
@@ -78,7 +82,13 @@ export default function CoachPanel({
     <div className="bg-[#0A1628]/60 border border-white/10 rounded-2xl p-4">
       <h3 className="text-lg font-bold mb-2">{label}</h3>
 
-      {loading && <div className="text-sm text-white/60">Thinking... ✨</div>}
+      {loading && (
+        <div className="space-y-2" aria-label="Loading coach response">
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+        </div>
+      )}
 
       {error && isAccessDenied(error) && (
         <div className="p-3 bg-white/5 rounded">
@@ -94,8 +104,14 @@ export default function CoachPanel({
       )}
 
       {error && !isAccessDenied(error) && (
-        <div className="text-sm text-red-400">
-          Error: {sanitizeText(error?.message || JSON.stringify(error))}
+        <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+          <div className="font-semibold text-white">
+            Coach is unavailable right now
+          </div>
+          <div className="text-sm text-white/70 mt-1">
+            We couldn’t get a response from the AI. Try again in a moment, or
+            continue without coaching for now.
+          </div>
         </div>
       )}
 

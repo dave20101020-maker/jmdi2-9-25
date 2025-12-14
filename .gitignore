@@ -18,6 +18,9 @@ logs/
 tmp/
 *.tmp
 
+# Runtime data (DO NOT COMMIT)
+backend/data/memory/
+
 # Environment - all .env files
 .env*
 !.env.example

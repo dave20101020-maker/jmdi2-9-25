@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { format, addDays } from "date-fns";
-import confetti from "canvas-confetti";
 import { toast } from "sonner";
 
 const PILLARS_ARRAY = Object.entries(PILLARS).map(([id, data]) => ({
@@ -29,6 +28,8 @@ const PILLARS_ARRAY = Object.entries(PILLARS).map(([id, data]) => ({
 export default function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [showCompletion, setShowCompletion] = useState(false);
+  const [nextPillarId, setNextPillarId] = useState(null);
   const [selectedPillars, setSelectedPillars] = useState([]);
   const [goalText, setGoalText] = useState("");
   const [goalDate, setGoalDate] = useState(
@@ -91,18 +92,8 @@ export default function Onboarding() {
         });
       }
 
-      // Fire confetti
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#D4AF37", "#F4D03F", "#FFD700"],
-      });
-
-      toast.success("Welcome to NorthStar! 🌟");
-
-      // Navigate to dashboard
-      navigate(createPageUrl("Dashboard"));
+      setNextPillarId(selectedPillars[0] || "sleep");
+      setShowCompletion(true);
     } catch (error) {
       console.error("Onboarding error:", error);
       toast.error("Something went wrong. Please try again.");
@@ -828,26 +819,74 @@ export default function Onboarding() {
       {/* Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
         <div className="w-full max-w-5xl">
-          {/* Progress indicator */}
-          {step > 1 && (
-            <div className="mb-8">
-              <div className="flex justify-center gap-2 mb-2">
-                {[...Array(9)].map((_, i) => (
-                  <div
-                    key={i}
-                    className={`h-2 rounded-full transition-all ${
-                      i + 1 <= step ? "w-12 bg-[#D4AF37]" : "w-2 bg-white/20"
-                    }`}
-                  />
-                ))}
-              </div>
-              <div className="text-center text-white/60 text-sm">
-                Step {step} of 9
-              </div>
-            </div>
-          )}
+          {showCompletion ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-2xl mx-auto"
+            >
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8 text-center">
+                <div className="text-5xl mb-4">⭐</div>
+                <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
+                  Your NorthStar is set
+                </h1>
+                <p className="text-white/70 text-base md:text-lg mb-8">
+                  Next, we’ll guide you through a quick check-in and surface one
+                  high-impact focus each day.
+                </p>
 
-          <AnimatePresence mode="wait">{renderStep()}</AnimatePresence>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-5 text-left mb-6">
+                  <div className="text-xs uppercase tracking-widest text-white/60 mb-2">
+                    First action
+                  </div>
+                  <div className="text-white font-semibold mb-1">
+                    Log today’s check-in
+                  </div>
+                  <div className="text-white/60 text-sm mb-4">
+                    Takes ~60 seconds. This helps NorthStar personalize your
+                    Daily Focus.
+                  </div>
+                  <Button
+                    onClick={() =>
+                      navigate(
+                        `${createPageUrl("Track")}?pillar=${encodeURIComponent(
+                          nextPillarId || "sleep"
+                        )}`
+                      )
+                    }
+                    className="btn-primary w-full text-lg py-6"
+                  >
+                    Start check-in
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <>
+              {/* Progress indicator */}
+              {step > 1 && (
+                <div className="mb-8">
+                  <div className="flex justify-center gap-2 mb-2">
+                    {[...Array(9)].map((_, i) => (
+                      <div
+                        key={i}
+                        className={`h-2 rounded-full transition-all ${
+                          i + 1 <= step
+                            ? "w-12 bg-[#D4AF37]"
+                            : "w-2 bg-white/20"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <div className="text-center text-white/60 text-sm">
+                    Step {step} of 9
+                  </div>
+                </div>
+              )}
+
+              <AnimatePresence mode="wait">{renderStep()}</AnimatePresence>
+            </>
+          )}
         </div>
       </div>
 

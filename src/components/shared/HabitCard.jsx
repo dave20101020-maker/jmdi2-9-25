@@ -464,7 +464,7 @@ export default function HabitCard({
           {[
             {
               icon: Flame,
-              label: "Streak",
+              label: "Momentum",
               value: habit.streakCount,
               color: "orange",
               sub: forgivenessUsed
@@ -500,7 +500,7 @@ export default function HabitCard({
               {stat.hasShield && (
                 <motion.div
                   className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center"
-                  title="1 forgiveness used this week"
+                  title="1 buffer used this week"
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   transition={{ delay: 0.3, type: "spring" }}
@@ -743,23 +743,23 @@ export default function HabitCard({
                         transition={{ type: "spring", stiffness: 300 }}
                       >
                         <div className="flex items-center gap-2 text-blue-400 text-sm font-semibold">
-                          <Shield className="w-4 h-4" />1 forgiveness used this
-                          week - streak protected!
+                          <Shield className="w-4 h-4" />1 buffer used this week
+                          — momentum protected
                         </div>
                       </motion.div>
                     )}
 
                     {isStreakAtRisk && (
                       <motion.div
-                        className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
+                        className="p-3 bg-white/5 border border-white/10 rounded-lg"
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
                         transition={{ type: "spring" }}
                       >
-                        <div className="flex items-center gap-2 text-red-400 text-sm font-semibold">
-                          <AlertCircle className="w-4 h-4 animate-pulse" />
-                          Streak at risk! Complete today to maintain it.
+                        <div className="flex items-center gap-2 text-white/70 text-sm font-semibold">
+                          <AlertCircle className="w-4 h-4" />
+                          Momentum resumes today
                         </div>
                       </motion.div>
                     )}

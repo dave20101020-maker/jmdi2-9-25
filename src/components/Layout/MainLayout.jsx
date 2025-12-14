@@ -111,8 +111,8 @@ export default function MainLayout() {
       <div className="ns-content">
         <header className="ns-topbar">
           {DEMO_MODE && (
-            <div className="fixed top-0 left-0 right-0 z-[70] flex items-center justify-center px-3 py-2 bg-yellow-500/10 border-b border-yellow-400/30 backdrop-blur-md">
-              <p className="text-xs sm:text-sm text-yellow-300 font-medium tracking-wide">
+            <div className="fixed top-0 left-0 right-0 z-[70] flex items-center justify-center px-3 py-2 bg-ns-gold/10 border-b border-ns-gold/30 backdrop-blur-md">
+              <p className="text-xs sm:text-sm text-ns-gold font-medium tracking-wide">
                 Demo Mode Active — authentication is temporarily disabled for
                 navigation. Remember to turn it off before launch.
               </p>

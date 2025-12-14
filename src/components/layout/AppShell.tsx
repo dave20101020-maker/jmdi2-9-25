@@ -174,7 +174,7 @@ export default function AppShell() {
                 </p>
                 <NavLink
                   to="/pillars/mental_health"
-                  className={themeTokens.buttonPrimary}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-white/70 hover:text-white transition-colors underline decoration-white/20 underline-offset-4"
                 >
                   Open toolkit
                 </NavLink>

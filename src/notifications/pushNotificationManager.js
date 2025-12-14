@@ -112,7 +112,7 @@ export class PushNotificationManager {
 export const NotificationTemplates = {
   habitReminder: (habitName) => ({
     title: `Time to ${habitName}!`,
-    body: `Don't break your streak. Complete your habit now!`,
+    body: `A quick check-in keeps your momentum moving.`,
     icon: "🎯",
     data: { type: "habit_reminder" },
   }),
@@ -124,7 +124,7 @@ export const NotificationTemplates = {
   }),
 
   streakMilestone: (habit, days) => ({
-    title: `🔥 ${days}-Day Streak!`,
+    title: `🔥 ${days}-Day Momentum`,
     body: `Amazing work on "${habit}"!`,
     data: { type: "milestone", habit, days },
   }),
