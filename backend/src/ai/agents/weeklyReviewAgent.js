@@ -1,16 +1,16 @@
 /**
  * Weekly Review Agent
- * 
+ *
  * Generates comprehensive weekly review with insights per pillar
  * Analyzes week's checkins, identifies patterns, celebrates wins, suggests improvements
- * 
+ *
  * File: backend/src/ai/agents/weeklyReviewAgent.js
  */
 
-import OpenAI from 'openai';
-import Entry from '../../models/Entry.js';
-import Habit from '../../models/Habit.js';
-import PillarScore from '../../models/PillarScore.js';
+import OpenAI from "openai";
+import Entry from "../../models/Entry.js";
+import Habit from "../../models/Habit.js";
+import PillarScore from "../../models/PillarScore.js";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -57,7 +57,11 @@ export const generateWeeklyReview = async (userId) => {
       const scores = pillarEntries.map((e) => e.score);
       const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
       const trend =
-        scores[0] > avg ? 'improving' : scores[0] < avg ? 'declining' : 'stable';
+        scores[0] > avg
+          ? "improving"
+          : scores[0] < avg
+          ? "declining"
+          : "stable";
 
       pillarStats[pillar] = {
         entriesCount: pillarEntries.length,
@@ -83,20 +87,21 @@ export const generateWeeklyReview = async (userId) => {
         - Highest score: ${stats.highestScore}/100
         - Lowest score: ${stats.lowestScore}/100
         - Active habits: ${habitCount}
-        - Overall score: ${pillarScore?.score.toFixed(1) || 'N/A'}/10
+        - Overall score: ${pillarScore?.score.toFixed(1) || "N/A"}/10
         
         Tone: Encouraging, specific, actionable. Include one celebration and one area for improvement.
       `;
 
       const response = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: "gpt-4o-mini",
         messages: [
           {
-            role: 'system',
-            content: 'You are a wellness coach providing weekly reviews. Be warm, encouraging, and specific.',
+            role: "system",
+            content:
+              "You are a wellness coach providing weekly reviews. Be warm, encouraging, and specific.",
           },
           {
-            role: 'user',
+            role: "user",
             content: prompt,
           },
         ],
@@ -113,9 +118,9 @@ export const generateWeeklyReview = async (userId) => {
     // Find wins (improving pillars, streaks)
     const wins = [];
     Object.entries(pillarReviews).forEach(([pillar, data]) => {
-      if (data.stats.trend === 'improving') {
+      if (data.stats.trend === "improving") {
         wins.push({
-          type: 'improvement',
+          type: "improvement",
           pillar,
           message: `Your ${pillar} score is trending upward!`,
           value: data.stats.averageScore,
@@ -126,7 +131,7 @@ export const generateWeeklyReview = async (userId) => {
     habits.forEach((habit) => {
       if (habit.streakCount >= 7) {
         wins.push({
-          type: 'streak',
+          type: "streak",
           pillar: habit.pillar,
           message: `${habit.streakCount}-day streak on "${habit.name}"! 🔥`,
           value: habit.streakCount,
@@ -137,9 +142,9 @@ export const generateWeeklyReview = async (userId) => {
     // Find improvements (declining pillars, low scores)
     const improvements = [];
     Object.entries(pillarReviews).forEach(([pillar, data]) => {
-      if (data.stats.trend === 'declining') {
+      if (data.stats.trend === "declining") {
         improvements.push({
-          type: 'decline',
+          type: "decline",
           pillar,
           message: `${pillar} score is declining. Let's create a recovery plan.`,
           value: data.stats.averageScore,
@@ -147,7 +152,7 @@ export const generateWeeklyReview = async (userId) => {
       }
       if (data.stats.averageScore < 50) {
         improvements.push({
-          type: 'lowScore',
+          type: "lowScore",
           pillar,
           message: `${pillar} is below 50. Priority focus area.`,
           value: data.stats.averageScore,
@@ -159,27 +164,32 @@ export const generateWeeklyReview = async (userId) => {
     const overallPrompt = `
       Summarize this week's wellness journey in 2-3 sentences. Use this data:
       
-      Pillars reviewed: ${Object.keys(pillarReviews).join(', ')}
+      Pillars reviewed: ${Object.keys(pillarReviews).join(", ")}
       
       ${Object.entries(pillarReviews)
         .map(
           ([pillar, data]) =>
-            `${pillar}: ${data.stats.entriesCount} entries, avg score ${data.stats.averageScore.toFixed(1)}, trend ${data.stats.trend}`
+            `${pillar}: ${
+              data.stats.entriesCount
+            } entries, avg score ${data.stats.averageScore.toFixed(1)}, trend ${
+              data.stats.trend
+            }`
         )
-        .join('\n')}
+        .join("\n")}
       
       Tone: Motivating, holistic, empowering. Look at the big picture.
     `;
 
     const overallResponse = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: "gpt-4o-mini",
       messages: [
         {
-          role: 'system',
-          content: 'You are a wellness coach providing holistic weekly reviews.',
+          role: "system",
+          content:
+            "You are a wellness coach providing holistic weekly reviews.",
         },
         {
-          role: 'user',
+          role: "user",
           content: overallPrompt,
         },
       ],
@@ -192,8 +202,8 @@ export const generateWeeklyReview = async (userId) => {
       weeklyReview: {
         summary: overallResponse.choices[0].message.content,
         period: {
-          start: startDate.toISOString().split('T')[0],
-          end: new Date().toISOString().split('T')[0],
+          start: startDate.toISOString().split("T")[0],
+          end: new Date().toISOString().split("T")[0],
         },
       },
       pillarReviews,
@@ -202,7 +212,7 @@ export const generateWeeklyReview = async (userId) => {
       stats: pillarStats,
     };
   } catch (error) {
-    console.error('Weekly review error:', error);
+    console.error("Weekly review error:", error);
     throw error;
   }
 };
@@ -215,12 +225,12 @@ export const generateWeeklyReview = async (userId) => {
  */
 export const storeWeeklyReview = async (userId, review) => {
   try {
-    const Entry = (await import('../../models/Entry.js')).default;
+    const Entry = (await import("../../models/Entry.js")).default;
 
     const entry = await Entry.create({
       userId,
-      type: 'weekly-review',
-      pillar: 'holistic',
+      type: "weekly-review",
+      pillar: "holistic",
       date: new Date(),
       score: 0, // Not applicable
       metadata: {
@@ -235,7 +245,7 @@ export const storeWeeklyReview = async (userId, review) => {
 
     return entry;
   } catch (error) {
-    console.error('Store weekly review error:', error);
+    console.error("Store weekly review error:", error);
     throw error;
   }
 };

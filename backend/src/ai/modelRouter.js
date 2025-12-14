@@ -1,24 +1,32 @@
 /**
  * Model Router
- * 
+ *
  * Reusable AI model router that intelligently routes requests between
  * OpenAI (ChatGPT) and Anthropic (Claude) based on task type.
- * 
+ *
  * This router implements automatic fallback handling and provides a clean
  * interface for all AI agents in the NorthStar coaching system.
  */
 
-import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 // Lazy-initialize AI clients to avoid errors when API keys are not set
 let openai = null;
 let anthropic = null;
 
+function getOpenAIKey() {
+  return process.env.OPENAI_API_KEY || process.env.AI_PROVIDER_KEY || null;
+}
+
 function getOpenAIClient() {
   if (!openai) {
+    const apiKey = getOpenAIKey();
+    if (!apiKey) {
+      throw new Error("OPENAI_API_KEY is not configured");
+    }
     openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey,
     });
   }
   return openai;
@@ -36,20 +44,20 @@ function getAnthropicClient() {
 // Model configurations
 export const MODELS = {
   // OpenAI Models
-  GPT4_TURBO: 'gpt-4-turbo-preview',
-  GPT4: 'gpt-4',
-  GPT35_TURBO: 'gpt-3.5-turbo',
-  
+  GPT4_TURBO: "gpt-4o-mini",
+  GPT4: "gpt-4",
+  GPT35_TURBO: "gpt-3.5-turbo",
+
   // Anthropic Models
-  CLAUDE_3_OPUS: 'claude-3-opus-20240229',
-  CLAUDE_3_SONNET: 'claude-3-sonnet-20240229',
-  CLAUDE_3_HAIKU: 'claude-3-haiku-20240307',
-  CLAUDE_35_SONNET: 'claude-3-5-sonnet-20241022',
+  CLAUDE_3_OPUS: "claude-3-opus-20240229",
+  CLAUDE_3_SONNET: "claude-3-sonnet-20240229",
+  CLAUDE_3_HAIKU: "claude-3-haiku-20240307",
+  CLAUDE_35_SONNET: "claude-3-5-sonnet-20241022",
 };
 
 /**
  * Main routing function - intelligently selects the best model for the task
- * 
+ *
  * @param {Object} options - Request options
  * @param {string} options.taskType - Type of task: 'deep_reasoning', 'emotional_coaching', or 'mixed'
  * @param {string} options.systemPrompt - System prompt for the AI
@@ -58,35 +66,44 @@ export const MODELS = {
  * @returns {Promise<Object>} { model: 'openai' | 'anthropic', text: string, raw: any }
  */
 export async function runWithBestModel(options) {
-  const { taskType, systemPrompt, userMessage, conversationHistory = [] } = options;
+  const {
+    taskType,
+    systemPrompt,
+    userMessage,
+    conversationHistory = [],
+  } = options;
 
   // Validate required parameters
   if (!taskType || !systemPrompt || !userMessage) {
-    throw new Error('Missing required parameters: taskType, systemPrompt, and userMessage are required');
+    throw new Error(
+      "Missing required parameters: taskType, systemPrompt, and userMessage are required"
+    );
   }
 
   // Determine preferred and fallback providers based on task type
   let preferredProvider, fallbackProvider;
 
-  if (taskType === 'deep_reasoning') {
+  if (taskType === "deep_reasoning") {
     // Claude excels at complex reasoning and analysis
-    preferredProvider = 'claude';
-    fallbackProvider = 'openai';
-  } else if (taskType === 'emotional_coaching') {
+    preferredProvider = "claude";
+    fallbackProvider = "openai";
+  } else if (taskType === "emotional_coaching") {
     // OpenAI ChatGPT is preferred for emotional and conversational tasks
-    preferredProvider = 'openai';
-    fallbackProvider = 'claude';
-  } else if (taskType === 'mixed') {
+    preferredProvider = "openai";
+    fallbackProvider = "claude";
+  } else if (taskType === "mixed") {
     // Default to Claude for mixed tasks, with OpenAI as fallback
-    preferredProvider = 'claude';
-    fallbackProvider = 'openai';
+    preferredProvider = "claude";
+    fallbackProvider = "openai";
   } else {
-    throw new Error(`Invalid taskType: ${taskType}. Must be 'deep_reasoning', 'emotional_coaching', or 'mixed'`);
+    throw new Error(
+      `Invalid taskType: ${taskType}. Must be 'deep_reasoning', 'emotional_coaching', or 'mixed'`
+    );
   }
 
   // Try preferred provider first
   try {
-    if (preferredProvider === 'openai') {
+    if (preferredProvider === "openai") {
       return await callOpenAI(systemPrompt, userMessage, conversationHistory);
     } else {
       return await callClaude(systemPrompt, userMessage, conversationHistory);
@@ -97,17 +114,20 @@ export async function runWithBestModel(options) {
     console.log(`[ModelRouter] Attempting fallback to ${fallbackProvider}...`);
 
     try {
-      if (fallbackProvider === 'openai') {
+      if (fallbackProvider === "openai") {
         return await callOpenAI(systemPrompt, userMessage, conversationHistory);
       } else {
         return await callClaude(systemPrompt, userMessage, conversationHistory);
       }
     } catch (fallbackError) {
       // Both providers failed - throw comprehensive error
-      console.error(`[ModelRouter] ${fallbackProvider} also failed:`, fallbackError.message);
+      console.error(
+        `[ModelRouter] ${fallbackProvider} also failed:`,
+        fallbackError.message
+      );
       throw new Error(
         `AI routing failed: Both ${preferredProvider} and ${fallbackProvider} returned errors. ` +
-        `Primary: ${error.message}. Fallback: ${fallbackError.message}`
+          `Primary: ${error.message}. Fallback: ${fallbackError.message}`
       );
     }
   }
@@ -115,7 +135,7 @@ export async function runWithBestModel(options) {
 
 /**
  * Internal helper: Call OpenAI ChatGPT
- * 
+ *
  * @param {string} systemPrompt - System instructions for the AI
  * @param {string} userMessage - User's message
  * @param {Array} conversationHistory - Previous conversation turns
@@ -123,15 +143,17 @@ export async function runWithBestModel(options) {
  */
 async function callOpenAI(systemPrompt, userMessage, conversationHistory = []) {
   // Check API key availability
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not configured in environment variables');
+  if (!getOpenAIKey()) {
+    throw new Error(
+      "OPENAI_API_KEY is not configured in environment variables"
+    );
   }
 
   // Build message array in OpenAI format
   const messages = [
-    { role: 'system', content: systemPrompt },
+    { role: "system", content: systemPrompt },
     ...conversationHistory,
-    { role: 'user', content: userMessage },
+    { role: "user", content: userMessage },
   ];
 
   // Call OpenAI API
@@ -147,7 +169,7 @@ async function callOpenAI(systemPrompt, userMessage, conversationHistory = []) {
   const text = response.choices[0].message.content;
 
   return {
-    model: 'openai',
+    model: "openai",
     text,
     raw: response,
   };
@@ -155,7 +177,7 @@ async function callOpenAI(systemPrompt, userMessage, conversationHistory = []) {
 
 /**
  * Internal helper: Call Anthropic Claude
- * 
+ *
  * @param {string} systemPrompt - System instructions for the AI
  * @param {string} userMessage - User's message
  * @param {Array} conversationHistory - Previous conversation turns
@@ -164,14 +186,16 @@ async function callOpenAI(systemPrompt, userMessage, conversationHistory = []) {
 async function callClaude(systemPrompt, userMessage, conversationHistory = []) {
   // Check API key availability
   if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY is not configured in environment variables');
+    throw new Error(
+      "ANTHROPIC_API_KEY is not configured in environment variables"
+    );
   }
 
   // Convert conversation history to Anthropic format
   // Anthropic expects alternating user/assistant messages (no system in messages array)
   const anthropicMessages = [
-    ...conversationHistory.filter(msg => msg.role !== 'system'),
-    { role: 'user', content: userMessage },
+    ...conversationHistory.filter((msg) => msg.role !== "system"),
+    { role: "user", content: userMessage },
   ];
 
   // Call Anthropic API
@@ -188,7 +212,7 @@ async function callClaude(systemPrompt, userMessage, conversationHistory = []) {
   const text = response.content[0].text;
 
   return {
-    model: 'anthropic',
+    model: "anthropic",
     text,
     raw: response,
   };
@@ -197,7 +221,7 @@ async function callClaude(systemPrompt, userMessage, conversationHistory = []) {
 /**
  * Legacy function: Route a completion request to a specific model
  * (Kept for backward compatibility with existing code)
- * 
+ *
  * @param {Object} params - Request parameters
  * @param {string} params.model - Model identifier
  * @param {Array} params.messages - Conversation messages
@@ -214,13 +238,13 @@ export async function routeCompletion({
   options = {},
 }) {
   const modelProviders = {
-    [MODELS.GPT4_TURBO]: 'openai',
-    [MODELS.GPT4]: 'openai',
-    [MODELS.GPT35_TURBO]: 'openai',
-    [MODELS.CLAUDE_3_OPUS]: 'anthropic',
-    [MODELS.CLAUDE_3_SONNET]: 'anthropic',
-    [MODELS.CLAUDE_3_HAIKU]: 'anthropic',
-    [MODELS.CLAUDE_35_SONNET]: 'anthropic',
+    [MODELS.GPT4_TURBO]: "openai",
+    [MODELS.GPT4]: "openai",
+    [MODELS.GPT35_TURBO]: "openai",
+    [MODELS.CLAUDE_3_OPUS]: "anthropic",
+    [MODELS.CLAUDE_3_SONNET]: "anthropic",
+    [MODELS.CLAUDE_3_HAIKU]: "anthropic",
+    [MODELS.CLAUDE_35_SONNET]: "anthropic",
   };
 
   const provider = modelProviders[model];
@@ -229,11 +253,41 @@ export async function routeCompletion({
     throw new Error(`Unknown model: ${model}`);
   }
 
+  // If Anthropic isn't configured, fall back to OpenAI for Claude models.
+  // This keeps AI features working in environments with only OpenAI credentials.
+  if (provider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
+    if (getOpenAIKey()) {
+      console.warn(
+        `[ModelRouter] Anthropic not configured for model '${model}'. Falling back to OpenAI.`
+      );
+      return await callOpenAILegacy({
+        model: MODELS.GPT4_TURBO,
+        messages,
+        temperature,
+        maxTokens,
+        options,
+      });
+    }
+    throw new Error("ANTHROPIC_API_KEY is not configured");
+  }
+
   try {
-    if (provider === 'openai') {
-      return await callOpenAILegacy({ model, messages, temperature, maxTokens, options });
+    if (provider === "openai") {
+      return await callOpenAILegacy({
+        model,
+        messages,
+        temperature,
+        maxTokens,
+        options,
+      });
     } else {
-      return await callClaudeLegacy({ model, messages, temperature, maxTokens, options });
+      return await callClaudeLegacy({
+        model,
+        messages,
+        temperature,
+        maxTokens,
+        options,
+      });
     }
   } catch (error) {
     console.error(`Error calling ${provider}:`, error.message);
@@ -244,9 +298,15 @@ export async function routeCompletion({
 /**
  * Legacy OpenAI caller (backward compatibility)
  */
-async function callOpenAILegacy({ model, messages, temperature, maxTokens, options }) {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not configured');
+async function callOpenAILegacy({
+  model,
+  messages,
+  temperature,
+  maxTokens,
+  options,
+}) {
+  if (!getOpenAIKey()) {
+    throw new Error("OPENAI_API_KEY is not configured");
   }
 
   const client = getOpenAIClient();
@@ -259,7 +319,7 @@ async function callOpenAILegacy({ model, messages, temperature, maxTokens, optio
   });
 
   return {
-    provider: 'openai',
+    provider: "openai",
     model,
     content: response.choices[0].message.content,
     usage: response.usage,
@@ -271,13 +331,19 @@ async function callOpenAILegacy({ model, messages, temperature, maxTokens, optio
 /**
  * Legacy Claude caller (backward compatibility)
  */
-async function callClaudeLegacy({ model, messages, temperature, maxTokens, options }) {
+async function callClaudeLegacy({
+  model,
+  messages,
+  temperature,
+  maxTokens,
+  options,
+}) {
   if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY is not configured');
+    throw new Error("ANTHROPIC_API_KEY is not configured");
   }
 
-  const systemMessage = messages.find(m => m.role === 'system');
-  const conversationMessages = messages.filter(m => m.role !== 'system');
+  const systemMessage = messages.find((m) => m.role === "system");
+  const conversationMessages = messages.filter((m) => m.role !== "system");
 
   const client = getAnthropicClient();
   const response = await client.messages.create({
@@ -285,15 +351,15 @@ async function callClaudeLegacy({ model, messages, temperature, maxTokens, optio
     max_tokens: maxTokens,
     temperature,
     system: systemMessage?.content || undefined,
-    messages: conversationMessages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
+    messages: conversationMessages.map((m) => ({
+      role: m.role === "assistant" ? "assistant" : "user",
       content: m.content,
     })),
     ...options,
   });
 
   return {
-    provider: 'anthropic',
+    provider: "anthropic",
     model,
     content: response.content[0].text,
     usage: {
@@ -317,13 +383,13 @@ export async function* routeStreamingCompletion({
   options = {},
 }) {
   const modelProviders = {
-    [MODELS.GPT4_TURBO]: 'openai',
-    [MODELS.GPT4]: 'openai',
-    [MODELS.GPT35_TURBO]: 'openai',
-    [MODELS.CLAUDE_3_OPUS]: 'anthropic',
-    [MODELS.CLAUDE_3_SONNET]: 'anthropic',
-    [MODELS.CLAUDE_3_HAIKU]: 'anthropic',
-    [MODELS.CLAUDE_35_SONNET]: 'anthropic',
+    [MODELS.GPT4_TURBO]: "openai",
+    [MODELS.GPT4]: "openai",
+    [MODELS.GPT35_TURBO]: "openai",
+    [MODELS.CLAUDE_3_OPUS]: "anthropic",
+    [MODELS.CLAUDE_3_SONNET]: "anthropic",
+    [MODELS.CLAUDE_3_HAIKU]: "anthropic",
+    [MODELS.CLAUDE_35_SONNET]: "anthropic",
   };
 
   const provider = modelProviders[model];
@@ -332,17 +398,47 @@ export async function* routeStreamingCompletion({
     throw new Error(`Unknown model: ${model}`);
   }
 
-  if (provider === 'openai') {
+  // If Anthropic isn't configured, fall back to OpenAI streaming for Claude models.
+  if (provider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
+    if (!getOpenAIKey()) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
+    }
+    console.warn(
+      `[ModelRouter] Anthropic not configured for model '${model}'. Falling back to OpenAI streaming.`
+    );
+    yield* streamOpenAI({
+      model: MODELS.GPT4_TURBO,
+      messages,
+      temperature,
+      maxTokens,
+      options,
+    });
+    return;
+  }
+
+  if (provider === "openai") {
     yield* streamOpenAI({ model, messages, temperature, maxTokens, options });
   } else {
-    yield* streamAnthropic({ model, messages, temperature, maxTokens, options });
+    yield* streamAnthropic({
+      model,
+      messages,
+      temperature,
+      maxTokens,
+      options,
+    });
   }
 }
 
 /**
  * Stream OpenAI responses
  */
-async function* streamOpenAI({ model, messages, temperature, maxTokens, options }) {
+async function* streamOpenAI({
+  model,
+  messages,
+  temperature,
+  maxTokens,
+  options,
+}) {
   const client = getOpenAIClient();
   const stream = await client.chat.completions.create({
     model,
@@ -354,10 +450,10 @@ async function* streamOpenAI({ model, messages, temperature, maxTokens, options 
   });
 
   for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content || '';
+    const content = chunk.choices[0]?.delta?.content || "";
     if (content) {
       yield {
-        provider: 'openai',
+        provider: "openai",
         model,
         content,
         done: chunk.choices[0]?.finish_reason !== null,
@@ -369,9 +465,15 @@ async function* streamOpenAI({ model, messages, temperature, maxTokens, options 
 /**
  * Stream Anthropic responses
  */
-async function* streamAnthropic({ model, messages, temperature, maxTokens, options }) {
-  const systemMessage = messages.find(m => m.role === 'system');
-  const conversationMessages = messages.filter(m => m.role !== 'system');
+async function* streamAnthropic({
+  model,
+  messages,
+  temperature,
+  maxTokens,
+  options,
+}) {
+  const systemMessage = messages.find((m) => m.role === "system");
+  const conversationMessages = messages.filter((m) => m.role !== "system");
 
   const client = getAnthropicClient();
   const stream = await client.messages.stream({
@@ -379,26 +481,29 @@ async function* streamAnthropic({ model, messages, temperature, maxTokens, optio
     max_tokens: maxTokens,
     temperature,
     system: systemMessage?.content || undefined,
-    messages: conversationMessages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
+    messages: conversationMessages.map((m) => ({
+      role: m.role === "assistant" ? "assistant" : "user",
       content: m.content,
     })),
     ...options,
   });
 
   for await (const chunk of stream) {
-    if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+    if (
+      chunk.type === "content_block_delta" &&
+      chunk.delta.type === "text_delta"
+    ) {
       yield {
-        provider: 'anthropic',
+        provider: "anthropic",
         model,
         content: chunk.delta.text,
         done: false,
       };
-    } else if (chunk.type === 'message_stop') {
+    } else if (chunk.type === "message_stop") {
       yield {
-        provider: 'anthropic',
+        provider: "anthropic",
         model,
-        content: '',
+        content: "",
         done: true,
       };
     }
@@ -413,15 +518,15 @@ export function getRecommendedModel(taskType) {
     // Complex reasoning tasks
     reasoning: MODELS.CLAUDE_35_SONNET,
     analysis: MODELS.GPT4_TURBO,
-    
+
     // Fast, lightweight tasks
     quick: MODELS.CLAUDE_3_HAIKU,
     simple: MODELS.GPT35_TURBO,
-    
+
     // Balanced tasks
     coaching: MODELS.CLAUDE_3_SONNET,
     conversation: MODELS.GPT4_TURBO,
-    
+
     // Creative tasks
     creative: MODELS.CLAUDE_3_OPUS,
     writing: MODELS.GPT4,

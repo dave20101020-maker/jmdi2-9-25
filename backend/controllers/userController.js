@@ -643,18 +643,66 @@ export const updateConsent = async (req, res) => {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const { aiConsent, consentTimestamp, consentVersion } = req.body;
+    const now = new Date();
+    const body = req.body || {};
+    const normalizedAiConsent =
+      body.aiConsent !== undefined
+        ? body.aiConsent
+        : body.consent !== undefined
+        ? body.consent
+        : undefined;
 
-    if (aiConsent === undefined) {
+    if (normalizedAiConsent === undefined) {
       return res.status(400).json({ error: "aiConsent field is required" });
     }
 
-    // Update consent fields
-    user.aiConsent = Boolean(aiConsent);
-    user.consentTimestamp = consentTimestamp
-      ? new Date(consentTimestamp)
-      : new Date();
-    user.consentVersion = consentVersion || "1.0";
+    const accepted = Boolean(normalizedAiConsent);
+    const normalizedTimestamp = body.consentTimestamp
+      ? new Date(body.consentTimestamp)
+      : now;
+
+    // Update legacy AI consent tracking fields
+    user.aiConsent = accepted;
+    user.consentTimestamp = normalizedTimestamp;
+    user.consentVersion = body.consentVersion || "1.0";
+
+    // Also satisfy the sensitive-consent gate used by AI endpoints.
+    // If explicit consents are provided, respect them; otherwise default to
+    // keeping gdpr/clinical in sync with aiConsent.
+    const DEFAULT_SENSITIVE_CONSENT_VERSIONS = {
+      gdpr: "gdpr-2025.12",
+      clinical: "clinical-2025.12",
+    };
+
+    const providedConsents = body.consents || null;
+    const gdprAccepted =
+      providedConsents?.gdpr?.accepted !== undefined
+        ? Boolean(providedConsents.gdpr.accepted)
+        : accepted;
+    const clinicalAccepted =
+      providedConsents?.clinical?.accepted !== undefined
+        ? Boolean(providedConsents.clinical.accepted)
+        : accepted;
+
+    user.consents = user.consents || {};
+    user.consents.gdpr = {
+      accepted: gdprAccepted,
+      version:
+        providedConsents?.gdpr?.version ||
+        DEFAULT_SENSITIVE_CONSENT_VERSIONS.gdpr,
+      timestamp: providedConsents?.gdpr?.timestamp
+        ? new Date(providedConsents.gdpr.timestamp)
+        : normalizedTimestamp,
+    };
+    user.consents.clinical = {
+      accepted: clinicalAccepted,
+      version:
+        providedConsents?.clinical?.version ||
+        DEFAULT_SENSITIVE_CONSENT_VERSIONS.clinical,
+      timestamp: providedConsents?.clinical?.timestamp
+        ? new Date(providedConsents.clinical.timestamp)
+        : normalizedTimestamp,
+    };
 
     await user.save();
 
@@ -665,6 +713,7 @@ export const updateConsent = async (req, res) => {
         aiConsent: user.aiConsent,
         consentTimestamp: user.consentTimestamp,
         consentVersion: user.consentVersion,
+        consents: user.consents,
       },
     });
   } catch (err) {
@@ -689,6 +738,7 @@ export const getConsent = async (req, res) => {
         aiConsent: user.aiConsent,
         consentTimestamp: user.consentTimestamp,
         consentVersion: user.consentVersion,
+        consents: user.consents,
       },
     });
   } catch (err) {

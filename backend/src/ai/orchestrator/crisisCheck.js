@@ -1,91 +1,132 @@
 /**
  * Crisis Safety Check System
- * 
+ *
  * Detects crisis indicators in user messages before routing to AI agents.
  * If crisis detected, returns crisis resources immediately without calling agents.
- * 
+ *
  * Indicators: suicidal ideation, self-harm, severe mental health crisis, etc.
  * Returns: Crisis message + hotline info + emergency resources
  */
 
-import logger from '../../utils/logger.js';
+import logger from "../../utils/logger.js";
 
 // Crisis indicator patterns
 const CRISIS_PATTERNS = {
   suicide: {
-    keywords: ['suicide', 'suicidal', 'kill myself', 'end my life', 'not worth living', 'die', 'death wish'],
-    severity: 'critical',
-    hotline: 'National Suicide Prevention Lifeline'
+    keywords: [
+      "suicide",
+      "suicidal",
+      "kill myself",
+      "end my life",
+      "not worth living",
+      "die",
+      "death wish",
+    ],
+    severity: "critical",
+    hotline: "National Suicide Prevention Lifeline",
   },
   self_harm: {
-    keywords: ['self-harm', 'self harm', 'cutting', 'cut myself', 'hurt myself', 'injure myself', 'blood', 'scars'],
-    severity: 'high',
-    hotline: 'Crisis Text Line'
+    keywords: [
+      "self-harm",
+      "self harm",
+      "cutting",
+      "cut myself",
+      "hurt myself",
+      "injure myself",
+      "blood",
+      "scars",
+    ],
+    severity: "high",
+    hotline: "Crisis Text Line",
   },
   severe_crisis: {
-    keywords: ['crisis', 'emergency', 'severe', 'urgent', 'can\'t handle', 'falling apart', 'breaking down', 'panic attack'],
-    severity: 'high',
-    hotline: 'National Crisis Line'
+    keywords: [
+      "crisis",
+      "emergency",
+      "severe",
+      "urgent",
+      "can't handle",
+      "falling apart",
+      "breaking down",
+      "panic attack",
+    ],
+    severity: "high",
+    hotline: "National Crisis Line",
   },
   abuse: {
-    keywords: ['abuse', 'hit me', 'hurt me', 'assault', 'violence', 'dangerous', 'threat'],
-    severity: 'critical',
-    hotline: 'National Domestic Violence Hotline'
+    keywords: [
+      "abuse",
+      "hit me",
+      "hurt me",
+      "assault",
+      "violence",
+      "dangerous",
+      "threat",
+    ],
+    severity: "critical",
+    hotline: "National Domestic Violence Hotline",
   },
   substance: {
-    keywords: ['overdose', 'poison', 'drugs', 'alcohol', 'intoxicated', 'substance abuse'],
-    severity: 'critical',
-    hotline: 'SAMHSA National Helpline'
-  }
+    keywords: [
+      "overdose",
+      "poison",
+      "drugs",
+      "alcohol",
+      "intoxicated",
+      "substance abuse",
+    ],
+    severity: "critical",
+    hotline: "SAMHSA National Helpline",
+  },
 };
 
 // Global crisis resources
 const CRISIS_RESOURCES = {
   us: {
-    'National Suicide Prevention Lifeline': {
-      number: '988',
-      url: 'https://988lifeline.org',
-      description: 'Free, confidential support 24/7'
+    "National Suicide Prevention Lifeline": {
+      number: "988",
+      url: "https://988lifeline.org",
+      description: "Free, confidential support 24/7",
     },
-    'Crisis Text Line': {
-      number: 'Text HOME to 741741',
-      url: 'https://www.crisistextline.org',
-      description: 'Text-based crisis support'
+    "Crisis Text Line": {
+      number: "Text HOME to 741741",
+      url: "https://www.crisistextline.org",
+      description: "Text-based crisis support",
     },
-    'National Crisis Line': {
-      number: '1-800-784-2433',
-      url: 'https://www.samhsa.gov',
-      description: 'SAMHSA National Helpline'
+    "National Crisis Line": {
+      number: "1-800-784-2433",
+      url: "https://www.samhsa.gov",
+      description: "SAMHSA National Helpline",
     },
-    'National Domestic Violence Hotline': {
-      number: '1-800-799-7233',
-      url: 'https://www.thehotline.org',
-      description: 'Support for domestic violence'
+    "National Domestic Violence Hotline": {
+      number: "1-800-799-7233",
+      url: "https://www.thehotline.org",
+      description: "Support for domestic violence",
     },
-    'Emergency Services': {
-      number: '911',
-      url: 'https://911.gov',
-      description: 'Call if in immediate danger'
-    }
-  }
+    "Emergency Services": {
+      number: "911",
+      url: "https://911.gov",
+      description: "Call if in immediate danger",
+    },
+  },
 };
 
 /**
  * Perform crisis safety check on user message
- * 
+ *
  * @param {string} message - User message to check
  * @param {string} country - Country code (default: 'us')
  * @returns {Promise<{isCrisis: boolean, severity: string, type: string, message: string, resources: Array}>}
  */
-export async function performCrisisCheck(message, country = 'us') {
+export async function performCrisisCheck(message, country = "us") {
   try {
-    if (!message || typeof message !== 'string') {
+    if (!message || typeof message !== "string") {
       return {
         isCrisis: false,
-        severity: 'none',
+        severity: "none",
         type: null,
         message: null,
-        resources: []
+        resources: [],
       };
     }
 
@@ -94,7 +135,7 @@ export async function performCrisisCheck(message, country = 'us') {
     if (patternMatch.isCrisis) {
       return {
         ...patternMatch,
-        resources: getCrisisResources(patternMatch.type, country)
+        resources: getCrisisResources(patternMatch.type, country),
       };
     }
 
@@ -104,7 +145,7 @@ export async function performCrisisCheck(message, country = 'us') {
       if (gptCheck.isCrisis) {
         return {
           ...gptCheck,
-          resources: getCrisisResources(gptCheck.type, country)
+          resources: getCrisisResources(gptCheck.type, country),
         };
       }
     }
@@ -112,27 +153,27 @@ export async function performCrisisCheck(message, country = 'us') {
     // No crisis detected
     return {
       isCrisis: false,
-      severity: 'none',
+      severity: "none",
       type: null,
       message: null,
-      resources: []
+      resources: [],
     };
   } catch (error) {
     logger.error(`Crisis check error: ${error.message}`);
     // Err on side of caution - return crisis info on error
     return {
       isCrisis: false,
-      severity: 'none',
-      type: 'error',
-      message: 'Unable to perform safety check',
-      resources: getCrisisResources(null, country)
+      severity: "none",
+      type: "error",
+      message: "Unable to perform safety check",
+      resources: getCrisisResources(null, country),
     };
   }
 }
 
 /**
  * Check message against crisis patterns
- * 
+ *
  * @param {string} message - Message to check
  * @returns {Object} - Crisis detection result
  */
@@ -146,8 +187,10 @@ function checkCrisisPatterns(message) {
       // Exact or partial match
       if (lowerMessage.includes(keyword)) {
         // Weight higher severity matches
-        if (!highestSeverity || 
-            (pattern.severity === 'critical' && highestSeverity !== 'critical')) {
+        if (
+          !highestSeverity ||
+          (pattern.severity === "critical" && highestSeverity !== "critical")
+        ) {
           highestSeverity = pattern.severity;
           matchedType = type;
         }
@@ -162,30 +205,30 @@ function checkCrisisPatterns(message) {
       severity: highestSeverity,
       type: matchedType,
       message: getCrisisMessage(matchedType, highestSeverity),
-      method: 'pattern'
+      method: "pattern",
     };
   }
 
   return {
     isCrisis: false,
-    severity: 'none',
+    severity: "none",
     type: null,
     message: null,
-    method: 'pattern'
+    method: "pattern",
   };
 }
 
 /**
  * GPT-based crisis detection for complex messages
- * 
+ *
  * @param {string} message - Message to analyze
  * @returns {Promise<Object>} - Crisis detection result
  */
 async function checkCrisisWithGPT(message) {
   try {
-    const { OpenAI } = await import('openai');
+    const { OpenAI } = await import("openai");
     const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+      apiKey: process.env.OPENAI_API_KEY || process.env.AI_PROVIDER_KEY,
     });
 
     const systemPrompt = `You are a crisis detection AI. Analyze the user's message for crisis indicators.
@@ -203,19 +246,19 @@ Respond with ONLY a JSON object:
 Be conservative - only flag if message clearly indicates crisis. Default to false if uncertain.`;
 
     const response = await client.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: "gpt-4o-mini",
       messages: [
         {
-          role: 'system',
-          content: systemPrompt
+          role: "system",
+          content: systemPrompt,
         },
         {
-          role: 'user',
-          content: message
-        }
+          role: "user",
+          content: message,
+        },
       ],
       temperature: 0.1,
-      max_tokens: 100
+      max_tokens: 100,
     });
 
     const content = response.choices[0]?.message?.content;
@@ -227,45 +270,51 @@ Be conservative - only flag if message clearly indicates crisis. Default to fals
         severity: parsed.severity,
         type: parsed.type,
         message: getCrisisMessage(parsed.type, parsed.severity),
-        method: 'gpt',
-        confidence: parsed.confidence
+        method: "gpt",
+        confidence: parsed.confidence,
       };
     }
 
     return {
       isCrisis: false,
-      severity: 'none',
+      severity: "none",
       type: null,
       message: null,
-      method: 'gpt'
+      method: "gpt",
     };
   } catch (error) {
     logger.error(`GPT crisis check failed: ${error.message}`);
     return {
       isCrisis: false,
-      severity: 'none',
+      severity: "none",
       type: null,
       message: null,
-      method: 'gpt-error'
+      method: "gpt-error",
     };
   }
 }
 
 /**
  * Get appropriate crisis message based on type and severity
- * 
+ *
  * @param {string} type - Crisis type
  * @param {string} severity - Crisis severity
  * @returns {string} - Crisis message
  */
 function getCrisisMessage(type, severity) {
   const messages = {
-    suicide: 'I hear that you\'re in pain. Your life matters, and there are people who want to help. Please reach out to a crisis counselor right now.',
-    self_harm: 'I\'m concerned about your safety. Please contact a mental health professional or crisis counselor immediately.',
-    severe_crisis: 'You\'re going through something very difficult. Professional support is available right now - please reach out.',
-    abuse: 'Your safety is the priority. Please contact the domestic violence hotline or emergency services.',
-    substance: 'If you\'ve overdosed or are in danger, please call 911 or emergency services immediately.',
-    error: 'I want to make sure you\'re safe. If you\'re in crisis, please reach out to one of the resources below.'
+    suicide:
+      "I hear that you're in pain. Your life matters, and there are people who want to help. Please reach out to a crisis counselor right now.",
+    self_harm:
+      "I'm concerned about your safety. Please contact a mental health professional or crisis counselor immediately.",
+    severe_crisis:
+      "You're going through something very difficult. Professional support is available right now - please reach out.",
+    abuse:
+      "Your safety is the priority. Please contact the domestic violence hotline or emergency services.",
+    substance:
+      "If you've overdosed or are in danger, please call 911 or emergency services immediately.",
+    error:
+      "I want to make sure you're safe. If you're in crisis, please reach out to one of the resources below.",
   };
 
   return messages[type] || messages.error;
@@ -273,37 +322,44 @@ function getCrisisMessage(type, severity) {
 
 /**
  * Get crisis resources for a country
- * 
+ *
  * @param {string} type - Crisis type (optional, for filtering)
  * @param {string} country - Country code
  * @returns {Array} - List of crisis resources
  */
-function getCrisisResources(type = null, country = 'us') {
+function getCrisisResources(type = null, country = "us") {
   const resources = CRISIS_RESOURCES[country] || CRISIS_RESOURCES.us;
-  
+
   // Filter relevant resources by type
   const typeMap = {
-    suicide: ['National Suicide Prevention Lifeline', 'Crisis Text Line', 'Emergency Services'],
-    self_harm: ['Crisis Text Line', 'National Suicide Prevention Lifeline'],
-    severe_crisis: ['National Crisis Line', 'National Suicide Prevention Lifeline'],
-    abuse: ['National Domestic Violence Hotline', 'Emergency Services'],
-    substance: ['National Crisis Line', 'Emergency Services'],
-    error: ['Emergency Services', 'National Suicide Prevention Lifeline']
+    suicide: [
+      "National Suicide Prevention Lifeline",
+      "Crisis Text Line",
+      "Emergency Services",
+    ],
+    self_harm: ["Crisis Text Line", "National Suicide Prevention Lifeline"],
+    severe_crisis: [
+      "National Crisis Line",
+      "National Suicide Prevention Lifeline",
+    ],
+    abuse: ["National Domestic Violence Hotline", "Emergency Services"],
+    substance: ["National Crisis Line", "Emergency Services"],
+    error: ["Emergency Services", "National Suicide Prevention Lifeline"],
   };
 
   const relevant = typeMap[type] || Object.keys(resources);
-  
+
   return relevant
-    .filter(name => resources[name])
-    .map(name => ({
+    .filter((name) => resources[name])
+    .map((name) => ({
       name,
-      ...resources[name]
+      ...resources[name],
     }));
 }
 
 /**
  * Format crisis response for API return
- * 
+ *
  * @param {Object} crisisCheck - Result from performCrisisCheck
  * @returns {Object} - Formatted response for frontend
  */
@@ -320,7 +376,7 @@ export function formatCrisisResponse(crisisCheck) {
     message: crisisCheck.message,
     resources: crisisCheck.resources,
     timestamp: new Date().toISOString(),
-    note: 'This response is from our safety system. A trained crisis counselor is available 24/7.'
+    note: "This response is from our safety system. A trained crisis counselor is available 24/7.",
   };
 }
 
@@ -329,5 +385,5 @@ export default {
   formatCrisisResponse,
   getCrisisResources,
   CRISIS_PATTERNS,
-  CRISIS_RESOURCES
+  CRISIS_RESOURCES,
 };
