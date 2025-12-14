@@ -35,9 +35,7 @@ if (!isCodespacesTarget) {
 
 // Backend proxy setup: route /api to backend during dev.
 // Default backend/server.js listens on 5000.
-const backendPort = Number(
-  process.env.BACKEND_PORT || process.env.PORT || 5000
-);
+const backendPort = Number(process.env.BACKEND_PORT || 5000);
 const backendUrl =
   process.env.VITE_API_PROXY_TARGET ||
   process.env.BACKEND_URL ||

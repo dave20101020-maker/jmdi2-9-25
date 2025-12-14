@@ -9,7 +9,10 @@ export default function FloatingCopilotButton() {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [initialDraft, setInitialDraft] = useState("");
   const { user, initializing, demoMode } = useAuth();
-  const isAuthenticated = Boolean(user) || demoMode;
+  const DISABLE_AI_GATING =
+    import.meta.env.VITE_DISABLE_PROTECTION === "true" ||
+    import.meta.env.VITE_DISABLE_AI_GATING === "true";
+  const isAuthenticated = Boolean(user) || demoMode || DISABLE_AI_GATING;
 
   useEffect(() => {
     const handler = (e) => {
@@ -52,6 +55,12 @@ export default function FloatingCopilotButton() {
       setOpen(false);
     }
   }, [isAuthenticated, open]);
+
+  useEffect(() => {
+    if (DISABLE_AI_GATING) {
+      setShowAuthPrompt(false);
+    }
+  }, [DISABLE_AI_GATING]);
 
   return (
     <>

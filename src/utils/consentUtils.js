@@ -159,12 +159,10 @@ export function formatConsentTimestamp(timestamp) {
  */
 export async function syncConsentFromBackend() {
   try {
-    const token = localStorage.getItem("token") || localStorage.getItem("jwt");
     const response = await fetch("/api/user/consent", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       credentials: "include",
     });

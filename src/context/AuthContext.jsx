@@ -15,9 +15,12 @@ const noop = async () => null;
 
 const AuthContext = createContext({
   user: null,
+  isAuthenticated: false,
   initializing: true,
   loading: true,
   error: null,
+  authMechanism: "httpOnly-cookie",
+  lastAuthCheck: { at: null, status: "unknown", error: null },
   signIn: noop,
   signUp: noop,
   signOut: noop,
@@ -53,29 +56,90 @@ const buildUsername = (email, profile = {}) => {
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
 
+const snapshotAuthStorage = () => {
+  if (typeof window === "undefined") {
+    return {
+      localStorageToken: false,
+      localStorageJwt: false,
+      persistedUserStore: false,
+    };
+  }
+
+  return {
+    localStorageToken: Boolean(localStorage.getItem("token")),
+    localStorageJwt: Boolean(localStorage.getItem("jwt")),
+    persistedUserStore: Boolean(localStorage.getItem("northstar-user-storage")),
+  };
+};
+
+const userLabel = (u) => u?._id || u?.id || u?.email || null;
+
+const authInfo = (message, detail = {}) => {
+  console.info("[AUTH]", message, detail);
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
+  const [lastAuthCheck, setLastAuthCheck] = useState({
+    at: null,
+    status: "unknown",
+    error: null,
+  });
   const loadingRef = useRef(false);
 
   const syncUser = useCallback((nextUser) => {
     setUser(nextUser ?? null);
+    authInfo("Auth state update", {
+      isAuthenticated: Boolean(nextUser),
+      user: userLabel(nextUser),
+    });
     return nextUser ?? null;
   }, []);
 
   const refreshUser = useCallback(async () => {
     try {
+      authInfo("Verify session (/api/auth/me) start", {
+        mechanism: "httpOnly-cookie",
+        storage: snapshotAuthStorage(),
+      });
       const response = await api.me();
       const sessionUser = extractUser(response);
+      setLastAuthCheck({
+        at: new Date().toISOString(),
+        status: sessionUser ? "ok" : "unauthenticated",
+        error: null,
+      });
+      authInfo("Verify session (/api/auth/me) success", {
+        isAuthenticated: Boolean(sessionUser),
+        user: userLabel(sessionUser),
+      });
       return syncUser(sessionUser);
     } catch (error) {
       if (error?.status === 401 || error?.status === 403) {
+        setLastAuthCheck({
+          at: new Date().toISOString(),
+          status: "unauthenticated",
+          error: null,
+        });
+        authInfo("Verify session (/api/auth/me) unauthorized", {
+          status: error?.status,
+        });
         syncUser(null);
         return null;
       }
+      setLastAuthCheck({
+        at: new Date().toISOString(),
+        status: "error",
+        error: error?.message || "unknown",
+      });
       setAuthError(error);
+      authInfo("Verify session (/api/auth/me) error", {
+        message: error?.message,
+        status: error?.status,
+      });
       throw error;
     }
   }, [syncUser]);
@@ -86,9 +150,17 @@ export function AuthProvider({ children }) {
       if (loadingRef.current) return;
       loadingRef.current = true;
       setLoading(true);
+      authInfo("App load: start auth rehydrate", {
+        mechanism: "httpOnly-cookie",
+        storage: snapshotAuthStorage(),
+      });
       try {
-        await refreshUser();
+        const resolvedUser = await refreshUser();
         setAuthError(null);
+        authInfo("App load: auth rehydrate complete", {
+          isAuthenticated: Boolean(resolvedUser),
+          user: userLabel(resolvedUser),
+        });
       } catch (error) {
         if (!(error?.status === 401 || error?.status === 403)) {
           console.error("[AuthProvider] Unable to resolve auth state", error);
@@ -112,11 +184,26 @@ export function AuthProvider({ children }) {
     async (emailOrUsername, password) => {
       try {
         setAuthError(null);
+        authInfo("Login submit", {
+          email: (emailOrUsername || "").toString().trim(),
+          mechanism: "httpOnly-cookie",
+        });
         const response = await api.login(emailOrUsername.trim(), password);
         const sessionUser = extractUser(response);
+        authInfo("Login API response", {
+          ok: true,
+          user: userLabel(sessionUser),
+          storage: snapshotAuthStorage(),
+          note: "httpOnly session cookie not readable via JS",
+        });
         return syncUser(sessionUser);
       } catch (error) {
         setAuthError(error);
+        authInfo("Login API error", {
+          ok: false,
+          status: error?.status || error?.statusCode || error?.response?.status,
+          message: error?.message,
+        });
         throw error;
       }
     },
@@ -176,9 +263,16 @@ export function AuthProvider({ children }) {
     if (DEMO_MODE) {
       return {
         user: { id: "demo-user", name: "Demo User" },
+        isAuthenticated: true,
         initializing: false,
         loading: false,
         error: null,
+        authMechanism: "demo",
+        lastAuthCheck: {
+          at: new Date().toISOString(),
+          status: "ok",
+          error: null,
+        },
         demoMode: true,
         signIn: noop,
         signUp: noop,
@@ -191,9 +285,12 @@ export function AuthProvider({ children }) {
     }
     return {
       user,
+      isAuthenticated: Boolean(user),
       initializing,
       loading,
       error: authError,
+      authMechanism: "httpOnly-cookie",
+      lastAuthCheck,
       demoMode: false,
       signIn,
       signUp,
@@ -208,6 +305,7 @@ export function AuthProvider({ children }) {
     initializing,
     loading,
     authError,
+    lastAuthCheck,
     signIn,
     signUp,
     signOut,

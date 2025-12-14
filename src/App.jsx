@@ -41,6 +41,8 @@ import FloatingCopilotButton from "./components/FloatingCopilotButton";
 import Analytics from "./pages/Analytics";
 import WeeklyReflection from "./pages/WeeklyReflection";
 import WeeklyReport from "./pages/WeeklyReport";
+import AITestPanel from "./components/ai/AITestPanel";
+import AuthDebugPanel from "./components/auth/AuthDebugPanel";
 
 function AppLayout({ children }) {
   return (
@@ -241,6 +243,8 @@ export default function App() {
             <AppRoutes />
             <NorthStarAssistant />
             <FloatingCopilotButton />
+            <AITestPanel />
+            <AuthDebugPanel />
             <SonnerToaster position="top-right" richColors closeButton />
           </AppLayout>
         </BrowserRouter>

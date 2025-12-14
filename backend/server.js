@@ -161,6 +161,11 @@ if (envName !== "production") {
   app.use("/api/debug/ai", debugAiTestRoutes);
 }
 
+// Unified AI Orchestrator Routes (all modules integrated)
+// NOTE: Must be mounted BEFORE legacy `/api/ai` routes so `/api/ai/unified/*`
+// does not get intercepted by legacy auth middleware.
+app.use("/api/ai/unified", aiUnifiedRoutes);
+
 // AI Routes (legacy)
 app.use("/api/ai", aiRoutes);
 
@@ -168,9 +173,6 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/orchestrator", orchestratorRoutes);
 // Alias orchestrator chat under /api/ai for the assistant UI
 app.use("/api/ai", orchestratorRoutes);
-
-// Unified AI Orchestrator Routes (all modules integrated)
-app.use("/api/ai/unified", aiUnifiedRoutes);
 
 // Feature Routes
 app.use("/api/habits", habitsRoutes);

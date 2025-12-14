@@ -144,8 +144,13 @@ export default function SignIn() {
     setStatus({ type: "loading", message: "Signing you in..." });
     const requestBody = { email: form.email };
     logAuthDebug("sign-in request", { body: requestBody });
+    console.info("[AUTH] Login submit", { email: trimmedEmail });
     try {
       const sessionUser = await signIn(form.email, form.password);
+      console.info("[AUTH] Login success", {
+        user: sessionUser?._id || sessionUser?.id || sessionUser?.email || null,
+        note: "Using httpOnly cookie session (not readable via JS)",
+      });
       logAuthDebug("sign-in response", {
         status: 200,
         userId:
@@ -160,6 +165,10 @@ export default function SignIn() {
       });
       navigate(redirectPath, { replace: true });
     } catch (err) {
+      console.info("[AUTH] Login failure", {
+        status: err?.status || err?.statusCode || err?.response?.status,
+        message: err?.message,
+      });
       logAuthDebug("sign-in error", {
         status: err?.status || err?.code || "unknown",
         message: err?.message,

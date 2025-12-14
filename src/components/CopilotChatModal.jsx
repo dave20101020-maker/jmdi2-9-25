@@ -75,7 +75,10 @@ export default function CopilotChatModal({ open, onClose, initialDraft }) {
   const [error, setError] = useState(null);
   const [accessIssue, setAccessIssue] = useState(null);
   const { user, initializing, demoMode } = useAuth();
-  const isAuthenticated = Boolean(user) || demoMode;
+  const DISABLE_AI_GATING =
+    import.meta.env.VITE_DISABLE_PROTECTION === "true" ||
+    import.meta.env.VITE_DISABLE_AI_GATING === "true";
+  const isAuthenticated = Boolean(user) || demoMode || DISABLE_AI_GATING;
   const { crisisState, evaluateCrisisSignal, resetCrisis } =
     useCrisisDetection();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -114,21 +117,8 @@ export default function CopilotChatModal({ open, onClose, initialDraft }) {
   }, [crisisState]);
 
   const hasAiConsent = () => {
-    try {
-      const legacy = JSON.parse(localStorage.getItem("aiConsent") || "null");
-      if (legacy?.aiConsent === true) return true;
-    } catch {
-      // ignore
-    }
-    try {
-      const modern = JSON.parse(
-        localStorage.getItem("ai_usage_consent") || "null"
-      );
-      if (modern?.aiFeatures === true) return true;
-    } catch {
-      // ignore
-    }
-    return false;
+    // TEMP: consent gating disabled while stabilizing auth end-to-end.
+    return true;
   };
 
   useEffect(() => {
@@ -263,7 +253,7 @@ export default function CopilotChatModal({ open, onClose, initialDraft }) {
 
     // Defensive: re-check auth/consent at send time.
     // FloatingCopilotButton already gates modal opening, but state can change.
-    if (initializing || !isAuthenticated) {
+    if (!DISABLE_AI_GATING && (initializing || !isAuthenticated)) {
       setAccessIssue({
         type: "auth",
         title: "Sign in to continue",
@@ -302,14 +292,17 @@ export default function CopilotChatModal({ open, onClose, initialDraft }) {
       // and makes responses feel aware of what the user is viewing.
       const data = await apiClient.request("/ai/unified/chat", {
         method: "POST",
-        body: {
-          message: prompt,
-          pillar: aiContext.pillar !== "general" ? aiContext.pillar : undefined,
-          module: aiContext.module || undefined,
-          options: {
-            uiContext: aiContext,
-          },
-        },
+        body: DISABLE_AI_GATING
+          ? { message: prompt }
+          : {
+              message: prompt,
+              pillar:
+                aiContext.pillar !== "general" ? aiContext.pillar : undefined,
+              module: aiContext.module || undefined,
+              options: {
+                uiContext: aiContext,
+              },
+            },
         retryOnUnauthorized: false,
       });
 

@@ -69,9 +69,7 @@ const adminClient = {
   getUserCount: async () => {
     try {
       const response = await axios.get(`${API_ORIGIN}/api/admin/users/count`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        withCredentials: true,
       });
       return response.data;
     } catch (error) {
@@ -89,9 +87,7 @@ const adminClient = {
       const response = await axios.get(
         `${API_ORIGIN}/api/admin/ai/usage-summary`,
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+          withCredentials: true,
         }
       );
       return response.data;
@@ -108,9 +104,7 @@ const adminClient = {
   getDashboardStats: async () => {
     try {
       const response = await axios.get(`${API_ORIGIN}/api/admin/dashboard`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        withCredentials: true,
       });
       return response.data;
     } catch (error) {
@@ -126,9 +120,7 @@ const adminClient = {
   checkAdminAccess: async () => {
     try {
       const response = await axios.get(`${API_ORIGIN}/api/admin/access`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        withCredentials: true,
       });
       return response.data.isAdmin;
     } catch (error) {

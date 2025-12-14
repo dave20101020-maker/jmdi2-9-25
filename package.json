@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "dev:proxy": "VITE_API_URL=/api vite",
-    "server": "node backend/server.js",
-    "server:dev": "nodemon backend/server.js",
+    "server": "PORT=5000 node backend/server.js",
+    "server:dev": "PORT=5000 nodemon backend/server.js",
     "start": "concurrently \"npm run dev\" \"npm run server\"",
     "start:all": "concurrently \"npm run dev\" \"npm run server:dev\" --names \"frontend,backend\" --prefix-colors \"cyan,green\"",
     "build": "vite build",

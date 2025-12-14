@@ -81,11 +81,6 @@ export const issueSession = async (
 export const getTokenFromRequest = (req) => {
   const cookieToken = req.cookies?.[SESSION_COOKIE_NAME];
   if (cookieToken) return cookieToken;
-
-  const header = req.headers?.authorization || req.headers?.Authorization;
-  if (header?.startsWith("Bearer ")) {
-    return header.slice(7);
-  }
   return null;
 };
 

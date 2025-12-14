@@ -62,6 +62,11 @@ const normalizeApiPath = (path = "/") => {
   return normalized;
 };
 
+const isAuthApiPath = (path = "/") => {
+  const apiPath = normalizeApiPath(path);
+  return apiPath === "/auth" || apiPath.startsWith("/auth/");
+};
+
 export class APIClient {
   constructor(baseUrl = DEFAULT_ORIGIN_BASE) {
     this.baseUrl = normalizeOriginBase(baseUrl);
@@ -121,6 +126,13 @@ export class APIClient {
     } = options;
 
     const url = this.buildUrl(path);
+    const shouldLogAuth = isAuthApiPath(path);
+    if (shouldLogAuth) {
+      console.info("[AUTH] API request", {
+        method,
+        path: normalizeApiPath(path),
+      });
+    }
     const init = {
       method,
       headers: {
@@ -142,6 +154,14 @@ export class APIClient {
       return { ok: false, error: "connection" };
     }
 
+    if (shouldLogAuth) {
+      console.info("[AUTH] API response", {
+        method,
+        path: normalizeApiPath(path),
+        status: res.status,
+      });
+    }
+
     const text = await res.text();
     let data;
     try {
@@ -152,7 +172,17 @@ export class APIClient {
 
     if (res.status === 401 && retryOnUnauthorized) {
       try {
+        if (shouldLogAuth) {
+          console.info("[AUTH] API 401 -> refresh", {
+            path: normalizeApiPath(path),
+          });
+        }
         await this.refreshSession();
+        if (shouldLogAuth) {
+          console.info("[AUTH] refresh ok -> retry", {
+            path: normalizeApiPath(path),
+          });
+        }
         return this.request(path, {
           method,
           body,
@@ -160,6 +190,12 @@ export class APIClient {
           retryOnUnauthorized: false,
         });
       } catch (refreshError) {
+        if (shouldLogAuth) {
+          console.info("[AUTH] refresh failed", {
+            path: normalizeApiPath(path),
+            message: refreshError?.message,
+          });
+        }
         this.emit("api-error", { status: 401, error: refreshError });
         this.emit("auth-required", { reason: "refresh-failed" });
         const error = new Error(
@@ -197,7 +233,7 @@ export class APIClient {
   }
 
   login(email, password) {
-    return this.post("/auth/login", { email, password });
+    return this.post("/auth/login", { emailOrUsername: email, password });
   }
 
   logout() {

@@ -189,12 +189,6 @@ export const buildUrl = (endpoint, params = {}) => {
  * Get authorization header with JWT token
  */
 export const getAuthHeader = () => {
-  const token = localStorage.getItem("token") || localStorage.getItem("jwt");
-  if (token) {
-    return {
-      Authorization: `Bearer ${token}`,
-    };
-  }
   return {};
 };
 

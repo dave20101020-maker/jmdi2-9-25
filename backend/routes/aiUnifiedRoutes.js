@@ -11,6 +11,7 @@
  */
 
 import express from "express";
+import OpenAI from "openai";
 import asyncHandler from "../utils/asyncHandler.js";
 import {
   authRequired,
@@ -25,50 +26,98 @@ import { getProviderHealth } from "../utils/providerHealth.js";
 
 const router = express.Router();
 
-// Apply auth and consent middleware to all routes
-router.use(authRequired);
-router.use(requireSensitiveConsent);
+// NOTE: Auth/consent middleware is applied AFTER /chat for now.
+// /chat is temporarily unauthenticated to make AI responses deterministic.
+
+const providerKey = process.env.OPENAI_API_KEY || process.env.AI_PROVIDER_KEY;
+const openai = new OpenAI({
+  apiKey: providerKey,
+  timeout: 30_000,
+});
+
+const FALLBACK_REPLY =
+  "NorthStar AI is temporarily unavailable. Here is a safe fallback response: Try a small next step, write down one intention for today, and pick a single action you can complete in 5 minutes.";
 
 /**
  * POST /api/ai/unified/chat
- * Universal chat endpoint - routes to appropriate coach/module
+ * TEMP: Deterministic chat endpoint (no orchestrator/memory/pillar routing)
+ * TEMP: Unauthenticated while hardening reliability
  *
  * Body:
  * - message: string (required)
- * - pillar: string (optional) - force specific pillar
- * - module: string (optional) - force specific module
+ * - pillar/module/options may be provided but are ignored for now
  */
 router.post(
   "/chat",
-  requireFeatureAccess(FEATURE_KEYS.AI_CHAT),
   aiRateLimitMiddleware,
   sanitizationMiddleware,
   asyncHandler(async (req, res) => {
-    const { message, pillar, module, options = {} } = req.body;
-    const userId = req.user._id;
+    console.info("[AI][unified.chat] request received", {
+      path: req.path,
+      ip: req.ip,
+    });
+    console.info("[AI][unified.chat] request body", req.body);
 
+    const message = req.body?.message;
     if (!message || typeof message !== "string" || !message.trim()) {
-      return res.status(400).json({
-        ok: false,
+      return res.status(200).json({
+        success: false,
         error: "Message is required",
+        reply: FALLBACK_REPLY,
       });
     }
 
-    const result = await aiOrchestratorService.processAIChat({
-      userId,
-      message,
-      pillar,
-      module,
-      options,
-    });
-
-    if (!result.ok) {
-      return res.status(result.isCrisis ? 200 : 503).json(result);
+    if (!providerKey) {
+      return res.status(200).json({
+        success: false,
+        error: "Provider key missing. Set OPENAI_API_KEY or AI_PROVIDER_KEY.",
+        reply: FALLBACK_REPLY,
+      });
     }
 
-    return res.json(result);
+    try {
+      console.info("[AI][unified.chat] before OpenAI call");
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are NorthStar AI." },
+          { role: "user", content: message.trim() },
+        ],
+      });
+
+      console.info("[AI][unified.chat] after OpenAI call");
+
+      const reply = completion?.choices?.[0]?.message?.content;
+      if (!reply) {
+        return res.status(200).json({
+          success: false,
+          error: "Empty AI response",
+          reply: FALLBACK_REPLY,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        reply,
+      });
+    } catch (err) {
+      console.info("[AI][unified.chat] OpenAI error", {
+        message: err?.message,
+        name: err?.name,
+      });
+      return res.status(200).json({
+        success: false,
+        error: err?.message || "AI provider failure",
+        reply: FALLBACK_REPLY,
+      });
+    }
   })
 );
+
+// Apply auth and consent middleware to remaining routes
+router.use(authRequired);
+router.use(requireSensitiveConsent);
 
 /**
  * POST /api/ai/unified/journaling

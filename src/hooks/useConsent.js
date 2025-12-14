@@ -1,17 +1,17 @@
 /**
  * useConsent Hook
- * 
+ *
  * Manages AI consent state and provides methods to check/update consent.
  * Reads from localStorage and backend.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
 
-const CONSENT_STORAGE_KEY = 'aiConsent'
+const CONSENT_STORAGE_KEY = "aiConsent";
 
 /**
  * Hook to manage AI data usage consent
- * 
+ *
  * @returns {Object} Consent state and methods
  *   - hasConsent: boolean - Whether user has given AI consent
  *   - isLoading: boolean - Loading state while fetching from backend
@@ -21,102 +21,98 @@ const CONSENT_STORAGE_KEY = 'aiConsent'
  *   - checkConsent: function - Check current consent status
  */
 export function useConsent() {
-  const [hasConsent, setHasConsent] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [consentData, setConsentData] = useState(null)
+  const [hasConsent, setHasConsent] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [consentData, setConsentData] = useState(null);
 
   // Check consent on mount
   useEffect(() => {
-    checkConsent()
-  }, [])
+    checkConsent();
+  }, []);
 
   const checkConsent = () => {
     try {
-      const stored = localStorage.getItem(CONSENT_STORAGE_KEY)
+      const stored = localStorage.getItem(CONSENT_STORAGE_KEY);
       if (stored) {
-        const data = JSON.parse(stored)
-        setConsentData(data)
-        setHasConsent(data.aiConsent === true)
+        const data = JSON.parse(stored);
+        setConsentData(data);
+        setHasConsent(data.aiConsent === true);
       } else {
-        setHasConsent(false)
-        setConsentData(null)
+        setHasConsent(false);
+        setConsentData(null);
       }
     } catch (error) {
-      console.error('Error checking consent:', error)
-      setHasConsent(false)
+      console.error("Error checking consent:", error);
+      setHasConsent(false);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const giveConsent = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       const consentInfo = {
         aiConsent: true,
         consentTimestamp: new Date().toISOString(),
-        consentVersion: '1.0'
-      }
+        consentVersion: "1.0",
+      };
 
       // Save locally first
-      localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(consentInfo))
-      setConsentData(consentInfo)
-      setHasConsent(true)
+      localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(consentInfo));
+      setConsentData(consentInfo);
+      setHasConsent(true);
 
       // Sync to backend
       try {
-        const token = localStorage.getItem('token') || localStorage.getItem('jwt')
-        await fetch('/api/user/consent', {
-          method: 'POST',
+        await fetch("/api/user/consent", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            "Content-Type": "application/json",
           },
-          credentials: 'include',
-          body: JSON.stringify(consentInfo)
-        })
+          credentials: "include",
+          body: JSON.stringify(consentInfo),
+        });
       } catch (error) {
-        console.warn('Could not sync consent to backend:', error)
+        console.warn("Could not sync consent to backend:", error);
         // Continue - localStorage is sufficient
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const revokeConsent = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       const consentInfo = {
         aiConsent: false,
         consentTimestamp: new Date().toISOString(),
-        consentVersion: '1.0'
-      }
+        consentVersion: "1.0",
+      };
 
       // Save locally
-      localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(consentInfo))
-      setConsentData(consentInfo)
-      setHasConsent(false)
+      localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(consentInfo));
+      setConsentData(consentInfo);
+      setHasConsent(false);
 
       // Sync to backend
       try {
-        const token = localStorage.getItem('token') || localStorage.getItem('jwt')
-        await fetch('/api/user/consent', {
-          method: 'POST',
+        await fetch("/api/user/consent", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            "Content-Type": "application/json",
           },
-          credentials: 'include',
-          body: JSON.stringify(consentInfo)
-        })
+          credentials: "include",
+          body: JSON.stringify(consentInfo),
+        });
       } catch (error) {
-        console.warn('Could not sync consent revocation to backend:', error)
+        console.warn("Could not sync consent revocation to backend:", error);
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return {
     hasConsent,
@@ -124,8 +120,8 @@ export function useConsent() {
     consentData,
     giveConsent,
     revokeConsent,
-    checkConsent
-  }
+    checkConsent,
+  };
 }
 
-export default useConsent
+export default useConsent;

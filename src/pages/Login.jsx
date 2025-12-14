@@ -63,11 +63,19 @@ export default function Login() {
     setIsSubmitting(true);
     setFormError("");
     try {
+      console.info("[AUTH] Login submit", { email: form.email.trim() });
       await signIn(form.email.trim(), form.password);
+      console.info("[AUTH] Login success", {
+        note: "Using httpOnly cookie session (not readable via JS)",
+      });
       toast.success("Welcome back");
       const redirect = location.state?.from?.pathname || "/dashboard";
       navigate(redirect, { replace: true });
     } catch (error) {
+      console.info("[AUTH] Login failure", {
+        status: error?.status || error?.statusCode || error?.response?.status,
+        message: error?.message,
+      });
       const message = error?.message || "We could not sign you in.";
       setFormError(message);
       toast.error("Sign-in failed", { description: message });
