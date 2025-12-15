@@ -19,6 +19,19 @@ export type AIContext = {
   route: string;
 };
 
+/**
+ * Determines how the AI UI should open.
+ *
+ * Non-negotiable rule:
+ * - `pillar_direct` ONLY when the current route matches `/pillars/:pillarId`.
+ * - Otherwise `northstar_intro`.
+ *
+ * This is intentionally deterministic and does NOT depend on AI classification.
+ */
+export type AILaunchContext =
+  | { mode: "northstar_intro"; source: "global" }
+  | { mode: "pillar_direct"; pillarId: string };
+
 const KNOWN_PILLAR_IDS = new Set(
   (Array.isArray(PILLARS) ? PILLARS : [])
     .map((p) => String(p?.id || ""))
@@ -114,4 +127,17 @@ export function getCurrentAIContext(location: {
     null;
 
   return { pillar, module, route };
+}
+
+export function getAiLaunchContext(location: {
+  pathname?: string;
+}): AILaunchContext {
+  const pathname = String(location?.pathname || "/");
+  const match = pathname.match(/^\/pillars\/([^/]+)(?:\/|$)/i);
+  if (match?.[1]) {
+    const pillarId = normalizeId(safeDecode(match[1]));
+    return { mode: "pillar_direct", pillarId };
+  }
+
+  return { mode: "northstar_intro", source: "global" };
 }

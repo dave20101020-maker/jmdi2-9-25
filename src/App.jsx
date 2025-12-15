@@ -37,7 +37,6 @@ import TimelineNorthStar from "./pages/northstar/TimelineNorthStar";
 import NeuroShield from "./pages/northstar/NeuroShield";
 import LifePlanningAI from "./pages/northstar/LifePlanningAI";
 import Leaderboards from "./pages/northstar/Leaderboards";
-import FloatingCopilotButton from "./components/FloatingCopilotButton";
 import Analytics from "./pages/Analytics";
 import WeeklyReflection from "./pages/WeeklyReflection";
 import WeeklyReport from "./pages/WeeklyReport";
@@ -242,7 +241,6 @@ export default function App() {
           <AppLayout>
             <AppRoutes />
             <NorthStarAssistant />
-            <FloatingCopilotButton />
             <AITestPanel />
             <AuthDebugPanel />
             <SonnerToaster position="top-right" richColors closeButton />

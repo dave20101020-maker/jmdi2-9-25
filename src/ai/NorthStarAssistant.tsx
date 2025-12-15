@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
 import { Send, Sparkles, X, Loader2, ShieldCheck, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendNorthStarMessage } from "@/api/ai";
@@ -9,12 +8,13 @@ import {
   getAgentById,
   mapFrontendToBackendPillar,
 } from "@/data/pillarAgents";
+import { PILLARS } from "@/config/pillars";
 import { cn } from "@/utils";
 import {
   normalizeAiDiagnosticsFromError,
   renderAiDiagnosticLabel,
 } from "@/ai/diagnostics";
-import { getCurrentAIContext } from "@/ai/context";
+import type { AILaunchContext } from "@/ai/context";
 
 const DEMO_MODE =
   (import.meta.env.VITE_DEMO_MODE || "").toLowerCase() === "true";
@@ -39,6 +39,16 @@ export default function NorthStarAssistant() {
   const [open, setOpen] = useState(false);
   const [activeAgentId, setActiveAgentId] = useState<string>("northstar");
   const [input, setInput] = useState("");
+  const [activeModule, setActiveModule] = useState<string | null>(null);
+  const [launchContext, setLaunchContext] = useState<AILaunchContext>({
+    mode: "northstar_intro",
+    source: "global",
+  });
+  const [pendingIntro, setPendingIntro] = useState<
+    | { mode: "northstar_intro" }
+    | { mode: "pillar_direct"; agentId: string; module?: string | null }
+    | null
+  >(null);
   const [messages, setMessages] = useState<{
     id: string;
     role: "user" | "assistant";
@@ -56,34 +66,33 @@ export default function NorthStarAssistant() {
   } | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  const location = useLocation();
-  const aiContext = useMemo(
-    () => getCurrentAIContext(location),
-    [location.pathname, location.search, location.hash]
-  );
-
   const activeAgent = useMemo(
     () => getAgentById(activeAgentId) || PILLAR_AI_AGENTS[0],
     [activeAgentId]
   );
 
+  const activePillarLabel = useMemo(() => {
+    const pillarId = mapFrontendToBackendPillar(activeAgentId) || null;
+    if (!pillarId) return "General";
+    const match = PILLARS.find(
+      (p) => String(p?.id || "").toLowerCase() === String(activeAgentId)
+    );
+    return match?.label || activeAgent.name;
+  }, [activeAgent.name, activeAgentId]);
+
   const handleSend = async () => {
     if (!input.trim()) return;
     const backendPillar = mapFrontendToBackendPillar(activeAgent.id);
 
-    // If the user hasn't manually selected a coach, infer focus from the UI.
-    // Never block requests due to missing context.
-    const inferredPillar =
-      !backendPillar && aiContext.pillar !== "general"
-        ? aiContext.pillar
-        : null;
-    const inferredModule = !backendPillar ? aiContext.module : null;
+    // Deterministic behavior: do NOT infer pillar/module from the current route
+    // when sending. Launch mode is decided at open time only.
+    const inferredModule = activeModule;
 
     const newMessage = {
       id: newId(),
       role: "user" as const,
       text: input,
-      pillar: backendPillar || inferredPillar,
+      pillar: backendPillar || null,
     };
     setMessages((prev) => [...prev, newMessage]);
     setInput("");
@@ -99,10 +108,11 @@ export default function NorthStarAssistant() {
 
       const apiResponse = await sendNorthStarMessage({
         message: input,
-        pillar: backendPillar || inferredPillar || undefined,
+        // Only force a pillar when explicitly opened in pillar mode.
+        pillar: backendPillar || undefined,
         module: inferredModule || undefined,
-        explicitMode: !!backendPillar,
-        context: aiContext,
+        explicitMode: Boolean(backendPillar),
+        context: undefined,
       });
 
       if (apiResponse?.ok === false) {
@@ -124,7 +134,7 @@ export default function NorthStarAssistant() {
         setRouteNote(
           `${
             resolvedAgent?.name || "Pillar coach"
-          } picked up on your request. Switching you into pillar-specific guidance.`
+          } handled that request (routed by NorthStar).`
         );
       }
 
@@ -163,7 +173,60 @@ export default function NorthStarAssistant() {
   const renderDiagnosticLabel = renderAiDiagnosticLabel;
 
   useEffect(() => {
-    const onOpen = () => setOpen(true);
+    const onOpen = (event: Event) => {
+      setOpen(true);
+
+      const detail =
+        event && "detail" in event
+          ? /** @type {{draft?: string; agentId?: string; module?: string; mode?: string; aiContext?: any}} */
+            // @ts-expect-error - CustomEvent typing
+            event.detail
+          : null;
+
+      const requestedMode = (detail?.mode || "").toString().toLowerCase();
+      const requestedAgentId = (detail?.agentId || "").toString();
+      const requestedDraft = (detail?.draft || "").toString();
+      const requestedModule = (detail?.module || "").toString();
+
+      const requestedLaunchContext = (detail?.aiContext ||
+        null) as AILaunchContext | null;
+
+      const effectiveLaunchContext: AILaunchContext =
+        requestedLaunchContext && typeof requestedLaunchContext === "object"
+          ? requestedLaunchContext
+          : requestedMode === "pillar" && requestedAgentId
+          ? { mode: "pillar_direct", pillarId: requestedAgentId }
+          : { mode: "northstar_intro", source: "global" };
+
+      setLaunchContext(effectiveLaunchContext);
+
+      // Deterministic open behavior:
+      // - northstar_intro => NorthStar introduces itself first.
+      // - pillar_direct => open pillar coach directly (no NorthStar intro).
+      if (effectiveLaunchContext.mode === "northstar_intro") {
+        setActiveAgentId("northstar");
+        setActiveModule(null);
+        // Auto-intro is only applied on a fresh chat view.
+        setPendingIntro({ mode: "northstar_intro" });
+      }
+
+      if (effectiveLaunchContext.mode === "pillar_direct") {
+        const pillarAgentId = effectiveLaunchContext.pillarId;
+        setActiveAgentId(pillarAgentId);
+        setActiveModule(requestedModule ? requestedModule : null);
+        setPendingIntro({
+          mode: "pillar_direct",
+          agentId: pillarAgentId,
+          module: requestedModule ? requestedModule : null,
+        });
+      }
+
+      if (requestedDraft) {
+        setInput((current) =>
+          current && current.trim() ? current : requestedDraft
+        );
+      }
+    };
     const onToggle = () => setOpen((v) => !v);
 
     window.addEventListener("northstar:open", onOpen);
@@ -174,6 +237,81 @@ export default function NorthStarAssistant() {
     };
   }, []);
 
+  useEffect(() => {
+    const runAutoIntro = async () => {
+      if (!open) return;
+      if (!pendingIntro) return;
+      if (messages.length > 0) {
+        setPendingIntro(null);
+        return;
+      }
+      if (loading) return;
+
+      setLoading(true);
+      setRouteNote(null);
+      setDiagnostics(null);
+      setShowDetails(false);
+
+      try {
+        const isPillar = pendingIntro.mode === "pillar_direct";
+        const agentId = isPillar ? pendingIntro.agentId : "northstar";
+        const agent = getAgentById(agentId);
+        const backendPillar = mapFrontendToBackendPillar(agentId);
+
+        const kickoff = isPillar
+          ? `Please introduce yourself as ${
+              agent?.name || "the pillar coach"
+            } and ask one focused question to get started.`
+          : "Hi! Please introduce yourself as NorthStar AI, explain how you help across pillars, and ask one quick question to get started.";
+
+        const apiResponse = await sendNorthStarMessage({
+          message: kickoff,
+          pillar: isPillar ? backendPillar || undefined : undefined,
+          module: isPillar ? pendingIntro.module || undefined : undefined,
+          explicitMode: Boolean(isPillar && backendPillar),
+          context: undefined,
+        });
+
+        const responseText =
+          apiResponse?.reply ||
+          apiResponse?.response ||
+          apiResponse?.text ||
+          apiResponse?.message ||
+          "Hi! I'm NorthStar AI. How can I help today?";
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: newId(),
+            role: "assistant" as const,
+            text: responseText,
+            pillar: apiResponse?.pillar || (isPillar ? backendPillar : null),
+            agentName: agent?.name || "NorthStar AI",
+            provider: apiResponse?.provider,
+          },
+        ]);
+      } catch (error) {
+        console.error("NorthStar AI intro failed", error);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: newId(),
+            role: "assistant" as const,
+            text: "Hi! I'm NorthStar AI. How can I help today?",
+            pillar: null,
+            agentName: "NorthStar AI",
+          },
+        ]);
+        setDiagnostics(normalizeAiDiagnosticsFromError(error, "/api/ai"));
+      } finally {
+        setLoading(false);
+        setPendingIntro(null);
+      }
+    };
+
+    runAutoIntro();
+  }, [loading, messages.length, open, pendingIntro]);
+
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-20 md:bottom-4 z-50 flex justify-center">
       {open && (
@@ -181,11 +319,20 @@ export default function NorthStarAssistant() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
-                NorthStar AI
+                {activeAgentId === "northstar"
+                  ? "NorthStar AI"
+                  : activeAgent.name}
               </p>
-              <p className="text-sm text-slate-200">
-                General by default · Pillar aware routing
-              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/80">
+                  {activePillarLabel}
+                </span>
+                {activeModule === "neuroshield" && (
+                  <span className="inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/80">
+                    NeuroShield
+                  </span>
+                )}
+              </div>
             </div>
             <Button
               variant="ghost"
@@ -197,28 +344,9 @@ export default function NorthStarAssistant() {
             </Button>
           </div>
 
-          <div
-            className="px-4 py-3 border-b border-slate-800 grid grid-cols-3 gap-2"
-            aria-label="AI coach selector"
-          >
-            {PILLAR_AI_AGENTS.map((agent) => (
-              <button
-                key={agent.id}
-                className={cn(
-                  "rounded-lg border px-2 py-2 text-left text-xs transition",
-                  activeAgentId === agent.id
-                    ? "border-cyan-400/70 bg-cyan-400/10 text-cyan-100"
-                    : "border-slate-800 bg-slate-800/40 text-slate-300 hover:border-slate-700"
-                )}
-                onClick={() => toggleAgent(agent.id)}
-              >
-                <p className="font-semibold">{agent.name}</p>
-                <p className="text-[11px] leading-tight text-slate-400">
-                  {agent.description}
-                </p>
-              </button>
-            ))}
-          </div>
+          {/* Coach selection intentionally removed.
+              - Central AI button opens NorthStar.
+              - Pillar pages open their agent directly via northstar:open({mode:'pillar', agentId}). */}
 
           {routeNote && (
             <div className="flex items-start gap-2 bg-amber-500/10 text-amber-200 text-xs px-4 py-2 border-b border-amber-400/40">

@@ -12,6 +12,7 @@
 
 import express from "express";
 import OpenAI from "openai";
+import crypto from "crypto";
 import asyncHandler from "../utils/asyncHandler.js";
 import {
   authRequired,
@@ -23,6 +24,7 @@ import { sanitizationMiddleware } from "../middleware/sanitization.js";
 import { FEATURE_KEYS } from "../utils/entitlements.js";
 import aiOrchestratorService from "../services/aiOrchestratorService.js";
 import { getProviderHealth } from "../utils/providerHealth.js";
+import { runNorthStarAI } from "../src/ai/orchestrator/northstarOrchestrator.js";
 
 const router = express.Router();
 
@@ -38,6 +40,14 @@ const openai = new OpenAI({
 const FALLBACK_REPLY =
   "NorthStar AI is temporarily unavailable. Here is a safe fallback response: Try a small next step, write down one intention for today, and pick a single action you can complete in 5 minutes.";
 
+function newAnonSessionId() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `${Date.now()}-${Math.random()}`;
+  }
+}
+
 /**
  * POST /api/ai/unified/chat
  * TEMP: Deterministic chat endpoint (no orchestrator/memory/pillar routing)
@@ -45,20 +55,45 @@ const FALLBACK_REPLY =
  *
  * Body:
  * - message: string (required)
- * - pillar/module/options may be provided but are ignored for now
+ * - pillar/module/options may be provided
+ *   - pillar: backend pillar id (sleep, mental_health, nutrition, fitness, physical_health, finances, social, spirituality)
+ *   - module: string (optional, e.g. 'neuroshield')
+ *   - options.explicitMode: boolean (if true, forces routing to the requested pillar)
  */
 router.post(
   "/chat",
   aiRateLimitMiddleware,
   sanitizationMiddleware,
   asyncHandler(async (req, res) => {
+    const requestId = newAnonSessionId();
+    res.set("x-ns-unified-chat", "1");
+    res.set("x-ns-request-id", requestId);
+
     console.info("[AI][unified.chat] request received", {
       path: req.path,
       ip: req.ip,
+      requestId,
     });
     console.info("[AI][unified.chat] request body", req.body);
 
     const message = req.body?.message;
+    const requestedPillar = req.body?.pillar;
+    const requestedModule = req.body?.module;
+    const requestContext =
+      req.body?.aiContext ||
+      req.body?.context ||
+      req.body?.options?.aiContext ||
+      req.body?.options?.uiContext ||
+      req.body?.options?.context ||
+      null;
+
+    const requestedMode = (requestContext?.mode || "").toString().toLowerCase();
+    const requestedContextPillarId = (requestContext?.pillarId || "")
+      .toString()
+      .toLowerCase();
+
+    // Pillar agents may ONLY respond if explicit pillar_direct context exists.
+    const explicitMode = requestedMode === "pillar_direct";
     if (!message || typeof message !== "string" || !message.trim()) {
       return res.status(200).json({
         success: false,
@@ -76,38 +111,120 @@ router.post(
     }
 
     try {
-      console.info("[AI][unified.chat] before OpenAI call");
+      const authUserId =
+        req.user?._id?.toString?.() || req.user?.id || "anonymous";
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are NorthStar AI." },
-          { role: "user", content: message.trim() },
-        ],
+      // Anonymous users must still persist to a temporary session store.
+      // Use a cookie to scope memory to a single anonymous browser session.
+      let userId = authUserId;
+      if (authUserId === "anonymous") {
+        const existing = req.cookies?.ns_anon;
+        const anonId =
+          typeof existing === "string" && existing.trim()
+            ? existing.trim()
+            : newAnonSessionId();
+
+        if (anonId !== existing) {
+          res.cookie("ns_anon", anonId, {
+            httpOnly: true,
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 1000 * 60 * 60 * 24 * 30,
+          });
+        }
+
+        userId = `anon:${anonId}`;
+      }
+
+      let explicitPillar;
+
+      // Deterministic guard:
+      // - pillar_direct => force requested pillar
+      // - anything else => force NorthStar (general)
+      if (requestedMode === "pillar_direct") {
+        explicitPillar =
+          requestedContextPillarId ||
+          (typeof requestedPillar === "string" && requestedPillar
+            ? requestedPillar
+            : undefined);
+      } else {
+        explicitPillar = "general";
+      }
+
+      const userMessage =
+        typeof requestedModule === "string" && requestedModule.trim()
+          ? `[module:${requestedModule.trim()}]\n${message.trim()}`
+          : message.trim();
+
+      console.info("[AI][unified.chat] routing", {
+        userId: authUserId === "anonymous" ? "anonymous" : "authenticated",
+        requestedMode: requestedMode || null,
+        requestedContextPillarId: requestedContextPillarId || null,
+        explicitMode,
+        explicitPillar: explicitPillar || null,
+        module: typeof requestedModule === "string" ? requestedModule : null,
+        requestId,
       });
 
-      console.info("[AI][unified.chat] after OpenAI call");
+      const result = await runNorthStarAI({
+        userId,
+        message: userMessage,
+        explicitPillar,
+        requestContext,
+        lastMessages: [],
+      });
 
-      const reply = completion?.choices?.[0]?.message?.content;
+      const reply =
+        result?.text || result?.response || result?.reply || result?.message;
+
+      const saveSummary = result?.meta?.saveSummary || null;
+
+      const ok = Boolean(result?.ok);
+
       if (!reply) {
         return res.status(200).json({
           success: false,
-          error: "Empty AI response",
+          ok: false,
+          error: result?.message || "AI temporarily unavailable",
           reply: FALLBACK_REPLY,
+          pillar: result?.pillar || explicitPillar || null,
+          agent: result?.agent || null,
+          module: requestedModule || null,
+          saveSummary,
+        });
+      }
+
+      if (!ok) {
+        return res.status(200).json({
+          success: false,
+          ok: false,
+          error: result?.message || "AI temporarily unavailable",
+          reply,
+          pillar: result?.pillar || explicitPillar || null,
+          agent: result?.agent || null,
+          module: requestedModule || null,
+          saveSummary,
         });
       }
 
       return res.status(200).json({
         success: true,
+        ok: true,
         reply,
+        pillar: result?.pillar || explicitPillar || null,
+        agent: result?.agent || null,
+        module: requestedModule || null,
+        saveSummary,
       });
     } catch (err) {
-      console.info("[AI][unified.chat] OpenAI error", {
+      console.info("[AI][unified.chat] orchestrator error", {
         message: err?.message,
         name: err?.name,
+        requestId,
       });
       return res.status(200).json({
         success: false,
+        ok: false,
         error: err?.message || "AI provider failure",
         reply: FALLBACK_REPLY,
       });

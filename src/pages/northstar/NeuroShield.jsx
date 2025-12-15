@@ -31,6 +31,20 @@ export default function NeuroShield() {
   const [entries, setEntries] = useState(log);
   const [savedStatus, setSavedStatus] = useState("No entry yet");
 
+  const openNeuroShieldChat = () => {
+    window.dispatchEvent(
+      new CustomEvent("northstar:open", {
+        detail: {
+          mode: "pillar",
+          agentId: "mental_health",
+          module: "neuroshield",
+          draft:
+            "NeuroShield: I'd like to do a preliminary cognitive screening and a risk-awareness check (not a diagnosis).",
+        },
+      })
+    );
+  };
+
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
@@ -44,6 +58,13 @@ export default function NeuroShield() {
           <p className="text-sm text-white/70">
             Risk awareness, early indicators, and brain workouts.
           </p>
+          <button
+            type="button"
+            className={`${themeTokens.buttonPrimary} mt-3`}
+            onClick={openNeuroShieldChat}
+          >
+            Ask Dr. Serenity (NeuroShield)
+          </button>
         </div>
         <div className={`${themeTokens.panel} p-4 w-48 text-center`}>
           <p className="text-xs uppercase tracking-[0.3em] text-white/60">

@@ -11,10 +11,10 @@ export type PillarAiAgent = {
 export const PILLAR_AI_AGENTS: PillarAiAgent[] = [
   {
     id: "northstar",
-    name: "NorthStar Guide",
-    description: "General awareness, mood, or accountability support.",
-    persona: "Curious, compassionate coach",
-    focus: "Everyday clarity, human-centered nudges",
+    name: "NorthStar AI",
+    description: "Central router that coordinates the right pillar coach.",
+    persona: "Orchestrator and accountability compass",
+    focus: "Route to the best specialist and keep plans coherent",
     quickPrompts: [
       "What should I focus on this week?",
       "Share a quick energy reset",
@@ -23,10 +23,10 @@ export const PILLAR_AI_AGENTS: PillarAiAgent[] = [
   },
   {
     id: "sleep",
-    name: "Rest Architect",
-    description: "Sleep hygiene and recovery nudges.",
-    persona: "Calm bedtime scribe",
-    focus: "Wind-down rituals and circadian timing",
+    name: "Dr. Luna",
+    description: "Sleep specialist for recovery and circadian alignment.",
+    persona: "Calm, clinical sleep coach",
+    focus: "Wind-down, schedule, and sleep quality",
     quickPrompts: [
       "Give me a 3-minute wind-down",
       "How can I calm racing thoughts at night?",
@@ -35,10 +35,10 @@ export const PILLAR_AI_AGENTS: PillarAiAgent[] = [
   },
   {
     id: "diet",
-    name: "Fuel Strategist",
-    description: "Nutrition tricks and meal scaffolding.",
-    persona: "Practical food scientist",
-    focus: "Hydration, macros, and mindless snacking",
+    name: "Chef Nourish",
+    description: "Nutrition coach for sustainable, delicious eating systems.",
+    persona: "Chef-meets-coach",
+    focus: "Meals, cravings, and practical nutrition habits",
     quickPrompts: [
       "Design a simple lunch I can prep",
       "Idea for a protein-rich snack",
@@ -47,10 +47,10 @@ export const PILLAR_AI_AGENTS: PillarAiAgent[] = [
   },
   {
     id: "exercise",
-    name: "Movement Architect",
-    description: "Strength, mobility, and mini workouts",
-    persona: "Motivating movement partner",
-    focus: "Micro workouts, recovery, and posture",
+    name: "Coach Atlas",
+    description: "Strength & performance programming and progression.",
+    persona: "Direct, high-energy coach",
+    focus: "Programming, progression, strength, mobility",
     quickPrompts: [
       "Give me a 5-minute strength plan",
       "Quick mobility routine for the chair",
@@ -59,10 +59,10 @@ export const PILLAR_AI_AGENTS: PillarAiAgent[] = [
   },
   {
     id: "mental_health",
-    name: "Mindful Navigator",
-    description: "Mood, stress, and focus stabilization",
-    persona: "Calm cognitive coach",
-    focus: "Anxiety soothers, reframes, mindful resets",
+    name: "Dr. Serenity",
+    description: "Mental health screenings and evidence-based coping.",
+    persona: "Clinically sharp, warm guide",
+    focus: "Screenings, coping protocols, and NeuroShield",
     quickPrompts: [
       "Guide me through a 2-minute calm-down",
       "Reframe a negative thought",
@@ -71,10 +71,10 @@ export const PILLAR_AI_AGENTS: PillarAiAgent[] = [
   },
   {
     id: "physical_health",
-    name: "Vitality Guide",
-    description: "Symptoms, recovery, and body maintenance",
-    persona: "Reassuring health ally",
-    focus: "Recovery cues, gentle checklists, symptom tracking",
+    name: "Dr. Vitality",
+    description: "Physical wellness screenings and health habit plans.",
+    persona: "Empathetic, evidence-based educator",
+    focus: "Preliminary screenings, recovery, symptom logs",
     quickPrompts: [
       "What should I watch for after a tough workout?",
       "Checklist for feeling run-down",
@@ -83,10 +83,10 @@ export const PILLAR_AI_AGENTS: PillarAiAgent[] = [
   },
   {
     id: "finances",
-    name: "Money Mentor",
-    description: "Cashflow clarity and habit nudges",
-    persona: "Practical financial buddy",
-    focus: "Spending review, savings nudges, goal-based planning",
+    name: "Adviser Prosper",
+    description: "Budgets, debt payoff systems, and savings automation.",
+    persona: "Calm, confident money coach (not CPA/financial advisor)",
+    focus: "Budgeting, automation, debt plans, momentum",
     quickPrompts: [
       "Help me trim a recurring expense",
       "How do I set a weekly spending cap?",
@@ -95,10 +95,10 @@ export const PILLAR_AI_AGENTS: PillarAiAgent[] = [
   },
   {
     id: "social",
-    name: "Community Coach",
-    description: "Relationships, outreach, and belonging",
-    persona: "Warm connector",
-    focus: "Light-touch outreach, conversation starters, check-ins",
+    name: "Coach Connect",
+    description: "Communication, connection, and healthy boundaries.",
+    persona: "Warm, curious connector",
+    focus: "Outreach, boundaries, vulnerability progression",
     quickPrompts: [
       "Give me a quick reach-out script",
       "Idea for a low-energy social plan",
@@ -107,10 +107,10 @@ export const PILLAR_AI_AGENTS: PillarAiAgent[] = [
   },
   {
     id: "spirituality",
-    name: "Meaning Maker",
-    description: "Reflection, purpose, and mindful rituals",
-    persona: "Grounded guide",
-    focus: "Breathwork cues, reflection prompts, small rituals",
+    name: "Guide Zenith",
+    description: "Meaning, values alignment, and contemplative practices.",
+    persona: "Spacious, present guide",
+    focus: "Values, awe practices, reflection, rituals",
     quickPrompts: ["One-minute grounding practice", "Reflection to end my day"],
     backendPillarId: "spirituality",
   },

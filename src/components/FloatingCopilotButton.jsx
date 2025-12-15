@@ -1,6 +1,7 @@
 import React, { Suspense, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { getAiLaunchContext } from "@/ai/context";
 
 const CopilotChatModal = React.lazy(() => import("./CopilotChatModal"));
 
@@ -8,7 +9,9 @@ export default function FloatingCopilotButton() {
   const [open, setOpen] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [initialDraft, setInitialDraft] = useState("");
+  const [aiLaunchContext, setAiLaunchContext] = useState(null);
   const { user, initializing, demoMode } = useAuth();
+  const location = useLocation();
   const DISABLE_AI_GATING =
     import.meta.env.VITE_DISABLE_PROTECTION === "true" ||
     import.meta.env.VITE_DISABLE_AI_GATING === "true";
@@ -24,6 +27,7 @@ export default function FloatingCopilotButton() {
           return;
         }
         setShowAuthPrompt(false);
+        setAiLaunchContext(getAiLaunchContext(location));
         setOpen((v) => !v);
       }
     };
@@ -36,6 +40,15 @@ export default function FloatingCopilotButton() {
     const onOpen = (e) => {
       const draft = e?.detail?.draft;
       setInitialDraft(typeof draft === "string" ? draft : "");
+
+      // Prefer explicit aiContext passed by the opener.
+      // Fall back to deterministic route-based inference.
+      const explicitLaunch = e?.detail?.aiContext;
+      setAiLaunchContext(
+        explicitLaunch && typeof explicitLaunch === "object"
+          ? explicitLaunch
+          : getAiLaunchContext(location)
+      );
 
       if (!isAuthenticated || initializing) {
         setShowAuthPrompt(true);
@@ -120,6 +133,7 @@ export default function FloatingCopilotButton() {
             open={open}
             onClose={() => setOpen(false)}
             initialDraft={initialDraft}
+            aiLaunchContext={aiLaunchContext}
           />
         </Suspense>
       )}

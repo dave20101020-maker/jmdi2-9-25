@@ -19,6 +19,19 @@ export default function PillarPage({
   const pillar = findPillar(activePillarId);
   const content = getPillarContent(pillar?.id);
 
+  const openPillarCoach = () => {
+    const label = pillar?.label || "this pillar";
+    window.dispatchEvent(
+      new CustomEvent("northstar:open", {
+        detail: {
+          mode: "pillar",
+          agentId: activePillarId,
+          draft: `I'm in the ${label} pillar. Help me with one concrete next step today.`,
+        },
+      })
+    );
+  };
+
   return (
     <div className="space-y-6">
       <header className={`${themeTokens.panel} space-y-3 p-4`}>
@@ -59,6 +72,13 @@ export default function PillarPage({
           <div className="flex items-center gap-2">
             <button className={themeTokens.buttonGhost}>View habits</button>
             <button className={themeTokens.buttonPrimary}>Add quick win</button>
+            <button
+              type="button"
+              className={themeTokens.buttonGhost}
+              onClick={openPillarCoach}
+            >
+              Ask {pillar?.label || "coach"}
+            </button>
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-3">

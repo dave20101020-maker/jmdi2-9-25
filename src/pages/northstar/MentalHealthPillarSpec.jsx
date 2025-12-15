@@ -43,6 +43,42 @@ export default function MentalHealthPillarSpec() {
 
   const sections = [
     {
+      kicker: "NeuroShield",
+      title: "Cognitive resilience & risk awareness",
+      content: (
+        <div className={`${themeTokens.panel} p-3 space-y-2`}>
+          <p className="text-sm text-white/80">
+            NeuroShield lives under Mental Health and is owned by Dr. Serenity.
+            It’s a risk-awareness tool, not a diagnosis.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className={themeTokens.buttonPrimary}
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent("northstar:open", {
+                    detail: {
+                      mode: "pillar",
+                      agentId: "mental_health",
+                      module: "neuroshield",
+                      draft:
+                        "NeuroShield: help me run a preliminary cognitive screening and build a brain health plan.",
+                    },
+                  })
+                );
+              }}
+            >
+              Ask Dr. Serenity (NeuroShield)
+            </button>
+            <a href="/neuroshield" className={themeTokens.buttonGhost}>
+              Open NeuroShield
+            </a>
+          </div>
+        </div>
+      ),
+    },
+    {
       kicker: "Tracking",
       title: "Mental health score history",
       content: (

@@ -5,6 +5,7 @@ import { themeTokens } from "../ThemeProvider";
 import PillarsMenu from "@/components/navigation/PillarsMenu";
 import TodayFocusMenu from "@/components/navigation/TodayFocusMenu";
 import { PILLARS } from "@/config/pillars";
+import { getAiLaunchContext } from "@/ai/context";
 
 type MenuKey = "pillars" | "focus" | null;
 
@@ -51,18 +52,53 @@ export default function BottomNav() {
   const openAiChat = () => {
     setOpenMenu(null);
     const draft = buildAiDraft();
+    const aiLaunchContext = getAiLaunchContext(location);
+
+    // Deterministic launch decision (route context only):
+    // - Non-pillar route => NorthStar intro first.
+    // - /pillars/:pillarId => open that pillar coach directly.
+    if (aiLaunchContext.mode === "pillar_direct") {
+      window.dispatchEvent(
+        new CustomEvent("northstar:open", {
+          detail: {
+            mode: "pillar",
+            agentId: aiLaunchContext.pillarId,
+            aiContext: aiLaunchContext,
+            draft,
+          },
+        })
+      );
+      return;
+    }
+
     window.dispatchEvent(
-      new CustomEvent("copilot:open", {
-        detail: { draft },
+      new CustomEvent("northstar:open", {
+        detail: { draft, mode: "northstar", aiContext: aiLaunchContext },
       })
     );
   };
 
   const openAiChatWithDraft = (draft?: string) => {
     setOpenMenu(null);
+    const aiLaunchContext = getAiLaunchContext(location);
+
+    if (aiLaunchContext.mode === "pillar_direct") {
+      window.dispatchEvent(
+        new CustomEvent("northstar:open", {
+          detail: {
+            mode: "pillar",
+            agentId: aiLaunchContext.pillarId,
+            aiContext: aiLaunchContext,
+            draft,
+          },
+        })
+      );
+      return;
+    }
+
     window.dispatchEvent(
-      new CustomEvent("copilot:open", {
-        detail: { draft },
+      new CustomEvent("northstar:open", {
+        detail: { draft, mode: "northstar", aiContext: aiLaunchContext },
       })
     );
   };

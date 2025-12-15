@@ -15,7 +15,7 @@ import {
   renderAiDiagnosticLabel,
 } from "@/ai/diagnostics";
 import { useAuth } from "@/hooks/useAuth";
-import { getCurrentAIContext } from "@/ai/context";
+import { getAiLaunchContext, getCurrentAIContext } from "@/ai/context";
 import { PILLARS } from "@/config/pillars";
 
 const fallbackReply = (prompt) =>
@@ -68,7 +68,12 @@ const useCrisisDetection = () => {
   return { crisisState, evaluateCrisisSignal, resetCrisis };
 };
 
-export default function CopilotChatModal({ open, onClose, initialDraft }) {
+export default function CopilotChatModal({
+  open,
+  onClose,
+  initialDraft,
+  aiLaunchContext,
+}) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -89,6 +94,16 @@ export default function CopilotChatModal({ open, onClose, initialDraft }) {
     () => getCurrentAIContext(location),
     [location.pathname, location.search, location.hash]
   );
+
+  // Deterministic launch decision is made at open time (button press) and passed
+  // into the modal via the `copilot:open` event or keyboard shortcut handler.
+  // If it's missing, we fall back to route-based inference.
+  const launch = useMemo(() => {
+    if (aiLaunchContext && typeof aiLaunchContext === "object") {
+      return aiLaunchContext;
+    }
+    return getAiLaunchContext(location);
+  }, [aiLaunchContext, location]);
 
   const [contextHint, setContextHint] = useState(null);
   const [contextHintPhase, setContextHintPhase] = useState("hidden");
@@ -137,6 +152,113 @@ export default function CopilotChatModal({ open, onClose, initialDraft }) {
       return initialDraft;
     });
   }, [initialDraft, messages.length, open]);
+
+  useEffect(() => {
+    const runIntro = async () => {
+      if (!open) return;
+      if (messages.length > 0) return;
+      if (!launch || typeof launch !== "object") return;
+
+      // Never call AI endpoints if auth gating is enabled and user isn't signed in.
+      if (!DISABLE_AI_GATING && (initializing || !isAuthenticated)) return;
+
+      // Deterministic intro behavior:
+      // - Non-pillar routes => NorthStar introduces itself first.
+      // - /pillars/:pillarId => open directly with that pillar coach (no NorthStar intro).
+      const isPillarDirect = launch?.mode === "pillar_direct";
+      const kickoff = isPillarDirect
+        ? "Please introduce yourself as the pillar coach for what I'm viewing, and ask one focused question to get started."
+        : "Hi! Please introduce yourself as NorthStar AI, explain how you help across pillars, and ask one quick question to get started.";
+
+      setSending(true);
+      setError(null);
+      setAccessIssue(null);
+      setShowDiagnostics(false);
+
+      try {
+        const pillarId = isPillarDirect ? launch?.pillarId : undefined;
+        const data = await apiClient.request("/ai/unified/chat", {
+          method: "POST",
+          body: DISABLE_AI_GATING
+            ? { message: kickoff }
+            : {
+                message: kickoff,
+                pillar: isPillarDirect ? pillarId : undefined,
+                module: isPillarDirect
+                  ? aiContext.module || undefined
+                  : undefined,
+                options: {
+                  explicitMode: Boolean(isPillarDirect && pillarId),
+                  uiContext: aiContext,
+                },
+              },
+          retryOnUnauthorized: false,
+        });
+
+        const reply = data?.reply || data?.response || data?.text || "Okay.";
+        setMessages((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), role: "assistant", text: reply },
+        ]);
+        evaluateCrisisSignal(data);
+      } catch (err) {
+        const normalizedDiagnostics = normalizeAiDiagnosticsFromError(
+          err,
+          "/api/ai"
+        );
+        const diagnosticLabel = renderAiDiagnosticLabel(normalizedDiagnostics);
+        const mapped = mapError({
+          status: normalizedDiagnostics.status,
+          message: err?.message,
+          timeout:
+            normalizedDiagnostics.status === 0 &&
+            normalizedDiagnostics.body === "timeout",
+          code: err?.code,
+          body: err?.body,
+        });
+
+        // Controlled error path: still show *something*.
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            text:
+              mapped?.friendly || "Hi! I'm NorthStar AI. How can I help today?",
+          },
+        ]);
+        setError({
+          status: normalizedDiagnostics.status,
+          message: diagnosticLabel,
+          code: mapped.code,
+          body: normalizedDiagnostics.body,
+          timestamp: new Date().toISOString(),
+          url: normalizedDiagnostics.url,
+        });
+        setDiagnosticsStore({
+          status: normalizedDiagnostics.status,
+          body: normalizedDiagnostics.body,
+          code: mapped.code,
+          message: diagnosticLabel,
+          url: normalizedDiagnostics.url,
+        });
+      } finally {
+        setSending(false);
+      }
+    };
+
+    runIntro();
+  }, [
+    DISABLE_AI_GATING,
+    aiContext,
+    evaluateCrisisSignal,
+    initializing,
+    isAuthenticated,
+    launch,
+    messages.length,
+    open,
+    setDiagnosticsStore,
+  ]);
 
   useEffect(() => {
     if (open) {
@@ -287,19 +409,24 @@ export default function CopilotChatModal({ open, onClose, initialDraft }) {
     setMessages((prev) => [...prev, userMsg]);
 
     try {
-      // Inject UI-derived context into the existing unified chat API.
-      // This keeps the backend contract intact (pillar/module/options are supported)
-      // and makes responses feel aware of what the user is viewing.
+      // Deterministic send behavior:
+      // - If the modal was opened in pillar_direct mode, force that pillar.
+      // - Otherwise do NOT force a pillar from generic routes.
+      const isPillarDirect = launch?.mode === "pillar_direct";
+      const forcedPillar = isPillarDirect ? launch?.pillarId : undefined;
+
       const data = await apiClient.request("/ai/unified/chat", {
         method: "POST",
         body: DISABLE_AI_GATING
           ? { message: prompt }
           : {
               message: prompt,
-              pillar:
-                aiContext.pillar !== "general" ? aiContext.pillar : undefined,
-              module: aiContext.module || undefined,
+              pillar: forcedPillar,
+              module: isPillarDirect
+                ? aiContext.module || undefined
+                : undefined,
               options: {
+                explicitMode: Boolean(isPillarDirect && forcedPillar),
                 uiContext: aiContext,
               },
             },

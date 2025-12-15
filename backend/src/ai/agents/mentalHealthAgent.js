@@ -1,6 +1,6 @@
 /**
  * Mental Health Agent - "Dr. Serenity"
- * 
+ *
  * Specialized AI agent for the Mental Health pillar, providing expert guidance on:
  * - Mental health screening and assessment
  * - Cognitive-behavioral therapy techniques
@@ -10,13 +10,13 @@
  * - Emotional regulation and coping skills
  */
 
-import { runWithBestModel } from '../modelRouter.js';
-import { buildMessageHistory } from './agentBase.js';
-import { createAIItem } from '../data/createItem.js';
+import { runWithBestModel } from "../modelRouter.js";
+import { buildMessageHistory } from "./agentBase.js";
+import { createAIItem } from "../data/createItem.js";
 
 /**
  * Dr. Serenity System Prompt
- * 
+ *
  * This prompt defines the personality, expertise, and behavior
  * of the Mental Health pillar agent - a comprehensive AI mental health specialist.
  */
@@ -74,6 +74,41 @@ EXPANDED ASSESSMENT CAPABILITIES (all preliminary screenings only):
 14. **Complex Trauma / Developmental** – Adverse Childhood Experiences (ACE) + ITQ (ICD-11 CPTSD screener)
 15. **Dissociative Experiences** – DES-II (quick version)
 
+NEUROSHIELD (MENTAL + PHYSICAL HYBRID, OWNED BY MENTAL HEALTH) – CRITICAL:
+- UI Section: NeuroShield
+- Purpose: cognitive resilience, decline risk awareness, early warning (NOT diagnosis)
+- Always say: "This is a risk-awareness tool, not a diagnosis."
+
+NeuroShield capabilities you can run conversationally (preliminary only):
+1) **Cognitive Screening (MoCA-style domains, preliminary only)**
+  - Memory, attention, executive function
+  - Digit span (forward/backward)
+  - Word recall (immediate + delayed)
+  - Reaction time variability (simple at-home check)
+  - Pattern recognition
+
+2) **Dementia / Alzheimer’s Risk Awareness (educational only, never diagnose)**
+  - Age
+  - Family history
+  - Sleep quality (coordinate with Dr. Luna / sleep pillar)
+  - Cardiovascular risk (coordinate with Dr. Vitality / physical health pillar)
+  - Depression history
+  - Always emphasize professional evaluation for true diagnosis and any high concern.
+
+3) **Brain Health Interventions**
+  - Cognitive reserve plans
+  - Dual-task training
+  - Sleep + exercise coordination
+  - Social engagement prescriptions
+  - Learning challenges (language, music, spatial)
+
+CROSS-PILLAR HOOKS (NEVER CALL OTHER AGENTS DIRECTLY):
+- Sleep → Dr. Luna (sleep pillar)
+- Exercise → Coach Atlas (fitness pillar)
+- Social → Coach Connect (social pillar)
+- Physical risk → Dr. Vitality (physical_health pillar)
+- If high concern: escalate to the central NorthStar AI for coordinated plan + suggest medical referral.
+
 ITEM CREATION EXAMPLES (pillar='mental_health'):
 - LifePlan: "Overcome Social Anxiety with Graduated Exposure"
 - SmartGoal: "Initiate 3 small-talk conversations this week"
@@ -114,21 +149,29 @@ You are now the most advanced, boundary-aware, anti-repetitive mental health AI 
 
 /**
  * Run the Mental Health Agent (Dr. Serenity)
- * 
+ *
  * @param {Object} params - Agent parameters
  * @param {import('./agentBase.js').AgentContext} params.context - User context with pillar='mental_health'
  * @param {string} params.userMessage - The user's current message
  * @param {Array<{role: string, content: string}>} [params.lastMessages] - Recent conversation history
  * @returns {Promise<{text: string, model: string, meta: {pillar: string}}>}
  */
-export async function runMentalHealthAgent({ context, userMessage, lastMessages = [] }) {
+export async function runMentalHealthAgent({
+  context,
+  userMessage,
+  lastMessages = [],
+}) {
   // Validate context
-  if (!context || context.pillar !== 'mental_health') {
-    throw new Error('runMentalHealthAgent requires context with pillar="mental_health"');
+  if (!context || context.pillar !== "mental_health") {
+    throw new Error(
+      'runMentalHealthAgent requires context with pillar="mental_health"'
+    );
   }
 
-  if (!userMessage || typeof userMessage !== 'string' || !userMessage.trim()) {
-    throw new Error('runMentalHealthAgent requires a non-empty userMessage string');
+  if (!userMessage || typeof userMessage !== "string" || !userMessage.trim()) {
+    throw new Error(
+      "runMentalHealthAgent requires a non-empty userMessage string"
+    );
   }
 
   // Determine task type based on message content
@@ -154,8 +197,8 @@ export async function runMentalHealthAgent({ context, userMessage, lastMessages 
     text: modelResult.text,
     model: modelResult.model,
     meta: {
-      pillar: 'mental_health',
-      agentName: 'Dr. Serenity',
+      pillar: "mental_health",
+      agentName: "Dr. Serenity",
       taskType,
     },
   };
@@ -163,7 +206,7 @@ export async function runMentalHealthAgent({ context, userMessage, lastMessages 
 
 /**
  * Determine the appropriate task type based on user message content
- * 
+ *
  * @param {string} userMessage - User's message
  * @returns {'deep_reasoning' | 'emotional_coaching' | 'mixed'}
  */
@@ -172,88 +215,88 @@ function determineTaskType(userMessage) {
 
   // Keywords indicating need for deep reasoning (screenings, diagnostics, structured protocols)
   const deepReasoningKeywords = [
-    'screening',
-    'assessment',
-    'diagnose',
-    'evaluate',
-    'gad-7',
-    'gad7',
-    'phq-9',
-    'phq9',
-    'ptsd',
-    'protocol',
-    'cbt',
-    'cognitive behavioral',
-    'treatment plan',
-    'therapy plan',
-    'structured',
-    'test',
-    'questionnaire',
-    'scale',
-    'inventory',
-    'adhd',
-    'autism',
-    'ocd',
-    'bipolar',
-    'analyze',
-    'pattern',
-    'track',
+    "screening",
+    "assessment",
+    "diagnose",
+    "evaluate",
+    "gad-7",
+    "gad7",
+    "phq-9",
+    "phq9",
+    "ptsd",
+    "protocol",
+    "cbt",
+    "cognitive behavioral",
+    "treatment plan",
+    "therapy plan",
+    "structured",
+    "test",
+    "questionnaire",
+    "scale",
+    "inventory",
+    "adhd",
+    "autism",
+    "ocd",
+    "bipolar",
+    "analyze",
+    "pattern",
+    "track",
   ];
 
   // Keywords indicating emotional coaching need (support-only requests)
   const emotionalCoachingKeywords = [
-    'feeling',
-    'feel',
-    'sad',
-    'anxious',
-    'worried',
-    'scared',
-    'afraid',
-    'nervous',
-    'overwhelmed',
-    'stressed',
-    'upset',
-    'frustrated',
-    'angry',
-    'lonely',
-    'hopeless',
-    'help me',
-    'support',
-    'talk',
-    'listen',
-    'understand',
-    'comfort',
-    'reassure',
-    'struggling',
-    'hard time',
-    'difficult',
+    "feeling",
+    "feel",
+    "sad",
+    "anxious",
+    "worried",
+    "scared",
+    "afraid",
+    "nervous",
+    "overwhelmed",
+    "stressed",
+    "upset",
+    "frustrated",
+    "angry",
+    "lonely",
+    "hopeless",
+    "help me",
+    "support",
+    "talk",
+    "listen",
+    "understand",
+    "comfort",
+    "reassure",
+    "struggling",
+    "hard time",
+    "difficult",
   ];
 
   // Check for deep reasoning indicators
-  const needsDeepReasoning = deepReasoningKeywords.some(keyword => 
+  const needsDeepReasoning = deepReasoningKeywords.some((keyword) =>
     messageLower.includes(keyword)
   );
 
   if (needsDeepReasoning) {
-    return 'deep_reasoning';
+    return "deep_reasoning";
   }
 
   // Check for emotional coaching indicators
-  const needsEmotionalSupport = emotionalCoachingKeywords.some(keyword =>
+  const needsEmotionalSupport = emotionalCoachingKeywords.some((keyword) =>
     messageLower.includes(keyword)
   );
 
   if (needsEmotionalSupport) {
-    return 'emotional_coaching';
+    return "emotional_coaching";
   }
 
   // Default to mixed for balanced approach
-  return 'mixed';
+  return "mixed";
 }
 
 /**
  * Helper: Quick mental health check-in
- * 
+ *
  * @param {import('./agentBase.js').AgentContext} context - User context
  * @returns {Promise<{text: string, model: string, meta: object}>}
  */
@@ -270,7 +313,7 @@ Identify any patterns or concerns, and give one practical coping technique I can
 
 /**
  * Helper: Run GAD-7 anxiety screening
- * 
+ *
  * @param {import('./agentBase.js').AgentContext} context - User context
  * @returns {Promise<{text: string, model: string, meta: object}>}
  */
@@ -287,7 +330,7 @@ Please guide me through it conversationally and interpret the results.`;
 
 /**
  * Helper: Run PHQ-9 depression screening
- * 
+ *
  * @param {import('./agentBase.js').AgentContext} context - User context
  * @returns {Promise<{text: string, model: string, meta: object}>}
  */
@@ -304,12 +347,15 @@ Please guide me through it conversationally and interpret the results.`;
 
 /**
  * Helper: Get stress management techniques
- * 
+ *
  * @param {import('./agentBase.js').AgentContext} context - User context
  * @param {string} stressType - Type of stress (work, relationship, financial, etc.)
  * @returns {Promise<{text: string, model: string, meta: object}>}
  */
-export async function getStressManagementTechniques(context, stressType = 'general') {
+export async function getStressManagementTechniques(
+  context,
+  stressType = "general"
+) {
   const techniqueMessage = `Provide 3-5 evidence-based stress management techniques for ${stressType} stress.
 Make them practical and actionable. Explain how each technique works.`;
 
@@ -322,7 +368,7 @@ Make them practical and actionable. Explain how each technique works.`;
 
 /**
  * Helper: Cognitive reframing exercise
- * 
+ *
  * @param {import('./agentBase.js').AgentContext} context - User context
  * @param {string} negativeThought - The negative thought to reframe
  * @returns {Promise<{text: string, model: string, meta: object}>}
@@ -340,7 +386,7 @@ Guide me through identifying cognitive distortions and finding a more balanced p
 
 /**
  * Helper: Grounding technique for anxiety
- * 
+ *
  * @param {import('./agentBase.js').AgentContext} context - User context
  * @param {number} anxietyLevel - Anxiety level 1-10
  * @returns {Promise<{text: string, model: string, meta: object}>}
@@ -358,31 +404,31 @@ Teach me a grounding technique I can use immediately to calm down.`;
 
 /**
  * Helper: Check for crisis indicators
- * 
+ *
  * @param {string} userMessage - User's message
  * @returns {boolean} True if crisis keywords detected
  */
 export function detectCrisisKeywords(userMessage) {
   const messageLower = userMessage.toLowerCase();
-  
+
   const crisisKeywords = [
-    'suicide',
-    'suicidal',
-    'kill myself',
-    'want to die',
-    'end it all',
-    'better off dead',
-    'self-harm',
-    'self harm',
-    'hurt myself',
-    'cutting',
-    'no reason to live',
-    'hopeless',
+    "suicide",
+    "suicidal",
+    "kill myself",
+    "want to die",
+    "end it all",
+    "better off dead",
+    "self-harm",
+    "self harm",
+    "hurt myself",
+    "cutting",
+    "no reason to live",
+    "hopeless",
     "can't go on",
-    'want to disappear',
+    "want to disappear",
   ];
 
-  return crisisKeywords.some(keyword => messageLower.includes(keyword));
+  return crisisKeywords.some((keyword) => messageLower.includes(keyword));
 }
 
 // ============================================================================
@@ -396,11 +442,11 @@ export function detectCrisisKeywords(userMessage) {
 export async function saveLifePlan(context, title, content, data = {}) {
   return createAIItem({
     userId: context.userId,
-    pillar: 'mental_health',
-    type: 'lifeplan',
+    pillar: "mental_health",
+    type: "lifeplan",
     title,
     content,
-    data: { ...data, agentName: 'Dr. Serenity' }
+    data: { ...data, agentName: "Dr. Serenity" },
   });
 }
 
@@ -410,11 +456,11 @@ export async function saveLifePlan(context, title, content, data = {}) {
 export async function saveSmartGoal(context, title, content, data = {}) {
   return createAIItem({
     userId: context.userId,
-    pillar: 'mental_health',
-    type: 'smartgoal',
+    pillar: "mental_health",
+    type: "smartgoal",
     title,
     content,
-    data: { ...data, agentName: 'Dr. Serenity' }
+    data: { ...data, agentName: "Dr. Serenity" },
   });
 }
 
@@ -424,10 +470,10 @@ export async function saveSmartGoal(context, title, content, data = {}) {
 export async function saveHabit(context, title, content, data = {}) {
   return createAIItem({
     userId: context.userId,
-    pillar: 'mental_health',
-    type: 'habit',
+    pillar: "mental_health",
+    type: "habit",
     title,
     content,
-    data: { ...data, agentName: 'Dr. Serenity' }
+    data: { ...data, agentName: "Dr. Serenity" },
   });
 }
