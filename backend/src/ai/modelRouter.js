@@ -142,8 +142,18 @@ export async function runWithBestModel(options) {
  * @returns {Promise<Object>} { model: 'openai', text: string, raw: any }
  */
 async function callOpenAI(systemPrompt, userMessage, conversationHistory = []) {
+  const provider = "openai";
+  const model = MODELS.GPT4_TURBO;
+  const apiKeyPresent = Boolean(getOpenAIKey());
+
   // Check API key availability
-  if (!getOpenAIKey()) {
+  if (!apiKeyPresent) {
+    console.error("[AI][provider] unavailable", {
+      provider,
+      model,
+      apiKeyPresent,
+      message: "OPENAI_API_KEY is not configured in environment variables",
+    });
     throw new Error(
       "OPENAI_API_KEY is not configured in environment variables"
     );
@@ -158,12 +168,36 @@ async function callOpenAI(systemPrompt, userMessage, conversationHistory = []) {
 
   // Call OpenAI API
   const client = getOpenAIClient();
-  const response = await client.chat.completions.create({
-    model: MODELS.GPT4_TURBO, // Using GPT-4 Turbo for best quality
-    messages,
-    temperature: 0.7,
-    max_tokens: 1500,
+  console.info("[AI][provider] call", {
+    provider,
+    model,
+    apiKeyPresent,
   });
+
+  let response;
+  try {
+    response = await client.chat.completions.create({
+      model, // Using GPT-4 Turbo for best quality
+      messages,
+      temperature: 0.7,
+      max_tokens: 1500,
+    });
+  } catch (err) {
+    const status =
+      err?.status ??
+      err?.response?.status ??
+      err?.statusCode ??
+      err?.code ??
+      undefined;
+    console.error("[AI][provider] error", {
+      provider,
+      model,
+      apiKeyPresent,
+      status,
+      message: err?.message,
+    });
+    throw err;
+  }
 
   // Extract and return the response
   const text = response.choices[0].message.content;
@@ -184,8 +218,18 @@ async function callOpenAI(systemPrompt, userMessage, conversationHistory = []) {
  * @returns {Promise<Object>} { model: 'anthropic', text: string, raw: any }
  */
 async function callClaude(systemPrompt, userMessage, conversationHistory = []) {
+  const provider = "anthropic";
+  const model = MODELS.CLAUDE_35_SONNET;
+  const apiKeyPresent = Boolean(process.env.ANTHROPIC_API_KEY);
+
   // Check API key availability
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!apiKeyPresent) {
+    console.error("[AI][provider] unavailable", {
+      provider,
+      model,
+      apiKeyPresent,
+      message: "ANTHROPIC_API_KEY is not configured in environment variables",
+    });
     throw new Error(
       "ANTHROPIC_API_KEY is not configured in environment variables"
     );
@@ -200,13 +244,37 @@ async function callClaude(systemPrompt, userMessage, conversationHistory = []) {
 
   // Call Anthropic API
   const client = getAnthropicClient();
-  const response = await client.messages.create({
-    model: MODELS.CLAUDE_35_SONNET, // Using Claude 3.5 Sonnet for best quality
-    max_tokens: 1500,
-    temperature: 0.7,
-    system: systemPrompt, // System prompt is a separate parameter in Anthropic
-    messages: anthropicMessages,
+  console.info("[AI][provider] call", {
+    provider,
+    model,
+    apiKeyPresent,
   });
+
+  let response;
+  try {
+    response = await client.messages.create({
+      model, // Using Claude 3.5 Sonnet for best quality
+      max_tokens: 1500,
+      temperature: 0.7,
+      system: systemPrompt, // System prompt is a separate parameter in Anthropic
+      messages: anthropicMessages,
+    });
+  } catch (err) {
+    const status =
+      err?.status ??
+      err?.response?.status ??
+      err?.statusCode ??
+      err?.code ??
+      undefined;
+    console.error("[AI][provider] error", {
+      provider,
+      model,
+      apiKeyPresent,
+      status,
+      message: err?.message,
+    });
+    throw err;
+  }
 
   // Extract and return the response
   const text = response.content[0].text;
