@@ -15,6 +15,7 @@
 import crypto from "crypto";
 import {
   addItemToMemory,
+  updateGlobalConversationHistory,
   updateConversationHistory,
 } from "../orchestrator/memoryStore.js";
 
@@ -183,6 +184,9 @@ export async function applyPersistenceGate({
   ];
 
   try {
+    // Always save to global conversational memory (cross-pillar).
+    updateGlobalConversationHistory(memory, userMessage, text);
+
     addItemToMemory(memory, pillar, logItem);
 
     for (const item of proposed) {
@@ -259,5 +263,50 @@ export async function applyPersistenceGate({
       : `${text}${buildSaveConfirmation(saveSummary)}`;
 
     return { ok: false, text: blocked.trim(), saveSummary };
+  }
+}
+
+/**
+ * Conversation-only persistence (for NorthStar / general).
+ * Saves transcript to GLOBAL conversational memory and (optionally) general thread.
+ * Does NOT create structured items.
+ */
+export async function persistConversationOnly({
+  memory,
+  userMessage,
+  assistantText,
+  saveMemoryFn,
+  userId,
+}) {
+  const text = String(assistantText || "").trim();
+
+  try {
+    updateGlobalConversationHistory(memory, userMessage, text);
+    await saveMemoryFn(userId, memory);
+    return {
+      ok: true,
+      text,
+      saveSummary: {
+        saved: true,
+        items: [],
+        conversationSaved: true,
+        structuredSaved: false,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      text:
+        "I couldn’t save this conversation to your account/session (" +
+        (error?.message || "save_failed") +
+        "). Please retry in a moment.",
+      saveSummary: {
+        saved: false,
+        items: [],
+        error: error?.message || "save_failed",
+        conversationSaved: false,
+        structuredSaved: false,
+      },
+    };
   }
 }

@@ -8,6 +8,7 @@
  */
 
 import { applyPersistenceGate } from "../pipeline/aiResponsePipeline.js";
+import { persistConversationOnly } from "../pipeline/aiResponsePipeline.js";
 import {
   routeToSpecificAgent,
   northstarFallbackResponse,
@@ -17,12 +18,15 @@ import {
   saveMemory,
   updateConversationHistory,
   getConversationHistory,
+  getGlobalConversationHistory,
 } from "./memoryStore.js";
 
 // Re-export memory utilities for convenience
 export {
   loadMemory,
   saveMemory,
+  updateGlobalConversationHistory,
+  getGlobalConversationHistory,
   updateConversationHistory,
   getConversationHistory,
   addItemToMemory,
@@ -113,7 +117,10 @@ export async function runNorthStarAI({
     });
 
     // Get conversation history from memory for this pillar
-    const pillarHistory = getConversationHistory(memory, pillar, 20);
+    const pillarHistory =
+      pillar === "general"
+        ? getGlobalConversationHistory(memory, 20)
+        : getConversationHistory(memory, pillar, 20);
 
     // Use provided lastMessages if available, otherwise use memory
     const conversationHistory =
@@ -165,12 +172,10 @@ export async function runNorthStarAI({
         // Persistence is still expected even for fallback responses.
         // Persisting does not require an AI provider and keeps UI behavior consistent.
         try {
-          const persisted = await applyPersistenceGate({
+          const persisted = await persistConversationOnly({
             memory,
-            pillar: "general",
             userMessage: message,
             assistantText: fallback.text,
-            agentName: "NorthStar AI",
             saveMemoryFn: saveMemory,
             userId,
           });
@@ -198,19 +203,30 @@ export async function runNorthStarAI({
       };
     }
 
-    // Persist BEFORE returning any user-facing response.
-    // This enforces Base44-style behavior: no advice-only responses.
-    const agentName = pillar === "general" ? "NorthStar AI" : pillar;
-
-    const persistence = await applyPersistenceGate({
-      memory,
-      pillar,
-      userMessage: message,
-      assistantText: agentResult.text,
-      agentName,
-      saveMemoryFn: saveMemory,
-      userId,
-    });
+    // Persistence rules:
+    // - Always save conversation to GLOBAL memory
+    // - Only pillar agents may create structured records
+    let persistence;
+    if (pillar === "general") {
+      persistence = await persistConversationOnly({
+        memory,
+        userMessage: message,
+        assistantText: agentResult.text,
+        saveMemoryFn: saveMemory,
+        userId,
+      });
+    } else {
+      const agentName = pillar;
+      persistence = await applyPersistenceGate({
+        memory,
+        pillar,
+        userMessage: message,
+        assistantText: agentResult.text,
+        agentName,
+        saveMemoryFn: saveMemory,
+        userId,
+      });
+    }
 
     // Wrap and return the result
     return {

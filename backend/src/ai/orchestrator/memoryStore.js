@@ -63,6 +63,11 @@ function createEmptyMemory(userId) {
     userId,
     lastUpdated: new Date().toISOString(),
     psychologyProfile: null,
+    global: {
+      lastMessages: [],
+      preferences: {},
+      themes: [],
+    },
     pillars: {
       sleep: {
         lastMessages: [],
@@ -124,6 +129,47 @@ function createEmptyMemory(userId) {
     preferences: {},
     antiRepetition: {},
   };
+}
+
+/**
+ * Update GLOBAL conversation history (cross-pillar)
+ * Keeps only the last 50 messages (25 turns)
+ */
+export function updateGlobalConversationHistory(
+  memory,
+  userMessage,
+  assistantMessage
+) {
+  if (!memory.global) {
+    memory.global = { lastMessages: [], preferences: {}, themes: [] };
+  }
+  if (!Array.isArray(memory.global.lastMessages)) {
+    memory.global.lastMessages = [];
+  }
+
+  memory.global.lastMessages.push(
+    { role: "user", content: userMessage, timestamp: new Date().toISOString() },
+    {
+      role: "assistant",
+      content: assistantMessage,
+      timestamp: new Date().toISOString(),
+    }
+  );
+
+  if (memory.global.lastMessages.length > 50) {
+    memory.global.lastMessages = memory.global.lastMessages.slice(-50);
+  }
+
+  return memory;
+}
+
+/**
+ * Get GLOBAL conversation history
+ */
+export function getGlobalConversationHistory(memory, limit = 50) {
+  const arr = memory?.global?.lastMessages;
+  if (!Array.isArray(arr)) return [];
+  return arr.slice(-limit);
 }
 
 /**
@@ -392,6 +438,8 @@ export async function clearMemory(userId) {
 export const memoryStore = {
   loadMemory,
   saveMemory,
+  updateGlobalConversationHistory,
+  getGlobalConversationHistory,
   updateConversationHistory,
   addItemToMemory,
   markTopicCovered,
