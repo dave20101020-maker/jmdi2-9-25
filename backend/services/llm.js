@@ -19,6 +19,9 @@
 const OpenAI = require("openai");
 const Anthropic = require("@anthropic-ai/sdk");
 
+const SAFE_TEXT_FALLBACK =
+  "NorthStar AI is temporarily unavailable. Please try again soon.";
+
 // ═════════════════════════════════════════════════════════════════════════════
 // INITIALIZATION
 // ═════════════════════════════════════════════════════════════════════════════
@@ -226,11 +229,60 @@ async function callBestAvailable(systemPrompt, userMessage, config = {}) {
   // ─────────────────────────────────────────────────────────────
 
   // Try preferred provider first
-  if (preferProvider === "anthropic" && claudeAvailable) {
-    return callClaude(systemPrompt, userMessage, config);
+  if (preferProvider === "anthropic") {
+    if (!claudeAvailable) {
+      return {
+        message: SAFE_TEXT_FALLBACK,
+        text: SAFE_TEXT_FALLBACK,
+        provider: preferProvider,
+        error: {
+          code: "provider_unavailable",
+          message: "Anthropic is not configured. Set ANTHROPIC_API_KEY in .env",
+        },
+      };
+    }
+
+    try {
+      return await callClaude(systemPrompt, userMessage, config);
+    } catch (error) {
+      return {
+        message: SAFE_TEXT_FALLBACK,
+        text: SAFE_TEXT_FALLBACK,
+        provider: preferProvider,
+        error: {
+          code: "provider_error",
+          message: error?.message || "Anthropic provider error",
+        },
+      };
+    }
   }
-  if (preferProvider === "openai" && openaiAvailable) {
-    return callOpenAI(systemPrompt, userMessage, config);
+
+  if (preferProvider === "openai") {
+    if (!openaiAvailable) {
+      return {
+        message: SAFE_TEXT_FALLBACK,
+        text: SAFE_TEXT_FALLBACK,
+        provider: preferProvider,
+        error: {
+          code: "provider_unavailable",
+          message: "OpenAI is not configured. Set OPENAI_API_KEY in .env",
+        },
+      };
+    }
+
+    try {
+      return await callOpenAI(systemPrompt, userMessage, config);
+    } catch (error) {
+      return {
+        message: SAFE_TEXT_FALLBACK,
+        text: SAFE_TEXT_FALLBACK,
+        provider: preferProvider,
+        error: {
+          code: "provider_error",
+          message: error?.message || "OpenAI provider error",
+        },
+      };
+    }
   }
 
   // Default: try OpenAI first, fallback to Claude
