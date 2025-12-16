@@ -44,7 +44,7 @@ function getAnthropicClient() {
 // Model configurations
 export const MODELS = {
   // OpenAI Models
-  GPT4_TURBO: "gpt-4o-mini",
+  GPT4_TURBO: "gpt-4-turbo",
   GPT4: "gpt-4",
   GPT35_TURBO: "gpt-3.5-turbo",
 
@@ -73,6 +73,9 @@ export async function runWithBestModel(options) {
     conversationHistory = [],
   } = options;
 
+  const claudeAvailable = Boolean(process.env.ANTHROPIC_API_KEY);
+  const openaiAvailable = Boolean(getOpenAIKey());
+
   // Validate required parameters
   if (!taskType || !systemPrompt || !userMessage) {
     throw new Error(
@@ -80,47 +83,67 @@ export async function runWithBestModel(options) {
     );
   }
 
-  // Determine preferred and fallback providers based on task type
-  let preferredProvider, fallbackProvider;
+  if (!claudeAvailable && !openaiAvailable) {
+    throw new Error("AI routing failed: no providers are configured");
+  }
 
-  if (taskType === "deep_reasoning") {
-    // Claude excels at complex reasoning and analysis
-    preferredProvider = "claude";
-    fallbackProvider = "openai";
-  } else if (taskType === "emotional_coaching") {
-    // OpenAI ChatGPT is preferred for emotional and conversational tasks
+  // Determine preferred and fallback providers with Claude-first preference
+  let preferredProvider = claudeAvailable ? "claude" : "openai";
+  let fallbackProvider = preferredProvider === "claude" ? "openai" : "claude";
+
+  // Preserve taskType-based intent when both providers exist by only flipping to
+  // OpenAI first when Claude is unavailable.
+  if (
+    taskType === "emotional_coaching" &&
+    !claudeAvailable &&
+    openaiAvailable
+  ) {
     preferredProvider = "openai";
-    fallbackProvider = "claude";
-  } else if (taskType === "mixed") {
-    // Default to Claude for mixed tasks, with OpenAI as fallback
-    preferredProvider = "claude";
-    fallbackProvider = "openai";
-  } else {
+    fallbackProvider = claudeAvailable ? "claude" : null;
+  } else if (
+    taskType !== "deep_reasoning" &&
+    taskType !== "emotional_coaching" &&
+    taskType !== "mixed"
+  ) {
     throw new Error(
       `Invalid taskType: ${taskType}. Must be 'deep_reasoning', 'emotional_coaching', or 'mixed'`
     );
   }
 
+  const invokeProvider = async (provider) => {
+    if (provider === "openai") {
+      return await callOpenAI(systemPrompt, userMessage, conversationHistory);
+    }
+    return await callClaude(systemPrompt, userMessage, conversationHistory);
+  };
+
   // Try preferred provider first
   try {
-    if (preferredProvider === "openai") {
-      return await callOpenAI(systemPrompt, userMessage, conversationHistory);
-    } else {
-      return await callClaude(systemPrompt, userMessage, conversationHistory);
-    }
+    return await invokeProvider(preferredProvider);
   } catch (error) {
-    // Log the error and attempt fallback
     console.error(`[ModelRouter] ${preferredProvider} failed:`, error.message);
+
+    if (!fallbackProvider) {
+      throw error;
+    }
+
+    if (fallbackProvider === "openai" && !openaiAvailable) {
+      throw new Error(
+        `AI routing failed: ${preferredProvider} error: ${error.message}`
+      );
+    }
+
+    if (fallbackProvider === "claude" && !claudeAvailable) {
+      throw new Error(
+        `AI routing failed: ${preferredProvider} error: ${error.message}`
+      );
+    }
+
     console.log(`[ModelRouter] Attempting fallback to ${fallbackProvider}...`);
 
     try {
-      if (fallbackProvider === "openai") {
-        return await callOpenAI(systemPrompt, userMessage, conversationHistory);
-      } else {
-        return await callClaude(systemPrompt, userMessage, conversationHistory);
-      }
+      return await invokeProvider(fallbackProvider);
     } catch (fallbackError) {
-      // Both providers failed - throw comprehensive error
       console.error(
         `[ModelRouter] ${fallbackProvider} also failed:`,
         fallbackError.message

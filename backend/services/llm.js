@@ -2,14 +2,14 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * LLM Service Layer - Centralized AI API Management
  * ═══════════════════════════════════════════════════════════════════════════
- * 
+ *
  * SECURITY: All API keys are read from process.env on the backend.
  * Keys are NEVER exposed to frontend or in error messages.
  * All responses are sanitized before sending to client.
- * 
+ *
  * This is the ONLY place in the codebase where AI SDKs are imported.
  * Frontend makes requests to /api/ai/* endpoints which delegate here.
- * 
+ *
  * Supported Providers:
  * - OpenAI (GPT-4, GPT-3.5-turbo)
  * - Anthropic (Claude 3 series)
@@ -55,7 +55,7 @@ try {
  * @param {string} systemPrompt - System message for context
  * @param {string} userMessage - User input
  * @param {Object} config - Optional: model, temperature, max_tokens
- * @returns {Promise<{message: string, usage: Object, model: string}>}
+ * @returns {Promise<{text: string, message: string, usage: Object, model: string}>}
  */
 async function callOpenAI(systemPrompt, userMessage, config = {}) {
   try {
@@ -79,8 +79,11 @@ async function callOpenAI(systemPrompt, userMessage, config = {}) {
       ],
     });
 
+    const text = response.choices[0].message.content;
+
     return {
-      message: response.choices[0].message.content,
+      text,
+      message: text,
       usage: {
         prompt_tokens: response.usage.prompt_tokens,
         completion_tokens: response.usage.completion_tokens,
@@ -148,12 +151,14 @@ async function transcribeWithOpenAI(audioFile, config = {}) {
  * @param {string} systemPrompt - System message for context
  * @param {string} userMessage - User input
  * @param {Object} config - Optional: model, temperature, max_tokens
- * @returns {Promise<{message: string, usage: Object, model: string}>}
+ * @returns {Promise<{text: string, message: string, usage: Object, model: string}>}
  */
 async function callClaude(systemPrompt, userMessage, config = {}) {
   try {
     if (!anthropicClient) {
-      throw new Error("Anthropic is not configured. Set ANTHROPIC_API_KEY in .env");
+      throw new Error(
+        "Anthropic is not configured. Set ANTHROPIC_API_KEY in .env"
+      );
     }
 
     const {
@@ -167,13 +172,14 @@ async function callClaude(systemPrompt, userMessage, config = {}) {
       max_tokens,
       temperature,
       system: systemPrompt,
-      messages: [
-        { role: "user", content: userMessage },
-      ],
+      messages: [{ role: "user", content: userMessage }],
     });
 
+    const text = response.content[0].text;
+
     return {
-      message: response.content[0].text,
+      text,
+      message: text,
       usage: {
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
@@ -205,20 +211,34 @@ async function callClaude(systemPrompt, userMessage, config = {}) {
 async function callBestAvailable(systemPrompt, userMessage, config = {}) {
   const { preferProvider = null, fallbackToGPT = true } = config;
 
+  const providers = {
+    anthropic: anthropicClient,
+    openai: openaiClient,
+  };
+
+  const claudeAvailable = Boolean(providers.anthropic);
+  const openaiAvailable = Boolean(providers.openai);
+
+  // ─────────────────────────────────────────────────────────────
+  // HARD RULE:
+  // If a preferred provider is explicitly requested and available,
+  // we MUST use it. llm.js must never override modelRouter intent.
+  // ─────────────────────────────────────────────────────────────
+
   // Try preferred provider first
-  if (preferProvider === "anthropic" && anthropicClient) {
+  if (preferProvider === "anthropic" && claudeAvailable) {
     return callClaude(systemPrompt, userMessage, config);
   }
-  if (preferProvider === "openai" && openaiClient) {
+  if (preferProvider === "openai" && openaiAvailable) {
     return callOpenAI(systemPrompt, userMessage, config);
   }
 
   // Default: try OpenAI first, fallback to Claude
-  if (openaiClient && fallbackToGPT) {
+  if (openaiAvailable && fallbackToGPT) {
     try {
       return await callOpenAI(systemPrompt, userMessage, config);
     } catch (error) {
-      if (anthropicClient) {
+      if (claudeAvailable) {
         console.warn("OpenAI failed, falling back to Claude");
         return await callClaude(systemPrompt, userMessage, config);
       }
@@ -227,11 +247,11 @@ async function callBestAvailable(systemPrompt, userMessage, config = {}) {
   }
 
   // Try Claude if OpenAI not available
-  if (anthropicClient) {
+  if (claudeAvailable) {
     try {
       return await callClaude(systemPrompt, userMessage, config);
     } catch (error) {
-      if (openaiClient && fallbackToGPT) {
+      if (openaiAvailable && fallbackToGPT) {
         console.warn("Claude failed, falling back to OpenAI");
         return await callOpenAI(systemPrompt, userMessage, config);
       }
@@ -266,8 +286,12 @@ Text: "${text}"`;
       { max_tokens: 50 }
     );
 
+    const responseText = response?.text ?? response?.message;
+    if (typeof responseText !== "string")
+      return { sentiment: "neutral", score: 50 };
+
     // Parse JSON response
-    const match = response.message.match(/\{[\s\S]*\}/);
+    const match = responseText.match(/\{[\s\S]*\}/);
     if (match) {
       return JSON.parse(match[0]);
     }
@@ -296,8 +320,11 @@ Return as JSON array: ["insight1", "insight2", ...]`;
       { max_tokens: 500 }
     );
 
+    const responseText = response?.text ?? response?.message;
+    if (typeof responseText !== "string") return [];
+
     // Parse JSON array
-    const match = response.message.match(/\[[\s\S]*\]/);
+    const match = responseText.match(/\[[\s\S]*\]/);
     if (match) {
       return JSON.parse(match[0]);
     }
@@ -327,7 +354,16 @@ Message: "${message}"`;
       { max_tokens: 100 }
     );
 
-    const match = response.message.match(/\{[\s\S]*\}/);
+    const responseText = response?.text ?? response?.message;
+    if (typeof responseText !== "string") {
+      return {
+        isCrisis: false,
+        confidence: 0,
+        recommendation: "Unable to analyze",
+      };
+    }
+
+    const match = responseText.match(/\{[\s\S]*\}/);
     if (match) {
       return JSON.parse(match[0]);
     }

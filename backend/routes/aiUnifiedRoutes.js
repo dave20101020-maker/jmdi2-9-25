@@ -204,10 +204,11 @@ router.post(
   sanitizationMiddleware,
   asyncHandler(async (req, res) => {
     const UNIFIED_SAFE_FALLBACK_RESPONSE = {
-      success: true,
-      ok: true,
-      reply:
-        "Hi! I'm NorthStar AI. I’m here to help and can guide you step by step.",
+      success: false,
+      ok: false,
+      reply: FALLBACK_REPLY,
+      text: FALLBACK_REPLY,
+      error: "AI temporarily unavailable",
       agent: "northstar",
       pillar: "general",
       fallback: true,
@@ -254,7 +255,6 @@ router.post(
           success: false,
           ok: false,
           error: "Message is required",
-          message: "Message is required",
         });
       }
 
@@ -349,6 +349,7 @@ router.post(
             ok: true,
             reply: payloadText,
             pillar: started.payload.pillar,
+            provider: "assessment_engine",
             agent: "assessment_engine",
             module: "assessments",
           });
@@ -383,6 +384,7 @@ router.post(
             ok: true,
             reply: payloadText,
             pillar: started.payload.pillar,
+            provider: "assessment_engine",
             agent: "assessment_engine",
             module: "assessments",
           });
@@ -423,6 +425,24 @@ router.post(
       const reply =
         result?.text || result?.response || result?.reply || result?.message;
 
+      const normalizedReply = (() => {
+        if (typeof reply === "string") return reply;
+        if (typeof reply === "number" || typeof reply === "boolean")
+          return reply.toString();
+        if (
+          reply &&
+          typeof reply === "object" &&
+          typeof reply.text === "string"
+        )
+          return reply.text;
+        return null;
+      })();
+
+      // Absolute safety: never allow non-string reply through
+      if (typeof normalizedReply !== "string") {
+        return res.status(200).json(UNIFIED_SAFE_FALLBACK_RESPONSE);
+      }
+
       const saveSummary = result?.meta?.saveSummary || null;
 
       const ok = Boolean(result?.ok);
@@ -440,7 +460,7 @@ router.post(
           success: false,
           ok: false,
           reply:
-            reply ||
+            normalizedReply ||
             "NorthStar AI is busy right now. Please try again in about a minute.",
           pillar: result?.pillar || explicitPillar || "general",
           agent: result?.agent || null,
@@ -452,10 +472,10 @@ router.post(
       // Deterministic fallback semantics:
       // - Never return { success:false } alongside a reply.
       // - If provider routing fails, still return success:true with a safe fallback reply.
-      if (!reply || !ok) {
+      if (!normalizedReply || !ok) {
         console.log("[AI][unified.chat] BEFORE_RES_JSON", {
           requestId,
-          reason: !reply ? "missing_reply" : "degraded_fallback",
+          reason: !normalizedReply ? "missing_reply" : "degraded_fallback",
         });
 
         return res.status(200).json(UNIFIED_SAFE_FALLBACK_RESPONSE);
@@ -468,7 +488,7 @@ router.post(
       return res.status(200).json({
         success: true,
         ok: true,
-        reply,
+        reply: normalizedReply,
         pillar: result?.pillar || explicitPillar || null,
         agent: result?.agent || null,
         module: requestedModule || null,
@@ -500,10 +520,11 @@ router.post(
   sanitizationMiddleware,
   asyncHandler(async (req, res) => {
     const UNIFIED_SAFE_FALLBACK_RESPONSE = {
-      success: true,
-      ok: true,
-      reply:
-        "Hi! I'm NorthStar AI. I’m here to help and can guide you step by step.",
+      success: false,
+      ok: false,
+      reply: FALLBACK_REPLY,
+      text: FALLBACK_REPLY,
+      error: "AI temporarily unavailable",
       agent: "northstar",
       pillar: "general",
       fallback: true,
@@ -536,7 +557,6 @@ router.post(
           success: false,
           ok: false,
           error: "Message is required",
-          message: "Message is required",
         });
       }
 
@@ -614,6 +634,7 @@ router.post(
             ok: true,
             reply: payloadText,
             pillar: started.payload.pillar,
+            provider: "assessment_engine",
             agent: "assessment_engine",
             module: "assessments",
           });
@@ -642,6 +663,7 @@ router.post(
             ok: true,
             reply: payloadText,
             pillar: started.payload.pillar,
+            provider: "assessment_engine",
             agent: "assessment_engine",
             module: "assessments",
           });
@@ -660,14 +682,32 @@ router.post(
         result?.text || result?.response || result?.reply || result?.message;
       const ok = Boolean(result?.ok);
 
-      if (!ok || !reply) {
+      const normalizedReply = (() => {
+        if (typeof reply === "string") return reply;
+        if (typeof reply === "number" || typeof reply === "boolean")
+          return reply.toString();
+        if (
+          reply &&
+          typeof reply === "object" &&
+          typeof reply.text === "string"
+        )
+          return reply.text;
+        return null;
+      })();
+
+      // Absolute safety: never allow non-string reply through
+      if (typeof normalizedReply !== "string") {
+        return res.status(200).json(UNIFIED_SAFE_FALLBACK_RESPONSE);
+      }
+
+      if (!ok || !normalizedReply) {
         return res.status(200).json(UNIFIED_SAFE_FALLBACK_RESPONSE);
       }
 
       return res.status(200).json({
         success: true,
         ok: true,
-        reply,
+        reply: normalizedReply,
         pillar: result?.pillar || explicitPillar || null,
         agent: result?.agent || null,
         module: requestedModule || null,
