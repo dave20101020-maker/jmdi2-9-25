@@ -2,6 +2,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import ConnectionIssue from "@/components/fallbacks/ConnectionIssue";
 import RetryButton from "@/components/ui/RetryButton";
+import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 
 export default class GlobalErrorBoundary extends Component {
   constructor(props) {
@@ -78,6 +79,17 @@ export default class GlobalErrorBoundary extends Component {
     const { fallback } = this.props;
     const { offline, error, errorInfo } = this.state;
 
+    const safeMessage =
+      typeof error?.message === "string" && error.message.trim()
+        ? error.message
+        : "The interface encountered an unexpected error. Retry the action or refresh the page to continue.";
+
+    const safeDetails = error
+      ? typeof error === "string"
+        ? error
+        : normalizeErrorMessage(error, "(no details)")
+      : "";
+
     if (offline) {
       return (
         <ConnectionIssue
@@ -108,16 +120,13 @@ export default class GlobalErrorBoundary extends Component {
             <h1 className="text-3xl font-bold text-white">
               Something disrupted this mission
             </h1>
-            <p className="text-white/70">
-              {error?.message ||
-                "The interface encountered an unexpected error. Retry the action or refresh the page to continue."}
-            </p>
+            <p className="text-white/70">{safeMessage}</p>
           </div>
           <RetryButton onRetry={this.handleRetry} />
           <div className="text-left text-white/40 text-xs font-mono bg-black/40 rounded-2xl p-4 max-h-60 overflow-auto">
             {error && (
               <p className="mb-2">
-                <strong>Error:</strong> {error.toString()}
+                <strong>Error:</strong> {safeDetails}
               </p>
             )}
             {errorInfo?.componentStack && <pre>{errorInfo.componentStack}</pre>}

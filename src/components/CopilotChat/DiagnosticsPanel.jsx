@@ -1,24 +1,38 @@
 import React from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 
 export default function DiagnosticsPanel({ open, onClose, diagnostics }) {
   if (!open) return null;
 
+  const toText = (value, fallback) => {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed ? trimmed : fallback;
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+
+    if (value == null) return fallback;
+
+    return normalizeErrorMessage(value, fallback);
+  };
+
   const items = [
-    { label: "Status", value: diagnostics?.status ?? "n/a" },
-    { label: "Code", value: diagnostics?.code || "AI-UNKNOWN" },
-    { label: "Message", value: diagnostics?.message || "(none)" },
-    { label: "URL", value: diagnostics?.url || "/api/ai" },
+    { label: "Status", value: toText(diagnostics?.status, "n/a") },
+    { label: "Code", value: toText(diagnostics?.code, "AI-UNKNOWN") },
+    { label: "Message", value: toText(diagnostics?.message, "(none)") },
+    { label: "URL", value: toText(diagnostics?.url, "/api/ai") },
     {
       label: "Body",
-      value: diagnostics?.body
-        ? diagnostics.body.toString().slice(0, 800)
-        : "(empty)",
+      value: toText(diagnostics?.body, "(empty)").slice(0, 800),
     },
     {
       label: "Timestamp",
-      value: diagnostics?.timestamp || new Date().toISOString(),
+      value: toText(diagnostics?.timestamp, new Date().toISOString()),
     },
   ];
 

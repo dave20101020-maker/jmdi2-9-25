@@ -176,7 +176,6 @@ Return ONLY a single thoughtful, open-ended question (1-2 sentences max) that in
   return (
     <div
       role="presentation"
-      aria-hidden="true"
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
     >
       <div

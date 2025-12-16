@@ -202,8 +202,12 @@ function DailyCheckIn({ pillarId }) {
         onChange={(e) => setValue(Number(e.target.value))}
       />
       <div>
-        <label className="text-sm text-white/70">Notes (optional)</label>
+        <label className="text-sm text-white/70" htmlFor="daily-checkin-notes">
+          Notes (optional)
+        </label>
         <textarea
+          id="daily-checkin-notes"
+          aria-label="Notes (optional)"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           className="w-full mt-2 p-2 rounded bg-black/10"

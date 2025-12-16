@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import AuditLog from "../models/AuditLog.js";
 import logger from "../utils/logger.js";
 
@@ -23,8 +24,18 @@ export const logAuditEvent = async ({
   metadata,
 }) => {
   if (!action) return;
+
+  // In dev/Codespaces it's common to run without Mongo configured.
+  // Audit logging must never block request/response flows.
+  if (!process.env.MONGO_URI) return;
+
+  const readyState =
+    // Prefer the model connection if available.
+    AuditLog?.db?.readyState ?? mongoose.connection.readyState;
+  if (readyState !== 1) return;
+
   try {
-    await AuditLog.create({
+    void AuditLog.create({
       action,
       userId: userId ?? req?.user?._id ?? null,
       route: route || req?.originalUrl || req?.url || "unknown",
@@ -33,6 +44,11 @@ export const logAuditEvent = async ({
       status,
       description,
       metadata: metadata && typeof metadata === "object" ? metadata : {},
+    }).catch((error) => {
+      logger.warn("[auditLogger] Failed to record audit log", {
+        action,
+        error: error?.message,
+      });
     });
   } catch (error) {
     logger.warn("[auditLogger] Failed to record audit log", {

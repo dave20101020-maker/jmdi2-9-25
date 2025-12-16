@@ -62,15 +62,21 @@ try {
  */
 async function callOpenAI(systemPrompt, userMessage, config = {}) {
   try {
-    if (!openaiClient) {
-      throw new Error("OpenAI is not configured. Set OPENAI_API_KEY in .env");
-    }
-
     const {
       model = process.env.OPENAI_MODEL || "gpt-4-turbo",
       temperature = 0.7,
       max_tokens = 2048,
     } = config;
+
+    console.log("[LLM] callOpenAI", {
+      provider: "openai",
+      model: typeof model === "string" ? model : null,
+      hasApiKey: Boolean(process.env.OPENAI_API_KEY),
+    });
+
+    if (!openaiClient) {
+      throw new Error("OpenAI is not configured. Set OPENAI_API_KEY in .env");
+    }
 
     const response = await openaiClient.chat.completions.create({
       model,
@@ -158,17 +164,23 @@ async function transcribeWithOpenAI(audioFile, config = {}) {
  */
 async function callClaude(systemPrompt, userMessage, config = {}) {
   try {
-    if (!anthropicClient) {
-      throw new Error(
-        "Anthropic is not configured. Set ANTHROPIC_API_KEY in .env"
-      );
-    }
-
     const {
       model = process.env.ANTHROPIC_MODEL || "claude-3-sonnet-20240229",
       temperature = 0.7,
       max_tokens = 2048,
     } = config;
+
+    console.log("[LLM] callClaude", {
+      provider: "anthropic",
+      model: typeof model === "string" ? model : null,
+      hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
+    });
+
+    if (!anthropicClient) {
+      throw new Error(
+        "Anthropic is not configured. Set ANTHROPIC_API_KEY in .env"
+      );
+    }
 
     const response = await anthropicClient.messages.create({
       model,
@@ -214,6 +226,21 @@ async function callClaude(systemPrompt, userMessage, config = {}) {
 async function callBestAvailable(systemPrompt, userMessage, config = {}) {
   const { preferProvider = null, fallbackToGPT = true } = config;
 
+  const providerConfigError = (message) => {
+    const error = new Error(message);
+    error.status = 503;
+    error.code = "AI_PROVIDER_NOT_CONFIGURED";
+    return error;
+  };
+
+  console.log("[LLM] callBestAvailable", {
+    provider: "bestAvailable",
+    model: typeof config?.model === "string" ? config.model : null,
+    hasApiKey: Boolean(
+      process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY
+    ),
+  });
+
   const providers = {
     anthropic: anthropicClient,
     openai: openaiClient,
@@ -231,67 +258,71 @@ async function callBestAvailable(systemPrompt, userMessage, config = {}) {
   // Try preferred provider first
   if (preferProvider === "anthropic") {
     if (!claudeAvailable) {
-      return {
-        message: SAFE_TEXT_FALLBACK,
-        text: SAFE_TEXT_FALLBACK,
-        provider: preferProvider,
-        error: {
-          code: "provider_unavailable",
-          message: "Anthropic is not configured. Set ANTHROPIC_API_KEY in .env",
-        },
-      };
+      throw providerConfigError(
+        `Preferred provider ${preferProvider} is not configured`
+      );
     }
 
     try {
+      console.log("[LLM] selectedProvider", {
+        provider: "anthropic",
+        model:
+          (typeof config?.model === "string" && config.model) ||
+          process.env.ANTHROPIC_MODEL ||
+          "claude-3-sonnet-20240229",
+        hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
+      });
       return await callClaude(systemPrompt, userMessage, config);
     } catch (error) {
-      return {
-        message: SAFE_TEXT_FALLBACK,
-        text: SAFE_TEXT_FALLBACK,
-        provider: preferProvider,
-        error: {
-          code: "provider_error",
-          message: error?.message || "Anthropic provider error",
-        },
-      };
+      throw error;
     }
   }
 
   if (preferProvider === "openai") {
     if (!openaiAvailable) {
-      return {
-        message: SAFE_TEXT_FALLBACK,
-        text: SAFE_TEXT_FALLBACK,
-        provider: preferProvider,
-        error: {
-          code: "provider_unavailable",
-          message: "OpenAI is not configured. Set OPENAI_API_KEY in .env",
-        },
-      };
+      throw providerConfigError(
+        `Preferred provider ${preferProvider} is not configured`
+      );
     }
 
     try {
+      console.log("[LLM] selectedProvider", {
+        provider: "openai",
+        model:
+          (typeof config?.model === "string" && config.model) ||
+          process.env.OPENAI_MODEL ||
+          "gpt-4-turbo",
+        hasApiKey: Boolean(process.env.OPENAI_API_KEY),
+      });
       return await callOpenAI(systemPrompt, userMessage, config);
     } catch (error) {
-      return {
-        message: SAFE_TEXT_FALLBACK,
-        text: SAFE_TEXT_FALLBACK,
-        provider: preferProvider,
-        error: {
-          code: "provider_error",
-          message: error?.message || "OpenAI provider error",
-        },
-      };
+      throw error;
     }
   }
 
   // Default: try OpenAI first, fallback to Claude
   if (openaiAvailable && fallbackToGPT) {
     try {
+      console.log("[LLM] selectedProvider", {
+        provider: "openai",
+        model:
+          (typeof config?.model === "string" && config.model) ||
+          process.env.OPENAI_MODEL ||
+          "gpt-4-turbo",
+        hasApiKey: Boolean(process.env.OPENAI_API_KEY),
+      });
       return await callOpenAI(systemPrompt, userMessage, config);
     } catch (error) {
       if (claudeAvailable) {
         console.warn("OpenAI failed, falling back to Claude");
+        console.log("[LLM] selectedProvider", {
+          provider: "anthropic",
+          model:
+            (typeof config?.model === "string" && config.model) ||
+            process.env.ANTHROPIC_MODEL ||
+            "claude-3-sonnet-20240229",
+          hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
+        });
         return await callClaude(systemPrompt, userMessage, config);
       }
       throw error;
@@ -301,10 +332,26 @@ async function callBestAvailable(systemPrompt, userMessage, config = {}) {
   // Try Claude if OpenAI not available
   if (claudeAvailable) {
     try {
+      console.log("[LLM] selectedProvider", {
+        provider: "anthropic",
+        model:
+          (typeof config?.model === "string" && config.model) ||
+          process.env.ANTHROPIC_MODEL ||
+          "claude-3-sonnet-20240229",
+        hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
+      });
       return await callClaude(systemPrompt, userMessage, config);
     } catch (error) {
       if (openaiAvailable && fallbackToGPT) {
         console.warn("Claude failed, falling back to OpenAI");
+        console.log("[LLM] selectedProvider", {
+          provider: "openai",
+          model:
+            (typeof config?.model === "string" && config.model) ||
+            process.env.OPENAI_MODEL ||
+            "gpt-4-turbo",
+          hasApiKey: Boolean(process.env.OPENAI_API_KEY),
+        });
         return await callOpenAI(systemPrompt, userMessage, config);
       }
       throw error;
@@ -312,7 +359,7 @@ async function callBestAvailable(systemPrompt, userMessage, config = {}) {
   }
 
   // No providers configured
-  throw new Error(
+  throw providerConfigError(
     "No LLM providers configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in .env"
   );
 }

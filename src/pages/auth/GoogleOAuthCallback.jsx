@@ -4,6 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import NSButton from "@/components/ui/NSButton";
 import { useAuth } from "@/hooks/useAuth";
+import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 import { consumeGoogleOAuthState } from "@/lib/oauth/google";
 import { toast } from "sonner";
 
@@ -111,7 +112,7 @@ export default function GoogleOAuthCallback() {
       }
       subtitle={
         status.type === "error"
-          ? status.message
+          ? normalizeErrorMessage(status.message, "OAuth sign-in failed")
           : "Hold tight while we finish syncing your profile."
       }
       aside={
@@ -136,7 +137,7 @@ export default function GoogleOAuthCallback() {
         {status.type === "error" ? (
           <>
             <div className="ns-alert" role="alert">
-              {status.message}
+              {normalizeErrorMessage(status.message, "OAuth sign-in failed")}
             </div>
             <NSButton size="lg" fullWidth onClick={() => navigate("/login")}>
               Return to login
@@ -148,7 +149,7 @@ export default function GoogleOAuthCallback() {
         ) : (
           <>
             <div className="ns-alert ns-alert--info" role="status">
-              {status.message}
+              {normalizeErrorMessage(status.message, "Completing sign-in…")}
             </div>
             <p className="text-sm text-white/70 text-center">
               This usually takes just a moment.

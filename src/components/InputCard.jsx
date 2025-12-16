@@ -1,4 +1,5 @@
 import React from "react";
+import { normalizeErrorNode } from "@/utils/normalizeErrorMessage";
 import { cn } from "@/utils";
 
 /**
@@ -171,7 +172,7 @@ export const InputCard = ({
               clipRule="evenodd"
             />
           </svg>
-          {error}
+          {normalizeErrorNode(error, "Invalid input")}
         </p>
       )}
     </div>

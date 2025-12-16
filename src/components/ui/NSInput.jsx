@@ -1,6 +1,7 @@
 import * as React from "react";
 import PropTypes from "prop-types";
 import { cn } from "@/utils";
+import { normalizeErrorNode } from "@/utils/normalizeErrorMessage";
 import "./NSInput.css";
 
 const VARIANTS = ["default", "contrast", "subtle"];
@@ -150,7 +151,7 @@ const NSInput = React.forwardRef(function NSInput(
           role="alert"
           aria-live="polite"
         >
-          {error}
+          {normalizeErrorNode(error, "Invalid input")}
         </p>
       )}
     </div>

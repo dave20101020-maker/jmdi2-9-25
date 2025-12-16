@@ -6,6 +6,7 @@ import NSButton from "@/components/ui/NSButton";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 
 const STATUS_MESSAGES = {
   400: "Please double-check the highlighted fields.",
@@ -218,7 +219,7 @@ export default function SignUp() {
       <div className="ns-auth-stack">
         {error && (
           <div className="ns-alert" role="alert">
-            {error}
+            {normalizeErrorMessage(error, "Unable to create your account")}
           </div>
         )}
 

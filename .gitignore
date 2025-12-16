@@ -21,6 +21,9 @@ tmp/
 # Runtime data (DO NOT COMMIT)
 backend/data/memory/
 
+# Local runtime PID files (DO NOT COMMIT)
+.pids/
+
 # Environment - all .env files
 .env*
 !.env.example

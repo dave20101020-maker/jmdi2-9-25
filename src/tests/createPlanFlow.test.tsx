@@ -66,6 +66,7 @@ describe("Create Plan flow", () => {
   };
 
   const openSleepModal = async () => {
+    await screen.findByText(/Create Your First Plan/i);
     const sleepButton = await screen.findByRole("button", { name: /Sleep/i });
     fireEvent.click(sleepButton);
   };

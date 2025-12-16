@@ -123,20 +123,39 @@ export async function runWithBestModel(options) {
   } catch (error) {
     console.error(`[ModelRouter] ${preferredProvider} failed:`, error.message);
 
+    const primaryError = error?.message || String(error);
+
     if (!fallbackProvider) {
-      throw error;
+      return {
+        model: preferredProvider,
+        text: PROVIDER_TEXT_FALLBACK,
+        raw: {
+          error: primaryError,
+          provider: preferredProvider,
+        },
+      };
     }
 
     if (fallbackProvider === "openai" && !openaiAvailable) {
-      throw new Error(
-        `AI routing failed: ${preferredProvider} error: ${error.message}`
-      );
+      return {
+        model: preferredProvider,
+        text: PROVIDER_TEXT_FALLBACK,
+        raw: {
+          error: primaryError,
+          provider: preferredProvider,
+        },
+      };
     }
 
     if (fallbackProvider === "claude" && !claudeAvailable) {
-      throw new Error(
-        `AI routing failed: ${preferredProvider} error: ${error.message}`
-      );
+      return {
+        model: preferredProvider,
+        text: PROVIDER_TEXT_FALLBACK,
+        raw: {
+          error: primaryError,
+          provider: preferredProvider,
+        },
+      };
     }
 
     console.log(`[ModelRouter] Attempting fallback to ${fallbackProvider}...`);
@@ -148,10 +167,16 @@ export async function runWithBestModel(options) {
         `[ModelRouter] ${fallbackProvider} also failed:`,
         fallbackError.message
       );
-      throw new Error(
-        `AI routing failed: Both ${preferredProvider} and ${fallbackProvider} returned errors. ` +
-          `Primary: ${error.message}. Fallback: ${fallbackError.message}`
-      );
+
+      const fallbackMessage = fallbackError?.message || String(fallbackError);
+      return {
+        model: fallbackProvider,
+        text: PROVIDER_TEXT_FALLBACK,
+        raw: {
+          error: `Primary: ${primaryError}. Fallback: ${fallbackMessage}`,
+          provider: fallbackProvider,
+        },
+      };
     }
   }
 }

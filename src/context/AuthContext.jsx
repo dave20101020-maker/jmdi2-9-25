@@ -16,6 +16,7 @@ const noop = async () => null;
 const AuthContext = createContext({
   user: null,
   isAuthenticated: false,
+  authStatus: "checking",
   initializing: true,
   loading: true,
   error: null,
@@ -55,6 +56,27 @@ const buildUsername = (email, profile = {}) => {
 };
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+const SESSION_TIMEOUT_MS = 8000;
+
+const withTimeout = async (promise, timeoutMs) => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const error = new Error("Session verification timed out");
+      error.status = "timeout";
+      reject(error);
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+};
 
 const snapshotAuthStorage = () => {
   if (typeof window === "undefined") {
@@ -80,6 +102,7 @@ const authInfo = (message, detail = {}) => {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [authStatus, setAuthStatus] = useState("checking");
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
@@ -89,9 +112,12 @@ export function AuthProvider({ children }) {
     error: null,
   });
   const loadingRef = useRef(false);
+  const lastKnownUserRef = useRef(null);
 
   const syncUser = useCallback((nextUser) => {
+    lastKnownUserRef.current = nextUser ?? null;
     setUser(nextUser ?? null);
+    setAuthStatus(nextUser ? "authenticated" : "guest");
     authInfo("Auth state update", {
       isAuthenticated: Boolean(nextUser),
       user: userLabel(nextUser),
@@ -105,25 +131,42 @@ export function AuthProvider({ children }) {
         mechanism: "httpOnly-cookie",
         storage: snapshotAuthStorage(),
       });
-      const response = await api.me();
+      const response = await withTimeout(api.me(), SESSION_TIMEOUT_MS);
       const sessionUser = extractUser(response);
       setLastAuthCheck({
         at: new Date().toISOString(),
         status: sessionUser ? "ok" : "unauthenticated",
         error: null,
       });
+      setAuthStatus(sessionUser ? "authenticated" : "guest");
       authInfo("Verify session (/api/auth/me) success", {
         isAuthenticated: Boolean(sessionUser),
         user: userLabel(sessionUser),
       });
       return syncUser(sessionUser);
     } catch (error) {
+      if (error?.status === "timeout") {
+        setLastAuthCheck({
+          at: new Date().toISOString(),
+          status: "degraded",
+          error: error?.message || "timeout",
+        });
+        setAuthStatus(lastKnownUserRef.current ? "authenticated" : "guest");
+        authInfo("Verify session (/api/auth/me) timeout", {
+          status: error?.status,
+          message: error?.message,
+        });
+        return lastKnownUserRef.current;
+      }
+
       if (error?.status === 401 || error?.status === 403) {
         setLastAuthCheck({
           at: new Date().toISOString(),
           status: "unauthenticated",
           error: null,
         });
+        setAuthStatus("guest");
+        setAuthError(null);
         authInfo("Verify session (/api/auth/me) unauthorized", {
           status: error?.status,
         });
@@ -136,11 +179,12 @@ export function AuthProvider({ children }) {
         error: error?.message || "unknown",
       });
       setAuthError(error);
+      setAuthStatus(lastKnownUserRef.current ? "authenticated" : "guest");
       authInfo("Verify session (/api/auth/me) error", {
         message: error?.message,
         status: error?.status,
       });
-      throw error;
+      return lastKnownUserRef.current;
     }
   }, [syncUser]);
 
@@ -264,6 +308,7 @@ export function AuthProvider({ children }) {
       return {
         user: { id: "demo-user", name: "Demo User" },
         isAuthenticated: true,
+        authStatus: "authenticated",
         initializing: false,
         loading: false,
         error: null,
@@ -286,6 +331,7 @@ export function AuthProvider({ children }) {
     return {
       user,
       isAuthenticated: Boolean(user),
+      authStatus,
       initializing,
       loading,
       error: authError,
@@ -302,6 +348,7 @@ export function AuthProvider({ children }) {
     };
   }, [
     user,
+    authStatus,
     initializing,
     loading,
     authError,

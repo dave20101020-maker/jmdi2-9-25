@@ -6,6 +6,7 @@ import NSButton from "@/components/ui/NSButton";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 
 const STATUS_MESSAGES = {
   400: "Please double-check your email and password.",
@@ -32,13 +33,27 @@ const INITIAL_STATUS = { type: null, message: "" };
 
 const IS_DEV = import.meta.env.DEV;
 
+const coerceErrorMessage = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (typeof value === "object") {
+    const message = value?.message;
+    if (typeof message === "string") return message;
+  }
+  return "";
+};
+
 function getErrorMessage(error) {
   if (!error) return DEFAULT_LOGIN_ERROR;
-  const serverMessage =
+  const serverMessage = coerceErrorMessage(
     error?.body?.error ||
-    error?.body?.message ||
-    error?.message ||
-    error?.response?.data?.error;
+      error?.body?.message ||
+      error?.message ||
+      error?.response?.data?.error
+  );
   if (serverMessage) return serverMessage;
   const status = error?.status || error?.statusCode || error?.response?.status;
   if (status && STATUS_MESSAGES[status]) {
@@ -297,12 +312,12 @@ export default function SignIn() {
       <div className="ns-auth-stack">
         {status.type === "error" && (
           <div className="ns-alert" role="alert">
-            {status.message}
+            {normalizeErrorMessage(status.message, "Sign-in failed")}
           </div>
         )}
         {status.type === "success" && (
           <div className="ns-alert ns-alert--success" role="status">
-            {status.message}
+            {normalizeErrorMessage(status.message, "Signed in")}
           </div>
         )}
 

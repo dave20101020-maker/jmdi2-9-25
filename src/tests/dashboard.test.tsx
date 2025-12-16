@@ -10,8 +10,9 @@ import {
   createDeferred,
 } from "@/tests/testUtils";
 
-const stubComponent = (testId: string) => () =>
-  <div data-testid={testId}></div>;
+function stubComponent(testId: string) {
+  return () => <div data-testid={testId}></div>;
+}
 
 vi.mock("@/components/ai/CoachPanel", () => ({
   __esModule: true,

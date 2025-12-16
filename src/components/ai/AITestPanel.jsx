@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import NSButton from "@/components/ui/NSButton";
+import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 
 const IS_DEV = import.meta.env.DEV;
 const SHOW =
@@ -18,15 +19,25 @@ const safeJson = async (res) => {
 
 export default function AITestPanel() {
   const [submitting, setSubmitting] = useState(false);
-  const [lastRequest, setLastRequest] = useState(null);
-  const [lastResponse, setLastResponse] = useState(null);
-  const [lastError, setLastError] = useState(null);
+  const [lastRequest, setLastRequest] = useState("");
+  const [lastResponse, setLastResponse] = useState("");
+  const [lastError, setLastError] = useState("");
 
   const requestBody = useMemo(() => ({ message: "ping" }), []);
 
+  const safePretty = useCallback((value, fallback = "(unavailable)") => {
+    if (value === null || value === undefined) return fallback;
+    if (typeof value === "string") return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch (err) {
+      return normalizeErrorMessage(err, fallback);
+    }
+  }, []);
+
   const runPing = useCallback(async () => {
     setSubmitting(true);
-    setLastError(null);
+    setLastError("");
 
     const request = {
       url: "/api/ai/unified/chat",
@@ -35,7 +46,7 @@ export default function AITestPanel() {
       at: new Date().toISOString(),
     };
 
-    setLastRequest(request);
+    setLastRequest(safePretty(request, "(none)"));
 
     try {
       const res = await fetch(request.url, {
@@ -48,22 +59,21 @@ export default function AITestPanel() {
       });
 
       const payload = await safeJson(res);
-      setLastResponse({
+      const responseDebug = {
         ok: res.ok,
         status: res.status,
         payload,
         at: new Date().toISOString(),
-      });
+      };
+
+      setLastResponse(safePretty(responseDebug, "(unavailable)"));
     } catch (error) {
-      setLastError({
-        message: error?.message || String(error),
-        at: new Date().toISOString(),
-      });
-      setLastResponse(null);
+      setLastError(normalizeErrorMessage(error, "AI request failed"));
+      setLastResponse("");
     } finally {
       setSubmitting(false);
     }
-  }, [requestBody]);
+  }, [requestBody, safePretty]);
 
   if (!SHOW) return null;
 
@@ -93,21 +103,21 @@ export default function AITestPanel() {
           <div>
             <p className="text-xs font-semibold text-white/80">Request</p>
             <pre className="mt-1 max-h-40 overflow-auto rounded-lg bg-black/30 p-2 text-xs text-white/80">
-              {lastRequest ? JSON.stringify(lastRequest, null, 2) : "(none)"}
+              {lastRequest ? safePretty(lastRequest, "(none)") : "(none)"}
             </pre>
           </div>
 
           <div>
             <p className="text-xs font-semibold text-white/80">Response</p>
             <pre className="mt-1 max-h-56 overflow-auto rounded-lg bg-black/30 p-2 text-xs text-white/80">
-              {lastResponse ? JSON.stringify(lastResponse, null, 2) : "(none)"}
+              {lastResponse || "(none)"}
             </pre>
           </div>
 
           <div>
             <p className="text-xs font-semibold text-white/80">Error</p>
             <pre className="mt-1 max-h-40 overflow-auto rounded-lg bg-black/30 p-2 text-xs text-white/80">
-              {lastError ? JSON.stringify(lastError, null, 2) : "(none)"}
+              {lastError || "(none)"}
             </pre>
           </div>
         </div>

@@ -45,6 +45,9 @@ const serverConfig = {
   host: true,
   port: devPort,
   strictPort: true,
+  allowedHosts: isCodespacesTarget
+    ? [".app.github.dev", "localhost"]
+    : undefined,
   proxy: {
     "/api": {
       target: backendUrl,
@@ -65,6 +68,8 @@ const serverConfig = {
 };
 
 // https://vite.dev/config/
+// React plugin covers JSX in .js/.jsx/.ts/.tsx via Babel, so no esbuild loader
+// override is necessary for dev or tests.
 export default defineConfig({
   plugins: [react()],
   publicDir: "public",
@@ -85,13 +90,6 @@ export default defineConfig({
       "@/lib/utils": path.resolve(__dirname, "./src/utils/index.js"),
     },
     extensions: [".mjs", ".js", ".jsx", ".ts", ".tsx", ".json"],
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      loader: {
-        ".js": "jsx",
-      },
-    },
   },
   appType: "spa",
   test: {

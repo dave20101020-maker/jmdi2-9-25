@@ -15,10 +15,8 @@ dotenv.config({ path: envPath });
 // Log environment status (skip in test mode)
 if (process.env.NODE_ENV !== "test") {
   console.log(`✓ Environment loaded: ${envName}`);
-  console.log(
-    `✓ OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? "SET" : "NOT SET"}`
-  );
-  console.log(
-    `✓ ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "SET" : "NOT SET"}`
-  );
+  console.log("[BOOT] AI provider env", {
+    openaiApiKeyPresent: Boolean(process.env.OPENAI_API_KEY),
+    anthropicApiKeyPresent: Boolean(process.env.ANTHROPIC_API_KEY),
+  });
 }

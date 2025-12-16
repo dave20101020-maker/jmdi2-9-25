@@ -1,3 +1,4 @@
+import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 /**
  * Daily Checkin Modal
  *
@@ -322,7 +323,9 @@ export default function DailyCheckinModal({
                   </div>
                 ) : error ? (
                   <div className="text-center text-red-600">
-                    <p>{error}</p>
+                    <p>
+                      {normalizeErrorMessage(error, "Unable to load check-in")}
+                    </p>
                   </div>
                 ) : visibleQuestions.length === 0 ? (
                   <div className="text-center py-8">

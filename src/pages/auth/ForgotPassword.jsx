@@ -5,12 +5,31 @@ import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 
 export default function ForgotPassword() {
   const { resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState({ error: "", success: "" });
   const [submitting, setSubmitting] = useState(false);
+
+  const errorText = status.error
+    ? typeof status.error === "string"
+      ? status.error
+      : normalizeErrorMessage(
+          status.error,
+          "We could not send the reset email."
+        )
+    : "";
+
+  const successText = status.success
+    ? typeof status.success === "string"
+      ? status.success
+      : normalizeErrorMessage(
+          status.success,
+          "Check your inbox for a reset link. It is on the way."
+        )
+    : "";
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -67,15 +86,15 @@ export default function ForgotPassword() {
       }
     >
       <div className="ns-auth-stack">
-        {status.error && (
+        {errorText && (
           <div className="ns-alert" role="alert">
-            {status.error}
+            {errorText}
           </div>
         )}
 
-        {status.success && (
+        {successText && (
           <div className="ns-alert ns-alert--success" role="status">
-            {status.success}
+            {successText}
           </div>
         )}
 

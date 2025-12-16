@@ -15,6 +15,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
+import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Check, X } from "lucide-react";
 import { api } from "@/utils/apiClient";
@@ -1409,7 +1410,7 @@ export default function OnboardingFlow({ onComplete }) {
               animate={{ opacity: 1 }}
               className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm"
             >
-              {error}
+              {normalizeErrorMessage(error, "Unable to continue onboarding")}
             </motion.div>
           )}
 

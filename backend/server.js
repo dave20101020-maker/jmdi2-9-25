@@ -86,6 +86,8 @@ const allowedOrigins = Array.from(
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 // Middleware
 const corsOptions = {
   origin: (origin, callback) => {

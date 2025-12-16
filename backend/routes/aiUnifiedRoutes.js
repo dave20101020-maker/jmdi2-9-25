@@ -204,7 +204,9 @@ router.post(
   sanitizationMiddleware,
   asyncHandler(async (req, res) => {
     const UNIFIED_SAFE_FALLBACK_RESPONSE = {
-      success: false,
+      // NOTE: We return HTTP 200 with ok:false for transient AI/provider failures
+      // so UIs can still render a deterministic assistant message.
+      success: true,
       ok: false,
       reply: FALLBACK_REPLY,
       text: FALLBACK_REPLY,
@@ -279,7 +281,17 @@ router.post(
           requestId,
           reason: "provider_key_missing",
         });
-        return res.status(200).json(UNIFIED_SAFE_FALLBACK_RESPONSE);
+        return res.status(503).json({
+          success: false,
+          ok: false,
+          error:
+            "AI is not configured on this server. Set OPENAI_API_KEY or ANTHROPIC_API_KEY.",
+          reply: FALLBACK_REPLY,
+          text: FALLBACK_REPLY,
+          agent: "northstar",
+          pillar: "general",
+          fallback: true,
+        });
       }
 
       const authUserId =
@@ -348,6 +360,7 @@ router.post(
             success: true,
             ok: true,
             reply: payloadText,
+            text: payloadText,
             pillar: started.payload.pillar,
             provider: "assessment_engine",
             agent: "assessment_engine",
@@ -383,6 +396,7 @@ router.post(
             success: true,
             ok: true,
             reply: payloadText,
+            text: payloadText,
             pillar: started.payload.pillar,
             provider: "assessment_engine",
             agent: "assessment_engine",
@@ -457,9 +471,12 @@ router.post(
           reason: "rate_limited_all",
         });
         return res.status(200).json({
-          success: false,
+          success: true,
           ok: false,
           reply:
+            normalizedReply ||
+            "NorthStar AI is busy right now. Please try again in about a minute.",
+          text:
             normalizedReply ||
             "NorthStar AI is busy right now. Please try again in about a minute.",
           pillar: result?.pillar || explicitPillar || "general",
@@ -489,6 +506,7 @@ router.post(
         success: true,
         ok: true,
         reply: normalizedReply,
+        text: normalizedReply,
         pillar: result?.pillar || explicitPillar || null,
         agent: result?.agent || null,
         module: requestedModule || null,

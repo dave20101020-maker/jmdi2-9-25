@@ -4,6 +4,7 @@ import {
   normalizeAiDiagnosticsFromError,
   renderAiDiagnosticLabel,
 } from "@/ai/diagnostics";
+import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -35,6 +36,9 @@ class AIErrorBoundary extends Component {
   static getDerivedStateFromError(error) {
     const diagnostics = normalizeAiDiagnosticsFromError(error, "/api/ai");
 
+    const errorMessage =
+      typeof error?.message === "string" ? error.message : "";
+
     // Determine error type
     let errorType = "unknown";
     let isRecoverable = true;
@@ -54,19 +58,19 @@ class AIErrorBoundary extends Component {
       }
     }
 
-    if (error.message?.includes("API")) {
+    if (errorMessage.includes("API")) {
       errorType = "api";
       isRecoverable = true;
     } else if (
-      error.message?.includes("network") ||
-      error.message?.includes("fetch")
+      errorMessage.includes("network") ||
+      errorMessage.includes("fetch")
     ) {
       errorType = "network";
       isRecoverable = true;
-    } else if (error.message?.includes("timeout")) {
+    } else if (errorMessage.includes("timeout")) {
       errorType = "timeout";
       isRecoverable = true;
-    } else if (error.message?.includes("validation")) {
+    } else if (errorMessage.includes("validation")) {
       errorType = "validation";
       isRecoverable = true;
     }
@@ -160,7 +164,9 @@ class AIErrorBoundary extends Component {
                     Technical Details
                   </summary>
                   <pre className="mt-2 bg-black/20 p-2 rounded overflow-auto max-h-40 whitespace-pre-wrap">
-                    {error.toString()}
+                    {typeof error === "string"
+                      ? error
+                      : normalizeErrorMessage(error, "(no details)")}
                   </pre>
                 </details>
               )}
