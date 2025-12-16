@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import { resolveEntitlements } from "./entitlements.js";
 import { getPrivateKey, getPublicKey } from "./jwtKeys.js";
@@ -6,8 +7,21 @@ import { getPrivateKey, getPublicKey } from "./jwtKeys.js";
 const SESSION_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "ns_session";
 const SESSION_MAX_AGE_MS =
   Number(process.env.AUTH_SESSION_MAX_AGE_MS) || 60 * 60 * 1000;
-const COOKIE_SECURE = process.env.NODE_ENV === "production";
-const COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN || undefined;
+const isCodespaces = Boolean(
+  process.env.CODESPACES ||
+    process.env.CODESPACE_NAME ||
+    process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN
+);
+const forwardedDomain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
+const COOKIE_DOMAIN =
+  process.env.AUTH_COOKIE_DOMAIN ||
+  (isCodespaces && forwardedDomain ? `.${forwardedDomain}` : undefined);
+const COOKIE_SECURE =
+  process.env.AUTH_COOKIE_SECURE === "true" ||
+  process.env.NODE_ENV === "production" ||
+  isCodespaces;
+const COOKIE_SAMESITE =
+  process.env.AUTH_COOKIE_SAMESITE || (COOKIE_DOMAIN ? "lax" : "strict");
 const JWT_EXPIRES_IN = process.env.AUTH_JWT_EXPIRES_IN || "1h";
 const JWT_ISSUER = process.env.AUTH_JWT_ISSUER || "northstar";
 const JWT_AUDIENCE = process.env.AUTH_JWT_AUDIENCE || "northstar.app";
@@ -40,25 +54,21 @@ const signSessionToken = (user) =>
     keyid: JWT_KID,
   });
 
+const buildCookieOptions = () => ({
+  httpOnly: true,
+  secure: COOKIE_SECURE,
+  sameSite: COOKIE_SAMESITE,
+  maxAge: SESSION_MAX_AGE_MS,
+  domain: COOKIE_DOMAIN,
+  path: "/",
+});
+
 export const setSessionCookie = (res, token) => {
-  res.cookie(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: COOKIE_SECURE,
-    sameSite: "strict",
-    maxAge: SESSION_MAX_AGE_MS,
-    domain: COOKIE_DOMAIN,
-    path: "/",
-  });
+  res.cookie(SESSION_COOKIE_NAME, token, buildCookieOptions());
 };
 
 export const clearSessionCookie = (res) => {
-  res.clearCookie(SESSION_COOKIE_NAME, {
-    httpOnly: true,
-    secure: COOKIE_SECURE,
-    sameSite: "strict",
-    domain: COOKIE_DOMAIN,
-    path: "/",
-  });
+  res.clearCookie(SESSION_COOKIE_NAME, buildCookieOptions());
 };
 
 export const issueSession = async (
@@ -96,6 +106,13 @@ export const resolveSessionUser = async (req) => {
   const token = getTokenFromRequest(req);
   if (!token) return null;
   const payload = verifySessionToken(token);
+  const readyState = mongoose.connection.readyState;
+  if (readyState !== 1) {
+    const error = new Error("Database unavailable");
+    error.code = "DB_UNAVAILABLE";
+    error.statusCode = 503;
+    throw error;
+  }
   const user = await User.findById(payload.sub).select(
     "-passwordHash -refreshTokens"
   );
