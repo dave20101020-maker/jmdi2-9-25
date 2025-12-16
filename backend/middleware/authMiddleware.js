@@ -1,6 +1,7 @@
 import { logAuditEvent } from "./auditLogger.js";
 import { resolveEntitlements } from "../utils/entitlements.js";
 import { checkSubscription } from "./subscriptionGuard.js";
+import auth0JwtMiddleware from "./auth0JwtMiddleware.js";
 import {
   resolveSessionUser,
   getTokenFromRequest,
@@ -8,6 +9,15 @@ import {
 
 export const authRequired = async (req, res, next) => {
   try {
+    const authHeader = req.headers?.authorization;
+    if (
+      process.env.ENABLE_AUTH0 === "true" &&
+      authHeader &&
+      authHeader.startsWith("Bearer ")
+    ) {
+      return auth0JwtMiddleware(req, res, next);
+    }
+
     const token = getTokenFromRequest(req);
     if (!token) {
       await logAuditEvent({
