@@ -91,8 +91,9 @@ const generateUniqueUsername = async (seed) => {
   let attempt = 0;
   while (attempt < 50) {
     const suffix = attempt === 0 ? "" : `${Math.floor(Math.random() * 10000)}`;
-    const candidate = `${normalized}${suffix}`.slice(0, 24) || `pilot${Date.now()}`;
-     
+    const candidate =
+      `${normalized}${suffix}`.slice(0, 24) || `pilot${Date.now()}`;
+
     const exists = await User.exists({ username: candidate });
     if (!exists) return candidate;
     attempt += 1;
@@ -109,7 +110,11 @@ const ensureGoogleConfigured = () => {
 };
 
 const ensureFacebookConfigured = () => {
-  if (!FACEBOOK_CLIENT_ID || !FACEBOOK_CLIENT_SECRET || !FACEBOOK_REDIRECT_URI) {
+  if (
+    !FACEBOOK_CLIENT_ID ||
+    !FACEBOOK_CLIENT_SECRET ||
+    !FACEBOOK_REDIRECT_URI
+  ) {
     const error = new Error("Facebook OAuth is not configured");
     error.statusCode = 503;
     throw error;
@@ -131,7 +136,13 @@ const consumeOAuthState = async ({ state, provider }) => {
   return OAuthState.findOneAndDelete({ state, provider });
 };
 
-const upsertOAuthUser = async ({ provider, email, name, avatar, providerId }) => {
+const upsertOAuthUser = async ({
+  provider,
+  email,
+  name,
+  avatar,
+  providerId,
+}) => {
   const normalizedEmail = normalizeEmail(email);
   let user = await User.findOne({ email: normalizedEmail });
   if (!user) {
@@ -173,7 +184,13 @@ const upsertOAuthUser = async ({ provider, email, name, avatar, providerId }) =>
   return user;
 };
 
-const respondWithSession = async (user, req, res, message, auditMetadata = {}) => {
+const respondWithSession = async (
+  user,
+  req,
+  res,
+  message,
+  auditMetadata = {}
+) => {
   const sessionUser = await issueSession(user, req, res, {
     updateLoginTimestamp: true,
   });
@@ -252,7 +269,9 @@ export const registerUser = async (req, res) => {
       status: "failure",
       description: error.message,
     });
-    return res.status(500).json({ success: false, error: "Unable to register" });
+    return res
+      .status(500)
+      .json({ success: false, error: "Unable to register" });
   }
 };
 
@@ -343,9 +362,15 @@ export const getCurrentUser = async (req, res) => {
       .json({ success: true, data: sanitizeUserDocument(session.user) });
   } catch (error) {
     console.error("getCurrentUser error", error);
-    return res
-      .status(500)
-      .json({ success: false, error: "Unable to fetch session" });
+    const status =
+      error?.statusCode || (error?.code === "DB_UNAVAILABLE" ? 503 : 401);
+    return res.status(status).json({
+      success: false,
+      error:
+        status === 503
+          ? "Service temporarily unavailable"
+          : "Invalid or expired token",
+    });
   }
 };
 
@@ -359,9 +384,7 @@ export const refreshSession = async (req, res) => {
         status: "denied",
         description: "No active session",
       });
-      return res
-        .status(401)
-        .json({ success: false, error: "Session expired" });
+      return res.status(401).json({ success: false, error: "Session expired" });
     }
 
     const user = await User.findById(session.user._id);

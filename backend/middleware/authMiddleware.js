@@ -25,15 +25,21 @@ export const authRequired = async (req, res, next) => {
     try {
       session = await resolveSessionUser(req);
     } catch (error) {
+      const status =
+        error?.statusCode || (error?.code === "DB_UNAVAILABLE" ? 503 : 401);
       await logAuditEvent({
         action: "route-access",
         req,
         status: "denied",
         description: error.message || "Invalid session token",
       });
-      return res
-        .status(401)
-        .json({ success: false, error: "Invalid or expired token" });
+      return res.status(status).json({
+        success: false,
+        error:
+          status === 503
+            ? "Service temporarily unavailable"
+            : "Invalid or expired token",
+      });
     }
 
     if (!session?.user) {
