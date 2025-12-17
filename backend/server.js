@@ -34,6 +34,7 @@ import publicPagesRoutes from "./routes/publicPages.js";
 import navRoutes from "./routes/navRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import debugAiTestRoutes from "./routes/debugAiTest.js";
+import internalPostgresHealthRoutes from "./routes/internalPostgresHealth.js";
 import { primeProviderHealth } from "./utils/providerHealth.js";
 
 const envName = process.env.NODE_ENV || "development";
@@ -157,6 +158,9 @@ app.get("/api/ai/unified/health", (req, res) => {
 app.get("/api/test-cors", (req, res) => {
   res.status(200).json({ ok: true, message: "CORS ok" });
 });
+
+// Internal DB health-check (PostgreSQL via Prisma)
+app.use("/internal/postgres-health", internalPostgresHealthRoutes);
 
 // Dev-only AI debug route
 if (envName !== "production") {
