@@ -1,50 +1,23 @@
-import React from "react";
-import { createRoot } from "react-dom/client";
 import { Auth0Provider } from "@auth0/auth0-react";
+import React from "react";
+import ReactDOM from "react-dom/client";
 import App from "./App";
 import "@fontsource-variable/inter";
 import "./index.css";
-import { AppSettingsProvider } from "@/context/AppSettingsContext.jsx";
-import GlobalErrorBoundary from "./components/shared/ErrorBoundary";
-import ApiErrorToast from "./components/ui/ApiErrorToast";
-import "./i18n";
-import { applyNorthstarTheme } from "./theme/northstarTheme";
-import { AuthProvider } from "@/hooks/useAuth";
-
-applyNorthstarTheme();
 
 const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN;
 const auth0ClientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
-const auth0Audience = import.meta.env.VITE_AUTH0_AUDIENCE;
-const enableAuth0 = Boolean(auth0Domain && auth0ClientId);
 
-const appTree = (
-  <AppSettingsProvider>
-    <AuthProvider>
-      <GlobalErrorBoundary>
-        <App />
-        <ApiErrorToast />
-      </GlobalErrorBoundary>
-    </AuthProvider>
-  </AppSettingsProvider>
-);
+if (!auth0Domain || !auth0ClientId) {
+  console.warn(
+    "[Auth0] Missing VITE_AUTH0_DOMAIN or VITE_AUTH0_CLIENT_ID; Auth0 redirects will not work."
+  );
+}
 
-const root = createRoot(document.getElementById("root"));
-root.render(
+ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {enableAuth0 ? (
-      <Auth0Provider
-        domain={auth0Domain}
-        clientId={auth0ClientId}
-        authorizationParams={{
-          redirect_uri: window.location.origin,
-          audience: auth0Audience,
-        }}
-      >
-        {appTree}
-      </Auth0Provider>
-    ) : (
-      appTree
-    )}
+    <Auth0Provider domain={auth0Domain} clientId={auth0ClientId}>
+      <App />
+    </Auth0Provider>
   </React.StrictMode>
 );

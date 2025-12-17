@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import PropTypes from "prop-types";
 import { Facebook } from "lucide-react";
 import NSButton from "@/components/ui/NSButton";
-import { redirectToFacebookOAuth } from "@/lib/oauth/facebook";
+import { useAuth0 } from "@auth0/auth0-react";
 
 export default function FacebookSignInButton({
   label = "Continue with Facebook",
@@ -16,13 +16,14 @@ export default function FacebookSignInButton({
   ...buttonProps
 }) {
   const [pending, setPending] = useState(false);
+  const { loginWithRedirect } = useAuth0();
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback(async () => {
     if (pending || disabled) return;
     setPending(true);
     onStart?.();
     try {
-      redirectToFacebookOAuth();
+      await loginWithRedirect();
     } catch (error) {
       setPending(false);
       if (onError) {
@@ -31,7 +32,7 @@ export default function FacebookSignInButton({
         console.error("Facebook sign-in failed", error);
       }
     }
-  }, [pending, disabled, onStart, onError]);
+  }, [pending, disabled, onStart, onError, loginWithRedirect]);
 
   return (
     <NSButton

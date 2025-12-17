@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Lock, Mail } from "lucide-react";
 import { useAuth0 } from "@auth0/auth0-react";
 import AuthLayout from "@/components/Layout/AuthLayout";
@@ -10,38 +10,21 @@ import { toast } from "sonner";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import FacebookSignInButton from "@/components/auth/FacebookSignInButton";
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 6;
-
 const INITIAL_FORM = { email: "", password: "" };
 
-function validate(form) {
-  const errors = {};
-  const trimmedEmail = form.email.trim();
-  if (!EMAIL_REGEX.test(trimmedEmail)) {
-    errors.email = "Enter a valid email address.";
-  }
-  if (!form.password || form.password.length < MIN_PASSWORD_LENGTH) {
-    errors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
-  }
-  return { errors, isValid: Object.keys(errors).length === 0 };
-}
-
 export default function Login() {
-  const { user, signIn, initializing } = useAuth();
+  const { user, isAuthenticated, initializing } = useAuth();
   const { loginWithRedirect } = useAuth0();
   const navigate = useNavigate();
-  const location = useLocation();
   const [form, setForm] = useState(INITIAL_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!initializing && user) {
+    if (!initializing && isAuthenticated && user) {
       navigate("/dashboard", { replace: true });
     }
-  }, [initializing, user, navigate]);
+  }, [initializing, isAuthenticated, user, navigate]);
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
@@ -55,39 +38,7 @@ export default function Login() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const { errors, isValid } = validate(form);
-    if (!isValid) {
-      setFieldErrors(errors);
-      setFormError("Please fix the highlighted fields.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setFormError("");
-    try {
-      console.info("[AUTH] Login submit", { email: form.email.trim() });
-      await signIn(form.email.trim(), form.password);
-      console.info("[AUTH] Login success", {
-        note: "Using httpOnly cookie session (not readable via JS)",
-      });
-      toast.success("Welcome back");
-      const redirect = location.state?.from?.pathname || "/dashboard";
-      navigate(redirect, { replace: true });
-    } catch (error) {
-      console.info("[AUTH] Login failure", {
-        status: error?.status || error?.statusCode || error?.response?.status,
-        message: error?.message,
-      });
-      const message = error?.message || "We could not sign you in.";
-      setFormError(message);
-      toast.error("Sign-in failed", { description: message });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleAuth0Login = () => {
-    return loginWithRedirect();
+    void loginWithRedirect();
   };
 
   const handleGoogleStart = () => {
@@ -112,22 +63,6 @@ export default function Login() {
     toast.error("Facebook sign-in failed", { description: message });
   };
 
-  if (initializing) {
-    return (
-      <AuthLayout
-        eyebrow="Syncing session"
-        title="Preparing your cockpit..."
-        subtitle="Hold tight while we confirm your NorthStar credentials."
-      >
-        <div className="ns-auth-stack" role="status">
-          <p className="text-white/70 text-sm">
-            Checking for an active mission session.
-          </p>
-        </div>
-      </AuthLayout>
-    );
-  }
-
   return (
     <AuthLayout
       eyebrow="NorthStar Access"
@@ -151,9 +86,9 @@ export default function Login() {
           </div>
         )}
 
-        <NSButton type="button" className="w-full" onClick={handleAuth0Login}>
-          Login
-        </NSButton>
+        <div className="text-white/70 text-sm" aria-live="polite">
+          Email/password sign-in is handled by Auth0.
+        </div>
 
         <form
           className="ns-auth-form"
@@ -191,11 +126,9 @@ export default function Login() {
           <NSButton
             type="submit"
             className="w-full"
-            loading={isSubmitting}
-            disabled={isSubmitting}
             data-testid="login-submit-button"
           >
-            {isSubmitting ? "Signing in..." : "Sign in"}
+            Sign in
           </NSButton>
         </form>
 
@@ -205,14 +138,12 @@ export default function Login() {
         <div className="flex flex-col gap-3 w-full">
           <GoogleSignInButton
             fullWidth
-            disabled={isSubmitting}
             onStart={handleGoogleStart}
             onError={handleGoogleError}
             data-testid="login-google-button"
           />
           <FacebookSignInButton
             fullWidth
-            disabled={isSubmitting}
             onStart={handleFacebookStart}
             onError={handleFacebookError}
             data-testid="login-facebook-button"

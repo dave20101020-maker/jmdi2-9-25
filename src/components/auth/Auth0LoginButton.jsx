@@ -5,8 +5,12 @@ import NSButton from "@/components/ui/NSButton";
 function Auth0LoginButtonInner() {
   const { loginWithRedirect, isLoading } = useAuth0();
 
-  const handleLogin = useCallback(() => {
-    return loginWithRedirect();
+  const handleLogin = useCallback(async () => {
+    try {
+      await loginWithRedirect();
+    } catch (error) {
+      console.error("Auth0 login failed", error);
+    }
   }, [loginWithRedirect]);
 
   return (

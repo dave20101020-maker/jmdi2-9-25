@@ -1,7 +1,4 @@
-import api from "@/utils/apiClient";
-
 const STATE_STORAGE_KEY = "ns_google_oauth_state";
-export const GOOGLE_CALLBACK_PATH = "/auth/google/callback";
 
 const isBrowser = () => typeof window !== "undefined";
 
@@ -45,60 +42,22 @@ export const peekGoogleOAuthState = () => {
   }
 };
 
-export const buildGoogleRedirectUrl = ({
-  redirectUri,
-  state,
-  prompt = "select_account",
-} = {}) => {
-  if (!api?.baseUrl) {
-    throw new Error("Backend base URL is not configured");
-  }
-  const url = new URL("/api/auth/google", api.baseUrl);
-  if (redirectUri) {
-    url.searchParams.set("redirect_uri", redirectUri);
-  }
-  if (state) {
-    url.searchParams.set("state", state);
-  }
-  if (prompt) {
-    url.searchParams.set("prompt", prompt);
-  }
-  url.searchParams.set("mode", "redirect");
-  return url.toString();
-};
-
-export const getGoogleCallbackUrl = (callbackPath = GOOGLE_CALLBACK_PATH) => {
-  if (!isBrowser()) return null;
-  const normalizedPath = callbackPath.startsWith("/")
-    ? callbackPath
-    : `/${callbackPath}`;
-  return `${window.location.origin}${normalizedPath}`;
-};
-
-export const redirectToGoogleOAuth = ({
-  callbackPath = GOOGLE_CALLBACK_PATH,
-  prompt,
-} = {}) => {
+export const redirectToGoogleOAuth = ({ prompt } = {}) => {
   if (!isBrowser()) {
     throw new Error("Google sign-in is only available in the browser");
   }
-  const redirectUri = getGoogleCallbackUrl(callbackPath);
-  if (!redirectUri) {
-    throw new Error("Unable to determine OAuth callback URL");
-  }
   const state = generateStateValue();
   storeGoogleOAuthState(state);
-  const authUrl = buildGoogleRedirectUrl({ redirectUri, state, prompt });
+  const authUrl = `/api/auth/google?mode=redirect&state=${encodeURIComponent(
+    state
+  )}${prompt ? `&prompt=${encodeURIComponent(prompt)}` : ""}`;
   window.location.assign(authUrl);
   return authUrl;
 };
 
 export default {
-  GOOGLE_CALLBACK_PATH,
   storeGoogleOAuthState,
   consumeGoogleOAuthState,
   peekGoogleOAuthState,
-  buildGoogleRedirectUrl,
-  getGoogleCallbackUrl,
   redirectToGoogleOAuth,
 };

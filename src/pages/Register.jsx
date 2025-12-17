@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Lock, Mail, UserRound } from "lucide-react";
+import { useAuth0 } from "@auth0/auth0-react";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
@@ -9,9 +10,6 @@ import { toast } from "sonner";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import FacebookSignInButton from "@/components/auth/FacebookSignInButton";
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 6;
-
 const INITIAL_FORM = {
   fullName: "",
   email: "",
@@ -19,31 +17,13 @@ const INITIAL_FORM = {
   confirmPassword: "",
 };
 
-function validate(form) {
-  const errors = {};
-  const trimmedEmail = form.email.trim();
-  if (!EMAIL_REGEX.test(trimmedEmail)) {
-    errors.email = "Enter a valid email address.";
-  }
-  if (!form.password || form.password.length < MIN_PASSWORD_LENGTH) {
-    errors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
-  }
-  if (form.password !== form.confirmPassword) {
-    errors.confirmPassword = "Passwords must match.";
-  }
-  if (!form.fullName.trim()) {
-    errors.fullName = "Please share your name.";
-  }
-  return { errors, isValid: Object.keys(errors).length === 0 };
-}
-
 export default function Register() {
-  const { user, signUp, initializing } = useAuth();
+  const { user, initializing } = useAuth();
+  const { loginWithRedirect } = useAuth0();
   const navigate = useNavigate();
   const [form, setForm] = useState(INITIAL_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!initializing && user) {
@@ -61,32 +41,14 @@ export default function Register() {
     }
   };
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = (event) => {
     event.preventDefault();
-    const { errors, isValid } = validate(form);
-    if (!isValid) {
-      setFieldErrors(errors);
-      setFormError("Please fix the highlighted fields.");
-      return;
-    }
+  };
 
-    setIsSubmitting(true);
-    setFormError("");
-    try {
-      const trimmedName = form.fullName.trim();
-      await signUp(form.email.trim(), form.password, {
-        displayName: trimmedName,
-        fullName: trimmedName,
-      });
-      toast.success("Account created");
-      navigate("/dashboard", { replace: true });
-    } catch (error) {
-      const message = error?.message || "We could not create your account.";
-      setFormError(message);
-      toast.error("Sign-up failed", { description: message });
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleAuth0Signup = () => {
+    void loginWithRedirect({
+      authorizationParams: { screen_hint: "signup" },
+    });
   };
 
   const handleGoogleStart = () => {
@@ -149,6 +111,10 @@ export default function Register() {
             {formError}
           </div>
         )}
+
+        <div className="text-white/70 text-sm" aria-live="polite">
+          Email signup is handled by Auth0.
+        </div>
         <form
           className="ns-auth-form"
           onSubmit={handleSubmit}
@@ -210,13 +176,12 @@ export default function Register() {
             data-testid="register-confirm-input"
           />
           <NSButton
-            type="submit"
+            type="button"
+            onClick={handleAuth0Signup}
             className="w-full"
-            loading={isSubmitting}
-            disabled={isSubmitting}
             data-testid="register-submit-button"
           >
-            {isSubmitting ? "Creating account..." : "Create account"}
+            Create account
           </NSButton>
         </form>
 
@@ -226,14 +191,12 @@ export default function Register() {
         <div className="flex flex-col gap-3 w-full">
           <GoogleSignInButton
             fullWidth
-            disabled={isSubmitting}
             onStart={handleGoogleStart}
             onError={handleGoogleError}
             data-testid="register-google-button"
           />
           <FacebookSignInButton
             fullWidth
-            disabled={isSubmitting}
             onStart={handleFacebookStart}
             onError={handleFacebookError}
             data-testid="register-facebook-button"

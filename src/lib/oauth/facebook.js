@@ -1,7 +1,4 @@
-import api from "@/utils/apiClient";
-
 const STATE_STORAGE_KEY = "ns_facebook_oauth_state";
-export const FACEBOOK_CALLBACK_PATH = "/auth/facebook/callback";
 
 const isBrowser = () => typeof window !== "undefined";
 
@@ -45,71 +42,23 @@ export const peekFacebookOAuthState = () => {
   }
 };
 
-export const buildFacebookRedirectUrl = ({
-  redirectUri,
-  state,
-  scope = "public_profile,email",
-  authType,
-} = {}) => {
-  if (!api?.baseUrl) {
-    throw new Error("Backend base URL is not configured");
-  }
-  const url = new URL("/api/auth/facebook", api.baseUrl);
-  if (redirectUri) {
-    url.searchParams.set("redirect_uri", redirectUri);
-  }
-  if (state) {
-    url.searchParams.set("state", state);
-  }
-  if (scope) {
-    url.searchParams.set("scope", scope);
-  }
-  if (authType) {
-    url.searchParams.set("auth_type", authType);
-  }
-  url.searchParams.set("mode", "redirect");
-  return url.toString();
-};
-
-export const getFacebookCallbackUrl = (
-  callbackPath = FACEBOOK_CALLBACK_PATH
-) => {
-  if (!isBrowser()) return null;
-  const normalizedPath = callbackPath.startsWith("/")
-    ? callbackPath
-    : `/${callbackPath}`;
-  return `${window.location.origin}${normalizedPath}`;
-};
-
-export const redirectToFacebookOAuth = ({
-  callbackPath = FACEBOOK_CALLBACK_PATH,
-  scope,
-  authType,
-} = {}) => {
+export const redirectToFacebookOAuth = ({ scope, authType } = {}) => {
   if (!isBrowser()) {
     throw new Error("Facebook sign-in is only available in the browser");
   }
-  const redirectUri = getFacebookCallbackUrl(callbackPath);
-  if (!redirectUri) {
-    throw new Error("Unable to determine OAuth callback URL");
-  }
   const state = generateStateValue();
   persistState(state);
-  const authUrl = buildFacebookRedirectUrl({
-    redirectUri,
-    state,
-    scope,
-    authType,
-  });
+  const authUrl = `/api/auth/facebook?mode=redirect&state=${encodeURIComponent(
+    state
+  )}${scope ? `&scope=${encodeURIComponent(scope)}` : ""}${
+    authType ? `&auth_type=${encodeURIComponent(authType)}` : ""
+  }`;
   window.location.assign(authUrl);
   return authUrl;
 };
 
 export default {
-  FACEBOOK_CALLBACK_PATH,
   redirectToFacebookOAuth,
-  buildFacebookRedirectUrl,
   consumeFacebookOAuthState,
   peekFacebookOAuthState,
-  getFacebookCallbackUrl,
 };

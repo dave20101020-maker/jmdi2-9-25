@@ -5,24 +5,8 @@ import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { useAuth0 } from "@auth0/auth0-react";
 import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
-
-const STATUS_MESSAGES = {
-  400: "Please double-check the highlighted fields.",
-  409: "That email is already connected to a mission.",
-};
-
-const STATUS_FIELD_TARGETS = {
-  400: "email",
-  409: "email",
-};
-
-const DEFAULT_SIGNUP_ERROR =
-  "We could not create your account. Please try again.";
-
-const DEFAULT_GOOGLE_ERROR =
-  "We couldn't complete Google sign up. Try again in a moment.";
 
 const createFieldErrors = () => ({
   fullName: "",
@@ -32,34 +16,15 @@ const createFieldErrors = () => ({
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 6;
 
-const IS_DEV = import.meta.env.DEV;
-
-function getErrorMessage(error) {
-  if (!error) return DEFAULT_SIGNUP_ERROR;
-  const serverMessage =
-    error?.body?.error ||
-    error?.body?.message ||
-    error?.message ||
-    error?.response?.data?.error;
-  if (serverMessage) return serverMessage;
-  const status = error?.status || error?.statusCode || error?.response?.status;
-  if (status && STATUS_MESSAGES[status]) {
-    return STATUS_MESSAGES[status];
-  }
-  return DEFAULT_SIGNUP_ERROR;
-}
-
-const getGoogleErrorDescription = (error) =>
-  getErrorMessage(error) || DEFAULT_GOOGLE_ERROR;
-
 export default function SignUp() {
   const navigate = useNavigate();
-  const { user, signUp, signInWithGoogle, initializing } = useAuth();
+  const { user, initializing } = useAuth();
+  const { loginWithRedirect } = useAuth0();
   const [form, setForm] = useState({ fullName: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState(createFieldErrors);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [oauthSubmitting, setOauthSubmitting] = useState(false);
+  const [formSubmitting, _setFormSubmitting] = useState(false);
+  const [oauthSubmitting, _setOauthSubmitting] = useState(false);
 
   const proofPoints = useMemo(
     () => [
@@ -76,11 +41,6 @@ export default function SignUp() {
     }
   }, [user, navigate]);
 
-  const logSignUpDebug = (label, payload) => {
-    if (!IS_DEV) return;
-    console.log(`[SignUp] ${label}`, payload);
-  };
-
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
     if (error) {
@@ -91,79 +51,16 @@ export default function SignUp() {
     }
   };
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = (event) => {
     event.preventDefault();
     setError("");
     setFieldErrors(createFieldErrors());
-    const validationErrors = {};
-    const trimmedEmail = form.email.trim();
-    const isEmailValid = EMAIL_REGEX.test(trimmedEmail);
-    const isPasswordValid = form.password.length >= MIN_PASSWORD_LENGTH;
-    if (!isEmailValid) {
-      validationErrors.email = "Enter a valid email address.";
-    }
-    if (!isPasswordValid) {
-      validationErrors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
-    }
-    if (Object.keys(validationErrors).length > 0) {
-      setFieldErrors((prev) => ({ ...prev, ...validationErrors }));
-      setError("Please fix the highlighted fields.");
-      return;
-    }
-    setFormSubmitting(true);
-    try {
-      logSignUpDebug("email sign-up request", { body: { email: form.email } });
-      const trimmedName = form.fullName.trim();
-      const profile = await signUp(form.email, form.password, {
-        displayName: trimmedName,
-        fullName: trimmedName,
-      });
-      logSignUpDebug("email sign-up response", {
-        status: 200,
-        userId: profile?._id || profile?.id || profile?.email || trimmedEmail,
-      });
-      navigate("/dashboard", { replace: true });
-    } catch (err) {
-      logSignUpDebug("email sign-up error", {
-        status: err?.status || err?.code || "unknown",
-        message: err?.message,
-      });
-      const presentable = getErrorMessage(err);
-      setError(presentable);
-      const status = err?.status || err?.statusCode || err?.response?.status;
-      const fieldKey = status ? STATUS_FIELD_TARGETS[status] : null;
-      if (fieldKey) {
-        setFieldErrors((prev) => ({ ...prev, [fieldKey]: presentable }));
-      }
-    } finally {
-      setFormSubmitting(false);
-    }
+    void loginWithRedirect({ authorizationParams: { screen_hint: "signup" } });
   };
 
-  const handleGoogle = async () => {
+  const handleGoogle = () => {
     setError("");
-    setOauthSubmitting(true);
-    try {
-      logSignUpDebug("google sign-up request", { provider: "google" });
-      await signInWithGoogle({ redirectPath: "/dashboard" });
-      logSignUpDebug("google sign-up redirect", { status: 200 });
-      toast.success("Opening Google", {
-        description:
-          "Complete the Google prompt to finish creating your account.",
-      });
-    } catch (err) {
-      logSignUpDebug("google sign-up error", {
-        status: err?.status || err?.code || "unknown",
-        message: err?.message,
-      });
-      const googleMessage = getGoogleErrorDescription(err);
-      setError(googleMessage);
-      toast.error("Google sign-up failed", {
-        description: googleMessage,
-      });
-    } finally {
-      setOauthSubmitting(false);
-    }
+    void loginWithRedirect({ authorizationParams: { screen_hint: "signup" } });
   };
 
   if (initializing) {

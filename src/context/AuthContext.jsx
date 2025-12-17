@@ -102,6 +102,7 @@ const authInfo = (message, detail = {}) => {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authStatus, setAuthStatus] = useState("checking");
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -117,6 +118,7 @@ export function AuthProvider({ children }) {
   const syncUser = useCallback((nextUser) => {
     lastKnownUserRef.current = nextUser ?? null;
     setUser(nextUser ?? null);
+    setIsAuthenticated(Boolean(nextUser));
     setAuthStatus(nextUser ? "authenticated" : "guest");
     authInfo("Auth state update", {
       isAuthenticated: Boolean(nextUser),
@@ -133,17 +135,22 @@ export function AuthProvider({ children }) {
       });
       const response = await withTimeout(api.me(), SESSION_TIMEOUT_MS);
       const sessionUser = extractUser(response);
+      setAuthError(null);
+      setIsAuthenticated(true);
       setLastAuthCheck({
         at: new Date().toISOString(),
-        status: sessionUser ? "ok" : "unauthenticated",
+        status: "ok",
         error: null,
       });
-      setAuthStatus(sessionUser ? "authenticated" : "guest");
+      setAuthStatus("authenticated");
       authInfo("Verify session (/api/auth/me) success", {
-        isAuthenticated: Boolean(sessionUser),
+        isAuthenticated: true,
         user: userLabel(sessionUser),
       });
-      return syncUser(sessionUser);
+      if (sessionUser) {
+        return syncUser(sessionUser);
+      }
+      return lastKnownUserRef.current;
     } catch (error) {
       if (error?.status === "timeout") {
         setLastAuthCheck({
@@ -151,6 +158,7 @@ export function AuthProvider({ children }) {
           status: "degraded",
           error: error?.message || "timeout",
         });
+        setIsAuthenticated(Boolean(lastKnownUserRef.current));
         setAuthStatus(lastKnownUserRef.current ? "authenticated" : "guest");
         authInfo("Verify session (/api/auth/me) timeout", {
           status: error?.status,
@@ -165,6 +173,7 @@ export function AuthProvider({ children }) {
           status: "unauthenticated",
           error: null,
         });
+        setIsAuthenticated(false);
         setAuthStatus("guest");
         setAuthError(null);
         authInfo("Verify session (/api/auth/me) unauthorized", {
@@ -179,12 +188,15 @@ export function AuthProvider({ children }) {
         error: error?.message || "unknown",
       });
       setAuthError(error);
+      setIsAuthenticated(Boolean(lastKnownUserRef.current));
       setAuthStatus(lastKnownUserRef.current ? "authenticated" : "guest");
       authInfo("Verify session (/api/auth/me) error", {
         message: error?.message,
         status: error?.status,
       });
       return lastKnownUserRef.current;
+    } finally {
+      setInitializing(false);
     }
   }, [syncUser]);
 
@@ -330,7 +342,7 @@ export function AuthProvider({ children }) {
     }
     return {
       user,
-      isAuthenticated: Boolean(user),
+      isAuthenticated,
       authStatus,
       initializing,
       loading,
@@ -348,6 +360,7 @@ export function AuthProvider({ children }) {
     };
   }, [
     user,
+    isAuthenticated,
     authStatus,
     initializing,
     loading,

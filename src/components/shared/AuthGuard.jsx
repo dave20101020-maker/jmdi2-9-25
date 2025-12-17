@@ -3,13 +3,25 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, LogIn, Wifi } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import SignIn from "@/pages/auth/SignIn";
 
 export default function AuthGuard({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [unauthenticated, setUnauthenticated] = useState(false);
   const navigate = useNavigate();
+
+  const extractStatus = (err) => {
+    const raw = err?.status || err?.statusCode || err?.response?.status;
+    if (typeof raw === "number") return raw;
+    if (typeof raw === "string") {
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  };
 
   const checkAuth = useCallback(async () => {
     setLoading(true);
@@ -19,17 +31,24 @@ export default function AuthGuard({ children }) {
 
       if (currentUser) {
         setUser(currentUser);
+        setUnauthenticated(false);
         setRetryCount(0);
       } else {
-        navigate("/sign-in", { replace: true });
+        // Clean logged-out state: show login screen without redirect loops.
+        setUser(null);
+        setUnauthenticated(true);
       }
     } catch (err) {
       console.error("Auth check failed:", err);
-      if (err?.status === 401 || err?.status === 403) {
-        navigate("/sign-in", { replace: true });
-        return;
+      const status = extractStatus(err);
+      if (status === 401 || status === 403) {
+        setUser(null);
+        setUnauthenticated(true);
+        setError(null);
+      } else {
+        setUnauthenticated(false);
+        setError(err?.message || "Authentication failed");
       }
-      setError(err.message || "Authentication failed");
     } finally {
       setLoading(false);
     }
@@ -80,6 +99,10 @@ export default function AuthGuard({ children }) {
         </div>
       </div>
     );
+  }
+
+  if (unauthenticated) {
+    return <SignIn />;
   }
 
   if (error || !user) {

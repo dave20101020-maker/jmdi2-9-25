@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 
 export default function ApiErrorToast() {
   const [detail, setDetail] = useState(null);
+  const location = useLocation();
 
   useEffect(() => {
     const handler = (e) => {
@@ -20,15 +22,33 @@ export default function ApiErrorToast() {
     typeof message === "string" &&
     /session|unauthenticated/i.test(message);
 
+  const shouldSuppressAuthNoise =
+    Boolean(detail) &&
+    typeof detail === "object" &&
+    (detail?.status === 401 || detail?.status === 403) &&
+    (detail?.path === "/auth/me" || detail?.path === "/auth/refresh") &&
+    location.pathname !== "/login" &&
+    location.pathname !== "/register" &&
+    location.pathname !== "/sign-in" &&
+    location.pathname !== "/sign-up";
+
   useEffect(() => {
     if (shouldSuppressInDemo) {
       setDetail(null);
     }
   }, [shouldSuppressInDemo]);
 
+  useEffect(() => {
+    if (shouldSuppressAuthNoise) {
+      setDetail(null);
+    }
+  }, [shouldSuppressAuthNoise]);
+
   if (!detail) return null;
 
   if (shouldSuppressInDemo) return null;
+
+  if (shouldSuppressAuthNoise) return null;
 
   return (
     <div className="fixed top-4 right-4 z-50 max-w-sm">

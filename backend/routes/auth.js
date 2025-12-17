@@ -12,7 +12,7 @@ import {
   handleFacebookOAuthCallback,
   startNhsOAuth,
 } from "../controllers/authController.js";
-import { authRequired } from "../middleware/authMiddleware.js";
+import { authOptional } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -35,6 +35,6 @@ router.get("/facebook/callback", handleFacebookOAuthCallback);
 router.get("/nhs", startNhsOAuth);
 router.post("/logout", logoutUser);
 router.post("/refresh", refreshSession);
-router.get("/me", authRequired, getCurrentUser);
+router.get("/me", authOptional, getCurrentUser);
 
 export default router;

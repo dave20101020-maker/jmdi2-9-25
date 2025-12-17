@@ -42,6 +42,7 @@ import WeeklyReflection from "./pages/WeeklyReflection";
 import WeeklyReport from "./pages/WeeklyReport";
 import AITestPanel from "./components/ai/AITestPanel";
 import AuthDebugPanel from "./components/auth/AuthDebugPanel";
+import ApiErrorToast from "./components/ui/ApiErrorToast";
 
 function AppLayout({ children }) {
   return (
@@ -239,6 +240,7 @@ export default function App() {
       <ThemeProvider>
         <BrowserRouter>
           <AppLayout>
+            <ApiErrorToast />
             <AppRoutes />
             <NorthStarAssistant />
             <AITestPanel />

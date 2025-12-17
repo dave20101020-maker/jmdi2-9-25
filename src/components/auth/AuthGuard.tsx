@@ -3,6 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import RouteLoader from "@/components/fallbacks/RouteLoader";
 import { api } from "@/utils/apiClient";
+import Login from "@/pages/Login";
 
 const normalizeUser = (payload: unknown) => {
   if (payload && typeof payload === "object") {
@@ -10,6 +11,18 @@ const normalizeUser = (payload: unknown) => {
     return (asRecord.data as unknown) ?? (asRecord.user as unknown) ?? payload;
   }
   return payload;
+};
+
+const extractStatus = (err: unknown) => {
+  if (!err || typeof err !== "object") return null;
+  const asAny = err as any;
+  const raw = asAny?.status || asAny?.statusCode || asAny?.response?.status;
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "string") {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 };
 
 export default function AuthGuard({
@@ -45,9 +58,7 @@ export default function AuthGuard({
       setUnauthenticated(false);
     },
     onError: (err) => {
-      const status =
-        // @ts-expect-error axios/fetch error normalisation
-        err?.status || err?.statusCode || err?.response?.status;
+      const status = extractStatus(err);
       if (status === 401 || status === 403) {
         setUnauthenticated(true);
       }
@@ -59,16 +70,11 @@ export default function AuthGuard({
     return <RouteLoader message="Verifying your NorthStar session..." />;
   }
 
-  const status =
-    // @ts-expect-error axios/fetch error normalisation
-    error?.status || error?.statusCode || error?.response?.status;
-  if (isError && (status === 401 || status === 403)) {
-    if (shouldRedirect) {
-      return (
-        <Navigate to={redirectTarget} replace state={{ from: location }} />
-      );
-    }
-    return <>{children}</>;
+  const status = extractStatus(error);
+  if (isError && (status === 401 || status === 403 || unauthenticated)) {
+    // 401/403 is a normal logged-out state. Render the login screen without
+    // changing the current route (no redirects).
+    return <Login />;
   }
 
   // Avoid redirecting during unknown/network/server errors.
@@ -91,12 +97,8 @@ export default function AuthGuard({
 
   // Session call succeeded but no user was returned.
   if (!data) {
-    if (shouldRedirect) {
-      return (
-        <Navigate to={redirectTarget} replace state={{ from: location }} />
-      );
-    }
-    return <>{children}</>;
+    // Treat missing user the same as unauthenticated.
+    return <Login />;
   }
 
   return <>{children}</>;

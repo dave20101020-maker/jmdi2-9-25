@@ -354,27 +354,39 @@ export const logoutUser = async (req, res) => {
   }
 };
 
+let didWarnMissingMeSession = false;
+
 export const getCurrentUser = async (req, res) => {
   try {
-    const session = await resolveSessionUser(req);
-    if (!session) {
+    // Session is expected to be populated by auth middleware (cookie-based).
+    // Avoid re-resolving legacy tokens here; it can cause 500s when the
+    // middleware already authenticated via a different session mechanism.
+    const user = req.user;
+    if (!user) {
+      if (!didWarnMissingMeSession) {
+        didWarnMissingMeSession = true;
+        console.warn("[auth] /api/auth/me called without session");
+      }
       return res
         .status(401)
         .json({ success: false, error: "Not authenticated" });
     }
+
     return res
       .status(200)
-      .json({ success: true, data: sanitizeUserDocument(session.user) });
+      .json({ success: true, data: sanitizeUserDocument(user) });
   } catch (error) {
     console.error("getCurrentUser error", error);
-    const status =
-      error?.statusCode || (error?.code === "DB_UNAVAILABLE" ? 503 : 401);
+    // /api/auth/me should never 500 for missing/unauthenticated sessions.
+    // If something unexpected happens, treat it as unauthenticated unless
+    // the error explicitly signals a service outage.
+    const status = error?.code === "DB_UNAVAILABLE" ? 503 : 401;
     return res.status(status).json({
       success: false,
       error:
         status === 503
           ? "Service temporarily unavailable"
-          : "Invalid or expired token",
+          : "Not authenticated",
     });
   }
 };

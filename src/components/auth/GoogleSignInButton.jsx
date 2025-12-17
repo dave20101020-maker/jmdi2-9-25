@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import PropTypes from "prop-types";
 import { Chrome } from "lucide-react";
 import NSButton from "@/components/ui/NSButton";
-import { redirectToGoogleOAuth } from "@/lib/oauth/google";
+import { useAuth0 } from "@auth0/auth0-react";
 
 export default function GoogleSignInButton({
   label = "Continue with Google",
@@ -16,13 +16,14 @@ export default function GoogleSignInButton({
   ...buttonProps
 }) {
   const [pending, setPending] = useState(false);
+  const { loginWithRedirect } = useAuth0();
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback(async () => {
     if (pending || disabled) return;
     setPending(true);
     onStart?.();
     try {
-      redirectToGoogleOAuth();
+      await loginWithRedirect();
     } catch (error) {
       setPending(false);
       if (onError) {
@@ -31,7 +32,7 @@ export default function GoogleSignInButton({
         console.error("Google sign-in failed", error);
       }
     }
-  }, [pending, disabled, onStart, onError]);
+  }, [pending, disabled, onStart, onError, loginWithRedirect]);
 
   return (
     <NSButton

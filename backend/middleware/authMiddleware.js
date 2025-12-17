@@ -7,6 +7,54 @@ import {
   getTokenFromRequest,
 } from "../utils/sessionTokens.js";
 
+let didLogAuthOptionalError = false;
+
+// Optional auth: populates req.user when a valid session exists.
+// Never throws and never blocks unauthenticated requests.
+export const authOptional = async (req, res, next) => {
+  try {
+    const authHeader = req.headers?.authorization;
+    if (
+      process.env.ENABLE_AUTH0 === "true" &&
+      authHeader &&
+      authHeader.startsWith("Bearer ")
+    ) {
+      // If a Bearer token is provided, let the Auth0 verifier handle it.
+      // It responds 401 on invalid tokens; otherwise it populates req.user.
+      return auth0JwtMiddleware(req, res, next);
+    }
+
+    const token = getTokenFromRequest(req);
+    if (!token) {
+      return next();
+    }
+
+    let session;
+    try {
+      session = await resolveSessionUser(req);
+    } catch (_error) {
+      // Invalid/expired token or DB unavailable: treat as unauthenticated.
+      return next();
+    }
+
+    if (!session?.user) {
+      return next();
+    }
+
+    const user = session.user;
+    req.user = user;
+    req.entitlements = resolveEntitlements(user);
+    req.sessionPayload = session.payload;
+    return next();
+  } catch (error) {
+    if (!didLogAuthOptionalError) {
+      didLogAuthOptionalError = true;
+      console.warn("authOptional error (swallowed)", error);
+    }
+    return next();
+  }
+};
+
 export const authRequired = async (req, res, next) => {
   try {
     const authHeader = req.headers?.authorization;
