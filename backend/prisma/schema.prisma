@@ -6,3 +6,26 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model Pillar {
+  id           String   @id @default(uuid()) @db.Uuid
+  identifier   String   @unique
+  displayName  String   @unique @map("display_name")
+  isActive     Boolean  @default(true) @map("is_active")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([isActive, displayOrder], map: "pillar_is_active_display_order_idx")
+  @@map("pillar")
+}
+
+model UserConsentEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  consentType String   @map("consent_type")
+  capturedAt  DateTime @default(now()) @map("captured_at") @db.Timestamptz(6)
+
+  @@index([userId, consentType, capturedAt(sort: Desc)], map: "user_consent_event_user_type_captured_at_desc_idx")
+  @@map("user_consent_event")
+}
