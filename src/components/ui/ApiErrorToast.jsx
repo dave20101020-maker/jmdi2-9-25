@@ -12,11 +12,10 @@ export default function ApiErrorToast() {
     return () => window.removeEventListener("api-error", handler);
   }, []);
 
-  if (!detail) return null;
-
-  const message = normalizeErrorMessage(detail, "API error");
+  const message = detail ? normalizeErrorMessage(detail, "API error") : null;
   const isDemoMode = import.meta.env.VITE_DEMO_MODE === "true";
   const shouldSuppressInDemo =
+    Boolean(detail) &&
     isDemoMode &&
     typeof message === "string" &&
     /session|unauthenticated/i.test(message);
@@ -26,6 +25,8 @@ export default function ApiErrorToast() {
       setDetail(null);
     }
   }, [shouldSuppressInDemo]);
+
+  if (!detail) return null;
 
   if (shouldSuppressInDemo) return null;
 

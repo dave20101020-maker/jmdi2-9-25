@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Lock, Mail } from "lucide-react";
+import { useAuth0 } from "@auth0/auth0-react";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
@@ -28,6 +29,7 @@ function validate(form) {
 
 export default function Login() {
   const { user, signIn, initializing } = useAuth();
+  const { loginWithRedirect } = useAuth0();
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState(INITIAL_FORM);
@@ -82,6 +84,10 @@ export default function Login() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleAuth0Login = () => {
+    return loginWithRedirect();
   };
 
   const handleGoogleStart = () => {
@@ -144,6 +150,11 @@ export default function Login() {
             {formError}
           </div>
         )}
+
+        <NSButton type="button" className="w-full" onClick={handleAuth0Login}>
+          Login
+        </NSButton>
+
         <form
           className="ns-auth-form"
           onSubmit={handleSubmit}
