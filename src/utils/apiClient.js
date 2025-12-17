@@ -1,5 +1,58 @@
 // src/utils/apiClient.js
 
+let auth0ClientPromise;
+
+const normalizeAuth0Domain = (domain) => {
+  if (!domain) return "";
+  return String(domain)
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/+$/g, "");
+};
+
+const getAuth0Client = async () => {
+  if (typeof window === "undefined") return null;
+
+  const enableAuth0 = import.meta.env.VITE_ENABLE_AUTH0 === "true";
+  if (!enableAuth0) return null;
+
+  const domain = normalizeAuth0Domain(import.meta.env.VITE_AUTH0_DOMAIN);
+  const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
+  const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
+
+  if (!domain || !clientId) return null;
+
+  if (!auth0ClientPromise) {
+    auth0ClientPromise = import("@auth0/auth0-spa-js").then(
+      ({ createAuth0Client }) =>
+        createAuth0Client({
+          domain,
+          clientId,
+          authorizationParams: {
+            redirect_uri: window.location.origin,
+            audience,
+          },
+        })
+    );
+  }
+
+  return auth0ClientPromise;
+};
+
+const getAuth0AccessTokenIfAuthenticated = async () => {
+  try {
+    const client = await getAuth0Client();
+    if (!client) return null;
+
+    const authenticated = await client.isAuthenticated().catch(() => false);
+    if (!authenticated) return null;
+
+    return await client.getTokenSilently();
+  } catch {
+    return null;
+  }
+};
+
 const normalizeOriginBase = (value) => {
   if (!value) return "";
   const trimmed = String(value).trim().replace(/\/+$/, "");
@@ -141,6 +194,17 @@ export class APIClient {
       },
       credentials: "include",
     };
+
+    if (!isAuthApiPath(path)) {
+      const existingAuthorization =
+        init.headers.Authorization || init.headers.authorization;
+      if (!existingAuthorization) {
+        const token = await getAuth0AccessTokenIfAuthenticated();
+        if (token) {
+          init.headers.Authorization = `Bearer ${token}`;
+        }
+      }
+    }
 
     if (body !== undefined) {
       init.body = typeof body === "string" ? body : JSON.stringify(body);

@@ -156,6 +156,12 @@ export const refresh = async (req, res) => {
         .json({ success: false, error: "Refresh token expired" });
     }
 
+    return res.status(403).json({
+      success: false,
+      error: "Auth0 login required",
+      message: "Authenticate via Auth0 to start a new session",
+    });
+
     user.refreshTokens = (user.refreshTokens || []).filter(
       (entry) => entry.tokenId !== payload.jti
     );

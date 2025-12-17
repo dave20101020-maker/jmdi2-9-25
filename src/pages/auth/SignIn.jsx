@@ -7,6 +7,7 @@ import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
+import Auth0LoginButton from "@/components/auth/Auth0LoginButton";
 
 const STATUS_MESSAGES = {
   400: "Please double-check your email and password.",
@@ -385,6 +386,8 @@ export default function SignIn() {
         >
           Continue with Google
         </NSButton>
+
+        <Auth0LoginButton />
       </div>
     </AuthLayout>
   );

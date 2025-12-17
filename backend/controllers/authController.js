@@ -276,6 +276,11 @@ export const registerUser = async (req, res) => {
 };
 
 export const loginUser = async (req, res) => {
+  return res.status(403).json({
+    success: false,
+    error: "Auth0 login required",
+    message: "Authenticate via Auth0 to start a new session",
+  });
   try {
     const { emailOrUsername, password } = req.body;
     if (!emailOrUsername || !password) {
@@ -375,6 +380,11 @@ export const getCurrentUser = async (req, res) => {
 };
 
 export const refreshSession = async (req, res) => {
+  return res.status(403).json({
+    success: false,
+    error: "Auth0 login required",
+    message: "Authenticate via Auth0 to start a new session",
+  });
   try {
     const session = await resolveSessionUser(req);
     if (!session) {
