@@ -10,6 +10,14 @@ import PropTypes from "prop-types";
 import { api } from "@/utils/apiClient";
 import { redirectToGoogleOAuth } from "@/lib/oauth/google";
 import { redirectToFacebookOAuth } from "@/lib/oauth/facebook";
+import { AUTH_MODE } from "@/config/authMode";
+
+let parkedLogEmitted = false;
+const logParkedOnce = () => {
+  if (parkedLogEmitted) return;
+  parkedLogEmitted = true;
+  console.info("[AUTH] Auth is PARKED — authentication bypassed");
+};
 
 const noop = async () => null;
 
@@ -56,6 +64,7 @@ const buildUsername = (email, profile = {}) => {
 };
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+const PARKED_MODE = AUTH_MODE === "PARKED";
 const SESSION_TIMEOUT_MS = 8000;
 
 const withTimeout = async (promise, timeoutMs) => {
@@ -101,6 +110,8 @@ const authInfo = (message, detail = {}) => {
 };
 
 export function AuthProvider({ children }) {
+  if (PARKED_MODE) logParkedOnce();
+
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authStatus, setAuthStatus] = useState("checking");
@@ -128,6 +139,22 @@ export function AuthProvider({ children }) {
   }, []);
 
   const refreshUser = useCallback(async () => {
+    if (PARKED_MODE) {
+      logParkedOnce();
+      const parkedUser = { id: "parked-user", name: "Parked User" };
+      setAuthError(null);
+      setUser(parkedUser);
+      setIsAuthenticated(true);
+      setAuthStatus("authenticated");
+      setLastAuthCheck({
+        at: new Date().toISOString(),
+        status: "ok",
+        error: null,
+      });
+      setInitializing(false);
+      return parkedUser;
+    }
+
     try {
       authInfo("Verify session (/api/auth/me) start", {
         mechanism: "httpOnly-cookie",
@@ -201,6 +228,22 @@ export function AuthProvider({ children }) {
   }, [syncUser]);
 
   useEffect(() => {
+    if (PARKED_MODE) {
+      const parkedUser = { id: "parked-user", name: "Parked User" };
+      setAuthError(null);
+      setUser(parkedUser);
+      setIsAuthenticated(true);
+      setAuthStatus("authenticated");
+      setLastAuthCheck({
+        at: new Date().toISOString(),
+        status: "ok",
+        error: null,
+      });
+      setInitializing(false);
+      setLoading(false);
+      return undefined;
+    }
+
     let cancelled = false;
     const load = async () => {
       if (loadingRef.current) return;
@@ -316,6 +359,33 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(() => {
+    if (PARKED_MODE) {
+      logParkedOnce();
+      return {
+        user: { id: "parked-user", name: "Parked User" },
+        isAuthenticated: true,
+        authStatus: "authenticated",
+        initializing: false,
+        loading: false,
+        error: null,
+        authMechanism: "parked",
+        lastAuthCheck: {
+          at: new Date().toISOString(),
+          status: "ok",
+          error: null,
+        },
+        demoMode: false,
+        parkedMode: true,
+        signIn: noop,
+        signUp: noop,
+        signOut: noop,
+        signInWithGoogle: noop,
+        signInWithFacebook: noop,
+        resetPassword: noop,
+        refreshUser: noop,
+      };
+    }
+
     if (DEMO_MODE) {
       return {
         user: { id: "demo-user", name: "Demo User" },
@@ -331,6 +401,7 @@ export function AuthProvider({ children }) {
           error: null,
         },
         demoMode: true,
+        parkedMode: false,
         signIn: noop,
         signUp: noop,
         signOut: noop,
@@ -350,6 +421,7 @@ export function AuthProvider({ children }) {
       authMechanism: "httpOnly-cookie",
       lastAuthCheck,
       demoMode: false,
+      parkedMode: false,
       signIn,
       signUp,
       signOut,
@@ -359,6 +431,7 @@ export function AuthProvider({ children }) {
       refreshUser,
     };
   }, [
+    // NOTE: PARKED_MODE is a build-time constant; included for clarity.
     user,
     isAuthenticated,
     authStatus,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import { Chrome, Facebook, Lock, Mail } from "lucide-react";
 import { useAuth0 } from "@auth0/auth0-react";
 import AuthLayout from "@/components/Layout/AuthLayout";
@@ -8,10 +8,15 @@ import NSButton from "@/components/ui/NSButton";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import FacebookSignInButton from "@/components/auth/FacebookSignInButton";
+import { AUTH_MODE } from "@/config/authMode";
 
 const INITIAL_FORM = { email: "", password: "" };
 
 export default function Login() {
+  if (AUTH_MODE === "PARKED") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const { user, isAuthenticated, initializing } = useAuth();
   const { loginWithRedirect } = useAuth0();
   const navigate = useNavigate();

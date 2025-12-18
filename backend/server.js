@@ -42,7 +42,19 @@ const providerKey = process.env.OPENAI_API_KEY || process.env.AI_PROVIDER_KEY;
 
 // Environment Variables
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || process.env.DATABASE_URL;
+let mongoDisabledLogged = false;
+const logMongoDisabledOnce = () => {
+  if (mongoDisabledLogged) return;
+  mongoDisabledLogged = true;
+  console.log("[db] MongoDB disabled (no valid MONGO_URI)");
+};
+
+const RAW_MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI =
+  typeof RAW_MONGO_URI === "string" &&
+  /^(mongodb:\/\/|mongodb\+srv:\/\/)/.test(RAW_MONGO_URI)
+    ? RAW_MONGO_URI
+    : null;
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Validate critical environment variables
@@ -51,9 +63,7 @@ if (!JWT_SECRET && envName === "production") {
   process.exit(1);
 }
 
-if (!MONGO_URI) {
-  logger.warn("MONGO_URI not set — MongoDB connection will be skipped");
-}
+if (!MONGO_URI) logMongoDisabledOnce();
 
 if (!JWT_SECRET) {
   logger.warn("JWT_SECRET not set — using default (NOT SECURE for production)");
@@ -208,7 +218,6 @@ const MAX_RETRY_DELAY_MS = 30_000;
 
 const connectToMongo = async () => {
   if (!MONGO_URI) {
-    logger.warn("MONGO_URI not set — skipping MongoDB connection");
     return;
   }
 
@@ -249,8 +258,6 @@ if (MONGO_URI) {
     logger.warn("MongoDB disconnected — retrying connection");
     connectToMongo();
   });
-} else {
-  logger.warn("MONGO_URI not set — skipping MongoDB connection");
 }
 
 // 404 handler

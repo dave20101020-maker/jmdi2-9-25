@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import { Lock, Mail, UserRound } from "lucide-react";
 import { useAuth0 } from "@auth0/auth0-react";
 import AuthLayout from "@/components/Layout/AuthLayout";
@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import FacebookSignInButton from "@/components/auth/FacebookSignInButton";
+import { AUTH_MODE } from "@/config/authMode";
 
 const INITIAL_FORM = {
   fullName: "",
@@ -18,6 +19,14 @@ const INITIAL_FORM = {
 };
 
 export default function Register() {
+  if (AUTH_MODE === "PARKED") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <RegisterInner />;
+}
+
+function RegisterInner() {
   const { user, initializing } = useAuth();
   const { loginWithRedirect } = useAuth0();
   const navigate = useNavigate();

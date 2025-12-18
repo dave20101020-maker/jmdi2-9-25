@@ -3,6 +3,8 @@ import User from "../models/User.js";
 import OnboardingProfile from "../models/OnboardingProfile.js";
 import PillarCheckIn from "../models/PillarCheckIn.js";
 import { applyAiDisclaimer } from "../src/ai/disclaimer.js";
+import { prisma } from "../src/db/prismaClient.js";
+import { pgFirstRead } from "../src/utils/readSwitch.js";
 
 const sendAiResponse = (res, payload, status = 200) =>
   res.status(status).json(applyAiDisclaimer(payload));
@@ -136,11 +138,27 @@ export const calculatePriorityScores = async (userId, userDoc = null) => {
       // Recent check-ins (last 7 days)
       const since = new Date();
       since.setDate(since.getDate() - 7);
-      const entries = await PillarCheckIn.find({
-        userId: uid,
-        pillarId: pillar,
-        createdAt: { $gte: since },
-      }).lean();
+      const entries = await pgFirstRead({
+        label: "ai:calculatePriorityScores:checkins",
+        meta: { userId: uid, pillarIdentifier: pillar },
+        pgRead: async () => {
+          const rows = await prisma.pillarCheckIn.findMany({
+            where: {
+              userId: uid,
+              pillarIdentifier: pillar,
+              createdAt: { gte: since },
+            },
+            select: { value: true },
+          });
+          return rows.map((r) => ({ value: r.value }));
+        },
+        mongoRead: async () =>
+          PillarCheckIn.find({
+            userId: uid,
+            pillarId: pillar,
+            createdAt: { $gte: since },
+          }).lean(),
+      });
       const values = entries.map((e) =>
         typeof e.value === "number" ? e.value : 0
       ); // 0-10
@@ -494,14 +512,42 @@ export const buildWeeklyReport = async (userId) => {
     prevSince.setDate(now.getDate() - 14);
 
     // fetch last 7 days and previous 7 days
-    const recent = await PillarCheckIn.find({
-      userId: uid,
-      createdAt: { $gte: since },
-    }).lean();
-    const prev = await PillarCheckIn.find({
-      userId: uid,
-      createdAt: { $gte: prevSince, $lt: since },
-    }).lean();
+    const recent = await pgFirstRead({
+      label: "ai:buildWeeklyReport:recent",
+      meta: { userId: uid },
+      pgRead: async () => {
+        const rows = await prisma.pillarCheckIn.findMany({
+          where: { userId: uid, createdAt: { gte: since } },
+          select: { pillarIdentifier: true, value: true },
+        });
+        return rows.map((r) => ({
+          pillarId: r.pillarIdentifier,
+          value: r.value,
+        }));
+      },
+      mongoRead: async () =>
+        PillarCheckIn.find({ userId: uid, createdAt: { $gte: since } }).lean(),
+    });
+
+    const prev = await pgFirstRead({
+      label: "ai:buildWeeklyReport:prev",
+      meta: { userId: uid },
+      pgRead: async () => {
+        const rows = await prisma.pillarCheckIn.findMany({
+          where: { userId: uid, createdAt: { gte: prevSince, lt: since } },
+          select: { pillarIdentifier: true, value: true },
+        });
+        return rows.map((r) => ({
+          pillarId: r.pillarIdentifier,
+          value: r.value,
+        }));
+      },
+      mongoRead: async () =>
+        PillarCheckIn.find({
+          userId: uid,
+          createdAt: { $gte: prevSince, $lt: since },
+        }).lean(),
+    });
 
     const pillars = [
       "sleep",

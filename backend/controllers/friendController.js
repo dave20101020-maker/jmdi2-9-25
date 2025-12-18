@@ -102,12 +102,10 @@ export const respondFriendRequest = async (req, res) => {
         .json({ success: false, error: "Friend request not found" });
 
     if (String(request.friendId) !== String(user._id))
-      return res
-        .status(403)
-        .json({
-          success: false,
-          error: "Not authorised to respond to this request",
-        });
+      return res.status(403).json({
+        success: false,
+        error: "Not authorised to respond to this request",
+      });
 
     if (action === "decline") {
       await Friend.deleteOne({ _id: request._id });
@@ -242,12 +240,10 @@ export const createMiniChallenge = async (req, res) => {
       status: "accepted",
     });
     if (!isFriend)
-      return res
-        .status(403)
-        .json({
-          success: false,
-          error: "Mini-challenges require an accepted friendship",
-        });
+      return res.status(403).json({
+        success: false,
+        error: "Mini-challenges require an accepted friendship",
+      });
 
     const doc = await MiniChallenge.create({
       creatorId: user._id,
@@ -318,12 +314,10 @@ export const updateMiniChallenge = async (req, res) => {
         String(user._id)
       )
     ) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          error: "Not authorised to update this challenge",
-        });
+      return res.status(403).json({
+        success: false,
+        error: "Not authorised to update this challenge",
+      });
     }
 
     challenge.status = status;
@@ -334,6 +328,8 @@ export const updateMiniChallenge = async (req, res) => {
     return res.status(500).json({ success: false, error: "Server error" });
   }
 };
+import { prisma } from "../src/db/prismaClient.js";
+import { pgFirstRead } from "../src/utils/readSwitch.js";
 
 // Leaderboard: per pillar for user's friends
 export const getLeaderboardForPillar = async (req, res) => {
@@ -362,10 +358,24 @@ export const getLeaderboardForPillar = async (req, res) => {
 
     const entries = [];
     for (const fid of friendIds) {
-      const scoreDoc = await PillarScore.findOne({
-        userId: fid,
-        pillar: pillarId,
-      }).lean();
+      const scoreDoc = await pgFirstRead({
+        label: "friends:getLeaderboardForPillar",
+        meta: { userId: String(fid), pillarIdentifier: pillarId },
+        pgRead: async () =>
+          prisma.pillarScore
+            .findUnique({
+              where: {
+                userId_pillarIdentifier: {
+                  userId: String(fid),
+                  pillarIdentifier: pillarId,
+                },
+              },
+              select: { score: true },
+            })
+            .then((r) => (r ? { score: r.score } : null)),
+        mongoRead: async () =>
+          PillarScore.findOne({ userId: fid, pillar: pillarId }).lean(),
+      });
       const u = await User.findById(fid)
         .select("username email full_name")
         .lean();
@@ -419,7 +429,21 @@ export const getOverallLeaderboard = async (req, res) => {
 
     const results = [];
     for (const fid of friendIds) {
-      const scores = await PillarScore.find({ userId: fid }).lean();
+      const scores = await pgFirstRead({
+        label: "friends:getOverallLeaderboard",
+        meta: { userId: String(fid) },
+        pgRead: async () => {
+          const rows = await prisma.pillarScore.findMany({
+            where: { userId: String(fid) },
+            select: { pillarIdentifier: true, score: true },
+          });
+          return rows.map((r) => ({
+            pillar: r.pillarIdentifier,
+            score: r.score,
+          }));
+        },
+        mongoRead: async () => PillarScore.find({ userId: fid }).lean(),
+      });
       const map = {};
       scores.forEach((s) => {
         map[s.pillar] = s.score;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import { Chrome, CheckCircle2, Lock, Mail, UserRound } from "lucide-react";
 import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
@@ -7,6 +7,7 @@ import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuth0 } from "@auth0/auth0-react";
 import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
+import { AUTH_MODE } from "@/config/authMode";
 
 const createFieldErrors = () => ({
   fullName: "",
@@ -17,6 +18,14 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 6;
 
 export default function SignUp() {
+  if (AUTH_MODE === "PARKED") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <SignUpInner />;
+}
+
+function SignUpInner() {
   const navigate = useNavigate();
   const { user, initializing } = useAuth();
   const { loginWithRedirect } = useAuth0();

@@ -1,13 +1,22 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Mail, Shield } from "lucide-react";
 import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
+import { AUTH_MODE } from "@/config/authMode";
 
 export default function ForgotPassword() {
+  if (AUTH_MODE === "PARKED") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <ForgotPasswordInner />;
+}
+
+function ForgotPasswordInner() {
   const { resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState({ error: "", success: "" });

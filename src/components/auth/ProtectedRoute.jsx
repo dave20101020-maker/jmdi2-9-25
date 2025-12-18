@@ -4,6 +4,7 @@ import NSButton from "@/components/ui/NSButton";
 import ConnectionIssue from "@/components/fallbacks/ConnectionIssue";
 import RouteLoader from "@/components/fallbacks/RouteLoader";
 import { useAuth } from "@/hooks/useAuth";
+import { AUTH_MODE } from "@/config/authMode";
 
 // DEPRECATED: The active router uses `AuthGuard` (see `src/components/auth/AuthGuard`).
 // This component remains to avoid breaking legacy imports (e.g., `src/router.jsx`).
@@ -26,6 +27,11 @@ export default function ProtectedRoute({ children, redirectTo = "/login" }) {
     const t = setTimeout(() => setExpired(true), DEMO_INIT_TIMEOUT_MS);
     return () => clearTimeout(t);
   }, [DEMO_INIT_TIMEOUT_MS, DISABLE_PROTECTION, initializing]);
+
+  // PARKED mode: always allow access
+  if (AUTH_MODE === "PARKED") {
+    return children || <Outlet />;
+  }
 
   // Demo mode: skip auth checks and render immediately
   if (DISABLE_PROTECTION || demoMode === true || expired) {

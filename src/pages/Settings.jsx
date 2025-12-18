@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from "react";
 import { Link } from "react-router-dom";
 import { api } from "@/utils/apiClient";
 import { toast } from "sonner";
+import { AUTH_MODE } from "@/config/authMode";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import HealthIntegrations from "@/components/HealthIntegrations";
 import { AppSettingsContext } from "@/context/AppSettingsContext.jsx";
@@ -80,6 +81,10 @@ export default function Settings() {
   };
 
   const handleLogout = async () => {
+    if (AUTH_MODE === "PARKED") {
+      toast.message("Auth is parked — logout disabled");
+      return;
+    }
     try {
       await api.logout();
       window.location.href = "/sign-in";

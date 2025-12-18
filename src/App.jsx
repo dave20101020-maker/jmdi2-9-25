@@ -49,6 +49,8 @@ import WeeklyReport from "./pages/WeeklyReport";
 import AITestPanel from "./components/ai/AITestPanel";
 import AuthDebugPanel from "./components/auth/AuthDebugPanel";
 import ApiErrorToast from "./components/ui/ApiErrorToast";
+import { AuthProvider } from "@/hooks/useAuth";
+import { AUTH_MODE } from "@/config/authMode";
 
 function AppLayout({ children }) {
   return (
@@ -256,7 +258,7 @@ function AppOverlays() {
     <>
       <NorthStarAssistant />
       <AITestPanel />
-      <AuthDebugPanel />
+      {AUTH_MODE !== "PARKED" ? <AuthDebugPanel /> : null}
     </>
   );
 }
@@ -264,16 +266,18 @@ function AppOverlays() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <BrowserRouter>
-          <AppLayout>
-            <ApiErrorToast />
-            <AppRoutes />
-            <AppOverlays />
-            <SonnerToaster position="top-right" richColors closeButton />
-          </AppLayout>
-        </BrowserRouter>
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <BrowserRouter>
+            <AppLayout>
+              <ApiErrorToast />
+              <AppRoutes />
+              <AppOverlays />
+              <SonnerToaster position="top-right" richColors closeButton />
+            </AppLayout>
+          </BrowserRouter>
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

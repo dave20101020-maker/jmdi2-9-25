@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PillarScoreTrend {
+  improving
+  stable
+  declining
+}
+
 model Pillar {
   id           String   @id @default(uuid()) @db.Uuid
   identifier   String   @unique
@@ -28,4 +34,39 @@ model UserConsentEvent {
 
   @@index([userId, consentType, capturedAt(sort: Desc)], map: "user_consent_event_user_type_captured_at_desc_idx")
   @@map("user_consent_event")
+}
+
+model PillarCheckIn {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Text
+  pillarIdentifier String  @map("pillar_identifier") @db.Text
+  value           Int
+  note            String   @default("") @db.Text
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId], map: "pillar_check_in_user_id_idx")
+  @@index([pillarIdentifier], map: "pillar_check_in_pillar_identifier_idx")
+  @@index([userId, createdAt(sort: Desc)], map: "pillar_check_in_user_created_at_desc_idx")
+  @@index([userId, pillarIdentifier, createdAt(sort: Desc)], map: "pillar_check_in_user_pillar_created_at_desc_idx")
+  @@map("pillar_check_in")
+}
+
+model PillarScore {
+  id              String           @id @default(uuid()) @db.Uuid
+  userId          String           @map("user_id") @db.Text
+  pillarIdentifier String          @map("pillar_identifier") @db.Text
+  score           Int              @default(50)
+  trend           PillarScoreTrend @default(stable)
+  weeklyScores    Int[]            @default([]) @map("weekly_scores")
+  monthlyScores   Int[]            @default([]) @map("monthly_scores")
+  quickWins       String[]         @default([]) @map("quick_wins")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, pillarIdentifier], map: "pillar_score_user_pillar_unique")
+  @@index([userId], map: "pillar_score_user_id_idx")
+  @@index([pillarIdentifier], map: "pillar_score_pillar_identifier_idx")
+  @@index([userId, pillarIdentifier, updatedAt(sort: Desc)], map: "pillar_score_user_pillar_updated_at_desc_idx")
+  @@map("pillar_score")
 }

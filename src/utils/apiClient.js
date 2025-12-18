@@ -1,5 +1,10 @@
 // src/utils/apiClient.js
 
+import { AUTH_MODE } from "@/config/authMode";
+
+const PARKED_USER = { id: "parked-user", name: "Parked User" };
+const AUTH_PARKED = AUTH_MODE === "PARKED";
+
 const normalizeOriginBase = (value) => {
   if (!value) return "";
   const trimmed = String(value).trim().replace(/\/+$/, "");
@@ -195,18 +200,30 @@ export class APIClient {
   }
 
   login(email, password) {
+    if (AUTH_PARKED) {
+      return Promise.resolve(PARKED_USER);
+    }
     return this.post("/auth/login", { emailOrUsername: email, password });
   }
 
   logout() {
+    if (AUTH_PARKED) {
+      return Promise.resolve({ ok: true });
+    }
     return this.post("/auth/logout");
   }
 
   register(email, password, name) {
+    if (AUTH_PARKED) {
+      return Promise.resolve(PARKED_USER);
+    }
     return this.post("/auth/register", { email, password, name });
   }
 
   me() {
+    if (AUTH_PARKED) {
+      return Promise.resolve(PARKED_USER);
+    }
     return this.get("/auth/me").then((payload) => {
       if (payload && typeof payload === "object") {
         return payload.data ?? payload.user ?? payload;

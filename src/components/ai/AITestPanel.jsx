@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import NSButton from "@/components/ui/NSButton";
 import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
+import { AI_PING_ENABLED } from "@/config/features";
 
 const IS_DEV = import.meta.env.DEV;
 const SHOW =
@@ -18,6 +19,8 @@ const safeJson = async (res) => {
 };
 
 export default function AITestPanel() {
+  if (!AI_PING_ENABLED) return null;
+
   const [submitting, setSubmitting] = useState(false);
   const [lastRequest, setLastRequest] = useState("");
   const [lastResponse, setLastResponse] = useState("");

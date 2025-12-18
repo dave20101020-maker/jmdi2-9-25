@@ -14,7 +14,11 @@ const resolveArray = (value) => {
 export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 5000),
-  mongoUri: process.env.MONGO_URI || process.env.DATABASE_URL,
+  mongoUri:
+    typeof process.env.MONGO_URI === "string" &&
+    /^(mongodb:\/\/|mongodb\+srv:\/\/)/.test(process.env.MONGO_URI)
+      ? process.env.MONGO_URI
+      : undefined,
   jwt: {
     accessSecret:
       process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || "dev-access",

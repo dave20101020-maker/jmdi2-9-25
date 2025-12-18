@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import NSButton from "@/components/ui/NSButton";
@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { normalizeErrorMessage } from "@/utils/normalizeErrorMessage";
 import { consumeGoogleOAuthState } from "@/lib/oauth/google";
 import { toast } from "sonner";
+import { AUTH_MODE } from "@/config/authMode";
 
 const DEFAULT_STATUS = {
   type: "loading",
@@ -23,6 +24,14 @@ const decodeParam = (value) => {
 };
 
 export default function GoogleOAuthCallback() {
+  if (AUTH_MODE === "PARKED") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <GoogleOAuthCallbackInner />;
+}
+
+function GoogleOAuthCallbackInner() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { refreshUser } = useAuth();

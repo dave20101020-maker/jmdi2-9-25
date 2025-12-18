@@ -3,6 +3,8 @@ import Habit from "../models/Habit.js";
 import PillarScore from "../models/PillarScore.js";
 import PillarCheckIn from "../models/PillarCheckIn.js";
 import { VALID_PILLARS } from "../utils/pillars.js";
+import { prisma } from "../src/db/prismaClient.js";
+import { pgFirstRead } from "../src/utils/readSwitch.js";
 
 const router = express.Router();
 
@@ -135,11 +137,38 @@ const fetchProgressSnapshot = async (userId) => {
   if (!userId) return defaultProgress;
 
   const [pillarScores, habits, checkIns] = await Promise.all([
-    PillarScore.find({ userId })
-      .sort({ updatedAt: -1 })
-      .limit(VALID_PILLARS.length),
+    pgFirstRead({
+      label: "nav:progress:pillarScores",
+      meta: { userId },
+      pgRead: async () => {
+        const rows = await prisma.pillarScore.findMany({
+          where: { userId },
+          orderBy: { updatedAt: "desc" },
+          take: VALID_PILLARS.length,
+          select: { updatedAt: true },
+        });
+        return rows;
+      },
+      mongoRead: async () =>
+        PillarScore.find({ userId })
+          .sort({ updatedAt: -1 })
+          .limit(VALID_PILLARS.length)
+          .lean(),
+    }),
     Habit.find({ userId }).sort({ updatedAt: -1 }).limit(50),
-    PillarCheckIn.find({ userId }).sort({ createdAt: -1 }).limit(10),
+    pgFirstRead({
+      label: "nav:progress:checkins",
+      meta: { userId },
+      pgRead: async () =>
+        prisma.pillarCheckIn.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: { createdAt: true },
+        }),
+      mongoRead: async () =>
+        PillarCheckIn.find({ userId }).sort({ createdAt: -1 }).limit(10).lean(),
+    }),
   ]);
 
   return {

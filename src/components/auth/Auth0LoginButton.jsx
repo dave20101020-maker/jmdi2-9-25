@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import NSButton from "@/components/ui/NSButton";
+import { AUTH_MODE } from "@/config/authMode";
 
 function Auth0LoginButtonInner() {
   const { loginWithRedirect, isLoading } = useAuth0();
@@ -28,6 +29,8 @@ function Auth0LoginButtonInner() {
 }
 
 export default function Auth0LoginButton() {
+  if (AUTH_MODE === "PARKED") return null;
+
   const enabled = import.meta.env.VITE_ENABLE_AUTH0 === "true";
   const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN;
   const auth0ClientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
