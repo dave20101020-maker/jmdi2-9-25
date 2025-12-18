@@ -16,7 +16,13 @@ if (!auth0Domain || !auth0ClientId) {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <Auth0Provider domain={auth0Domain} clientId={auth0ClientId}>
+    <Auth0Provider
+      domain={auth0Domain}
+      clientId={auth0ClientId}
+      authorizationParams={{
+        redirect_uri: window.location.origin,
+      }}
+    >
       <App />
     </Auth0Provider>
   </React.StrictMode>

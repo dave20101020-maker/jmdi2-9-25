@@ -80,35 +80,6 @@ export class APIClient {
     return `${this.baseUrl}${API_PREFIX}${apiPath}`;
   }
 
-  async refreshSession() {
-    const res = await fetch(this.buildUrl("/auth/refresh"), {
-      method: "POST",
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      let parsed;
-      try {
-        parsed = text ? JSON.parse(text) : null;
-      } catch {
-        parsed = null;
-      }
-      const message =
-        parsed?.message || parsed?.error || text || "Unable to refresh session";
-      const error = new Error(message);
-      error.status = res.status;
-      error.body = parsed || text;
-      throw error;
-    }
-
-    try {
-      return await res.json();
-    } catch {
-      return null;
-    }
-  }
-
   emit(eventName, detail) {
     try {
       window.dispatchEvent(new CustomEvent(eventName, { detail }));
@@ -171,44 +142,25 @@ export class APIClient {
     }
 
     if (res.status === 401 && retryOnUnauthorized) {
-      try {
-        if (shouldLogAuth) {
-          console.info("[AUTH] API 401 -> refresh", {
-            path: normalizeApiPath(path),
-          });
-        }
-        await this.refreshSession();
-        if (shouldLogAuth) {
-          console.info("[AUTH] refresh ok -> retry", {
-            path: normalizeApiPath(path),
-          });
-        }
-        return this.request(path, {
-          method,
-          body,
-          headers,
-          retryOnUnauthorized: false,
-        });
-      } catch (refreshError) {
-        if (shouldLogAuth) {
-          console.info("[AUTH] refresh failed", {
-            path: normalizeApiPath(path),
-            message: refreshError?.message,
-          });
-        }
-        this.emit("api-error", {
-          status: 401,
-          error: refreshError,
-          path: normalizeApiPath(path),
-          method,
-        });
-        this.emit("auth-required", { reason: "refresh-failed" });
-        const error = new Error(
-          refreshError?.message || data?.message || "Unauthorized"
-        );
-        error.status = 401;
-        throw error;
-      }
+      this.emit("api-error", {
+        status: 401,
+        body: data,
+        path: normalizeApiPath(path),
+        method,
+      });
+
+      // Treat unauthenticated as a clean logged-out state.
+      // Especially important for /api/auth/me which is our session probe.
+      this.emit("auth-required", {
+        reason:
+          normalizeApiPath(path) === "/auth/me"
+            ? "unauthenticated"
+            : "unauthorized",
+      });
+
+      const error = new Error(data?.message || text || "Unauthorized");
+      error.status = 401;
+      throw error;
     }
 
     if (!res.ok) {

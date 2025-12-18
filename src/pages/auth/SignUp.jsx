@@ -79,10 +79,6 @@ export default function SignUp() {
     );
   }
 
-  const trimmedEmail = form.email.trim();
-  const isEmailValid = EMAIL_REGEX.test(trimmedEmail);
-  const isPasswordValid = form.password.length >= MIN_PASSWORD_LENGTH;
-  const isFormValid = isEmailValid && isPasswordValid;
   const isBusy = formSubmitting || oauthSubmitting;
 
   const missionAside = (
@@ -114,6 +110,10 @@ export default function SignUp() {
       }
     >
       <div className="ns-auth-stack">
+        <div className="text-white/70 text-sm" aria-live="polite">
+          Email/password login is handled by Auth0
+        </div>
+
         {error && (
           <div className="ns-alert" role="alert">
             {normalizeErrorMessage(error, "Unable to create your account")}
@@ -129,7 +129,7 @@ export default function SignUp() {
             value={form.fullName}
             onChange={handleChange("fullName")}
             autoComplete="name"
-            required
+            disabled
             variant="contrast"
             error={fieldErrors.fullName}
           />
@@ -142,7 +142,7 @@ export default function SignUp() {
             value={form.email}
             onChange={handleChange("email")}
             autoComplete="email"
-            required
+            disabled
             variant="contrast"
             error={fieldErrors.email}
           />
@@ -155,20 +155,19 @@ export default function SignUp() {
             value={form.password}
             onChange={handleChange("password")}
             autoComplete="new-password"
-            required
-            minLength={6}
+            disabled
             variant="contrast"
             error={fieldErrors.password}
           />
           <div className="ns-auth-actions ns-auth-actions--baseline">
             <label className="ns-checkbox">
-              <input type="checkbox" required />
+              <input type="checkbox" />
               <span>I agree to the mission terms.</span>
             </label>
           </div>
           <NSButton
             type="submit"
-            disabled={!isFormValid || isBusy}
+            disabled={isBusy}
             loading={formSubmitting}
             size="lg"
             fullWidth

@@ -66,7 +66,9 @@ export default function SignIn() {
 
   const handleGoogle = () => {
     clearStatus();
-    void loginWithRedirect();
+    void loginWithRedirect({
+      authorizationParams: { connection: "google-oauth2" },
+    });
   };
 
   const DEMO_MODE =
@@ -117,6 +119,10 @@ export default function SignIn() {
       }
     >
       <div className="ns-auth-stack">
+        <div className="text-white/70 text-sm" aria-live="polite">
+          Email/password login is handled by Auth0
+        </div>
+
         {status.type === "error" && (
           <div className="ns-alert" role="alert">
             {normalizeErrorMessage(status.message, "Sign-in failed")}
@@ -138,7 +144,7 @@ export default function SignIn() {
             placeholder="commander@northstar.app"
             value={form.email}
             onChange={handleChange("email")}
-            required
+            disabled
             variant="contrast"
             error={fieldErrors.email}
           />
@@ -151,7 +157,7 @@ export default function SignIn() {
             leftIcon={<Lock size={16} />}
             value={form.password}
             onChange={handleChange("password")}
-            required
+            disabled
             variant="contrast"
             error={fieldErrors.password}
           />

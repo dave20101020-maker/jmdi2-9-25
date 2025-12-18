@@ -1,5 +1,11 @@
 import React from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./components/ThemeProvider";
 import AppShell from "./components/layout/AppShell";
@@ -234,6 +240,27 @@ function AppRoutes() {
   );
 }
 
+function AppOverlays() {
+  const location = useLocation();
+  const pathname = location?.pathname || "";
+  const isAuthRoute =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password" ||
+    pathname === "/sign-in" ||
+    pathname === "/sign-up";
+
+  if (isAuthRoute) return null;
+
+  return (
+    <>
+      <NorthStarAssistant />
+      <AITestPanel />
+      <AuthDebugPanel />
+    </>
+  );
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -242,9 +269,7 @@ export default function App() {
           <AppLayout>
             <ApiErrorToast />
             <AppRoutes />
-            <NorthStarAssistant />
-            <AITestPanel />
-            <AuthDebugPanel />
+            <AppOverlays />
             <SonnerToaster position="top-right" richColors closeButton />
           </AppLayout>
         </BrowserRouter>

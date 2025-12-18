@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Lock, Mail } from "lucide-react";
+import { Chrome, Facebook, Lock, Mail } from "lucide-react";
 import { useAuth0 } from "@auth0/auth0-react";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import FacebookSignInButton from "@/components/auth/FacebookSignInButton";
 
 const INITIAL_FORM = { email: "", password: "" };
@@ -38,6 +37,7 @@ export default function Login() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setFormError("");
     void loginWithRedirect();
   };
 
@@ -50,6 +50,17 @@ export default function Login() {
       error?.message || "We could not start Google authentication.";
     setFormError(message);
     toast.error("Google sign-in failed", { description: message });
+  };
+
+  const handleGoogleClick = async () => {
+    handleGoogleStart();
+    try {
+      await loginWithRedirect({
+        authorizationParams: { connection: "google-oauth2" },
+      });
+    } catch (error) {
+      handleGoogleError(error);
+    }
   };
 
   const handleFacebookStart = () => {
@@ -87,7 +98,7 @@ export default function Login() {
         )}
 
         <div className="text-white/70 text-sm" aria-live="polite">
-          Email/password sign-in is handled by Auth0.
+          Email/password login is handled by Auth0
         </div>
 
         <form
@@ -103,7 +114,7 @@ export default function Login() {
             placeholder="pilot@northstar.app"
             value={form.email}
             onChange={handleChange("email")}
-            required
+            disabled
             variant="contrast"
             leftIcon={<Mail className="w-4 h-4" />}
             error={fieldErrors.email}
@@ -117,7 +128,7 @@ export default function Login() {
             placeholder="Enter your access key"
             value={form.password}
             onChange={handleChange("password")}
-            required
+            disabled
             variant="contrast"
             leftIcon={<Lock className="w-4 h-4" />}
             error={fieldErrors.password}
@@ -136,12 +147,18 @@ export default function Login() {
           <span>or</span>
         </div>
         <div className="flex flex-col gap-3 w-full">
-          <GoogleSignInButton
+          <NSButton
+            type="button"
+            variant="outline"
+            size="lg"
             fullWidth
-            onStart={handleGoogleStart}
-            onError={handleGoogleError}
+            className="ns-google-button"
+            onClick={handleGoogleClick}
+            leadingIcon={<Chrome className="w-4 h-4" />}
             data-testid="login-google-button"
-          />
+          >
+            Continue with Google
+          </NSButton>
           <FacebookSignInButton
             fullWidth
             onStart={handleFacebookStart}

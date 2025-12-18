@@ -113,7 +113,7 @@ export default function Register() {
         )}
 
         <div className="text-white/70 text-sm" aria-live="polite">
-          Email signup is handled by Auth0.
+          Email/password login is handled by Auth0
         </div>
         <form
           className="ns-auth-form"
@@ -127,7 +127,7 @@ export default function Register() {
             placeholder="Lyra Bennett"
             value={form.fullName}
             onChange={handleChange("fullName")}
-            required
+            disabled
             variant="contrast"
             leftIcon={<UserRound className="w-4 h-4" />}
             error={fieldErrors.fullName}
@@ -141,7 +141,7 @@ export default function Register() {
             placeholder="pilot@northstar.app"
             value={form.email}
             onChange={handleChange("email")}
-            required
+            disabled
             variant="contrast"
             leftIcon={<Mail className="w-4 h-4" />}
             error={fieldErrors.email}
@@ -155,7 +155,7 @@ export default function Register() {
             placeholder="Choose a secure key"
             value={form.password}
             onChange={handleChange("password")}
-            required
+            disabled
             variant="contrast"
             leftIcon={<Lock className="w-4 h-4" />}
             error={fieldErrors.password}
@@ -169,7 +169,7 @@ export default function Register() {
             placeholder="Re-enter your key"
             value={form.confirmPassword}
             onChange={handleChange("confirmPassword")}
-            required
+            disabled
             variant="contrast"
             leftIcon={<Lock className="w-4 h-4" />}
             error={fieldErrors.confirmPassword}

@@ -15,8 +15,15 @@ const normalizeUser = (payload: unknown) => {
 
 const extractStatus = (err: unknown) => {
   if (!err || typeof err !== "object") return null;
-  const asAny = err as any;
-  const raw = asAny?.status || asAny?.statusCode || asAny?.response?.status;
+  const asRecord = err as Record<string, unknown>;
+  const response = asRecord.response;
+  const responseRecord =
+    response && typeof response === "object"
+      ? (response as Record<string, unknown>)
+      : null;
+
+  const raw =
+    asRecord.status ?? asRecord.statusCode ?? responseRecord?.status ?? null;
   if (typeof raw === "number") return raw;
   if (typeof raw === "string") {
     const parsed = Number(raw);
