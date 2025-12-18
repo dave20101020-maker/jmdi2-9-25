@@ -1,7 +1,17 @@
+// ============================================================
+// PHASE 6.5 LOCKED
+// OnboardingProfile:
+// - MongoDB: fallback only
+// - Postgres: primary read/write store
+// - API behavior frozen
+// ============================================================
+
 import OnboardingProfile from "../models/OnboardingProfile.js";
 import UserConsent from "../models/UserConsent.js";
 import { VALID_PILLARS, normalizePillarId } from "../utils/pillars.js";
 import { recordEvent } from "../utils/eventLogger.js";
+import { prisma } from "../src/db/prismaClient.js";
+import { pgFirstRead } from "../src/utils/readSwitch.js";
 
 const clampScore = (value) => Math.max(0, Math.min(10, Number(value) || 0));
 
@@ -61,6 +71,37 @@ export const submitOnboarding = async (req, res) => {
       }
     );
 
+    // Phase 6.5: Dual-write onboarding profile to Postgres (best-effort).
+    // Mongo remains authoritative. Postgres failures must never fail the request.
+    try {
+      const doc =
+        typeof profile?.toObject === "function"
+          ? profile.toObject({ depopulate: true })
+          : profile;
+
+      await prisma.onboardingProfile.upsert({
+        where: { userId: String(userId) },
+        create: {
+          userId: String(userId),
+          doc,
+        },
+        update: {
+          doc,
+        },
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[PHASE 6.5][DUAL WRITE] onboarding_profile pg_upsert_failed",
+        {
+          userId: String(userId),
+          name: err?.name,
+          code: err?.code,
+          message: err?.message || String(err),
+        }
+      );
+    }
+
     await recordEvent("onboarding_completed", {
       userId,
       source: "api/onboarding",
@@ -89,7 +130,20 @@ export const getOnboarding = async (req, res) => {
   const userId = req.user?._id;
   if (!userId)
     return res.status(401).json({ success: false, error: "Auth required" });
-  const profile = await OnboardingProfile.findOne({ userId: String(userId) });
+  const uid = String(userId);
+
+  const profile = await pgFirstRead({
+    label: "onboarding:getOnboarding",
+    meta: { userId: uid },
+    pgRead: async () => {
+      const row = await prisma.onboardingProfile.findUnique({
+        where: { userId: uid },
+        select: { doc: true },
+      });
+      return row?.doc || null;
+    },
+    mongoRead: async () => OnboardingProfile.findOne({ userId: uid }),
+  });
   if (!profile)
     return res
       .status(404)

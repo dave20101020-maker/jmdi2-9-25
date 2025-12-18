@@ -1,5 +1,7 @@
 import User from "../models/User.js";
 import OnboardingProfile from "../models/OnboardingProfile.js";
+import { prisma } from "../src/db/prismaClient.js";
+import { pgFirstRead } from "../src/utils/readSwitch.js";
 import PillarScore from "../models/PillarScore.js";
 import ActionPlan from "../models/ActionPlan.js";
 import Message from "../models/Message.js";
@@ -557,7 +559,18 @@ export const exportUserData = async (req, res) => {
     const uid = String(user._1d || user._id);
 
     const profile = await User.findById(uid).lean();
-    const onboarding = await OnboardingProfile.findOne({ userId: uid }).lean();
+    const onboarding = await pgFirstRead({
+      label: "user:export:onboarding",
+      meta: { userId: uid },
+      pgRead: async () => {
+        const row = await prisma.onboardingProfile.findUnique({
+          where: { userId: uid },
+          select: { doc: true },
+        });
+        return row?.doc || null;
+      },
+      mongoRead: async () => OnboardingProfile.findOne({ userId: uid }).lean(),
+    });
     const pillarScores = await PillarScore.find({ userId: uid }).lean();
     const actionPlans = await ActionPlan.find({ userId: uid }).lean();
     const messages = await Message.find({

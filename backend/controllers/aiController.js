@@ -106,9 +106,21 @@ const getNorthStarRecommendation = async (user) => {
 export const calculatePriorityScores = async (userId, userDoc = null) => {
   try {
     const uid = String(userId);
-    const onboarding = await OnboardingProfile.findOne({ userId: uid })
-      .lean()
-      .catch(() => null);
+    const onboarding = await pgFirstRead({
+      label: "ai:calculatePriorityScores:onboarding",
+      meta: { userId: uid },
+      pgRead: async () => {
+        const row = await prisma.onboardingProfile.findUnique({
+          where: { userId: uid },
+          select: { doc: true },
+        });
+        return row?.doc || null;
+      },
+      mongoRead: async () =>
+        OnboardingProfile.findOne({ userId: uid })
+          .lean()
+          .catch(() => null),
+    });
 
     // Determine allowed pillars
     const allowed =

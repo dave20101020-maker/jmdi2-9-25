@@ -70,3 +70,14 @@ model PillarScore {
   @@index([userId, pillarIdentifier, updatedAt(sort: Desc)], map: "pillar_score_user_pillar_updated_at_desc_idx")
   @@map("pillar_score")
 }
+
+model OnboardingProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Text
+  doc       Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId], map: "onboarding_profile_user_id_idx")
+  @@map("onboarding_profile")
+}

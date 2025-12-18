@@ -1,3 +1,10 @@
+// ============================================================
+// PHASE 6.5 LOCKED: OnboardingProfile migration complete
+// - Postgres is primary read path
+// - MongoDB retained as fallback only
+// - Dual-write completed and stable
+// ============================================================
+
 export const READ_SWITCH_PREFIX = "[PHASE 6.4][READ SWITCH]";
 export const READ_FALLBACK_PREFIX = "[PHASE 6.4][READ FALLBACK]";
 
