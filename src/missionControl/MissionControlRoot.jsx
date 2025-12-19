@@ -24,7 +24,7 @@ export default function MissionControlRoot(props) {
     distressSignals: false,
   };
 
-  const modules = getMissionControlModules(mockUserState);
+  const modules = getMissionControlModules(mockUserState) || [];
 
   return (
     <div className="min-h-screen bg-navy text-white">

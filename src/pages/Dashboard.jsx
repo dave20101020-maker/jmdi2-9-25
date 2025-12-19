@@ -1364,13 +1364,5 @@ DashboardContent.propTypes = {
 };
 
 export default function Dashboard() {
-  return (
-    <AuthGuard>
-      {(user) => (
-        <ErrorBoundary>
-          <DashboardContent user={user} />
-        </ErrorBoundary>
-      )}
-    </AuthGuard>
-  );
+  return null;
 }

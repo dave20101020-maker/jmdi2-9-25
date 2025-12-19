@@ -9,9 +9,13 @@ import SupportModule from "../modules/SupportModule";
 import MomentumModule from "../modules/MomentumModule";
 import AIEntryModule from "../modules/AIEntryModule";
 
-export default function MissionControlRenderer({ modules }) {
+export default function MissionControlRenderer({ modules = [] }) {
+  if (!Array.isArray(modules) || modules.length === 0) {
+    return <EmptyStateGuidance />;
+  }
+
   return (
-    <>
+    <div className="space-y-6">
       {modules.map((module, index) => {
         switch (module.type) {
           case MODULE_TYPES.PRIORITY_ACTION:
@@ -42,6 +46,6 @@ export default function MissionControlRenderer({ modules }) {
             return null;
         }
       })}
-    </>
+    </div>
   );
 }
