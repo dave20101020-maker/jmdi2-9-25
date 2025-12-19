@@ -9,7 +9,10 @@
 import User from "../models/User.js";
 import OnboardingProfile from "../models/OnboardingProfile.js";
 import { prisma } from "../src/db/prismaClient.js";
-import { pgFirstRead } from "../src/utils/readSwitch.js";
+import {
+  isMongoFallbackEnabled,
+  pgFirstRead,
+} from "../src/utils/readSwitch.js";
 import PillarScore from "../models/PillarScore.js";
 import ActionPlan from "../models/ActionPlan.js";
 import Message from "../models/Message.js";
@@ -432,6 +435,15 @@ export const getCurrentUser = async (req, res) => {
 };
 
 // PUT /api/users/me
+// ============================================================
+// PHASE 6.6 LOCKED — User Core State Reads
+// - PG-first reads with Mongo fallback
+// ============================================================
+// ============================================================
+// PHASE 7.3 — User Core State Writes (PG authoritative)
+// - Primary write: Postgres
+// - Mongo write: best-effort shadow (optional)
+// ============================================================
 export const updateCurrentUser = async (req, res) => {
   try {
     const user = req.user;
@@ -440,59 +452,75 @@ export const updateCurrentUser = async (req, res) => {
     }
 
     const { name, settings } = req.body;
+    const allowMongoShadow = isMongoFallbackEnabled();
+    const userId = String(user._id);
 
-    // Update allowed fields
-    if (name !== undefined) user.name = name;
+    const nextName = name !== undefined ? name : user.name;
+    const nextSettings =
+      settings !== undefined
+        ? {
+            ...(user.settings && typeof user.settings === "object"
+              ? user.settings
+              : {}),
+            ...(settings && typeof settings === "object" ? settings : {}),
+          }
+        : user.settings;
+
+    // Primary write: Postgres for core state changes (authoritative)
     if (settings !== undefined) {
-      user.settings = { ...user.settings, ...settings };
+      try {
+        const pillarsObj =
+          user?.pillars &&
+          typeof user.pillars === "object" &&
+          typeof user.pillars.toObject === "function"
+            ? user.pillars.toObject()
+            : user?.pillars;
+
+        await prisma.userCoreState.upsert({
+          where: { userId },
+          create: {
+            userId,
+            allowedPillars: user.allowedPillars ?? null,
+            pillars: pillarsObj ?? null,
+            settings: nextSettings ?? null,
+            subscriptionTier: user.subscriptionTier ?? null,
+          },
+          update: {
+            settings: nextSettings ?? null,
+          },
+        });
+      } catch (err) {
+        console.error("[PHASE 7.3][WRITE] user_core_state postgres_failed", {
+          userId,
+          name: err?.name,
+          code: err?.code,
+          message: err?.message || String(err),
+        });
+        throw err;
+      }
     }
 
-    await user.save();
-
-    // Phase 6.6: Dual-write UserCoreState to Postgres (best-effort; never fail request).
-    try {
-      const uid = String(user._id);
-      const pillarsObj =
-        user?.pillars &&
-        typeof user.pillars === "object" &&
-        typeof user.pillars.toObject === "function"
-          ? user.pillars.toObject()
-          : user?.pillars;
-
-      await prisma.userCoreState.upsert({
-        where: { userId: uid },
-        create: {
-          userId: uid,
-          allowedPillars: user.allowedPillars ?? null,
-          pillars: pillarsObj ?? null,
-          settings: user.settings ?? null,
-          subscriptionTier: user.subscriptionTier ?? null,
-        },
-        update: {
-          allowedPillars: user.allowedPillars ?? null,
-          pillars: pillarsObj ?? null,
-          settings: user.settings ?? null,
-          subscriptionTier: user.subscriptionTier ?? null,
-        },
-      });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn("[PHASE 6.6][DUAL WRITE] user_core_state pg_upsert_failed", {
-        userId: String(user._id),
-        name: err?.name,
-        code: err?.code,
-        message: err?.message || String(err),
-      });
+    // Mongo write:
+    // - Always update non-core fields (e.g., name) because Mongo remains authoritative for them.
+    // - Only shadow-write core-state fields (e.g., settings) when enabled.
+    if (allowMongoShadow) {
+      if (name !== undefined) user.name = nextName;
+      if (settings !== undefined) user.settings = nextSettings;
+      await user.save();
+    } else {
+      if (name !== undefined) {
+        await User.updateOne({ _id: userId }, { $set: { name: nextName } });
+      }
     }
 
     return res.status(200).json({
       success: true,
       data: {
         id: user._id,
-        name: user.name,
+        name: nextName,
         username: user.username,
         email: user.email,
-        settings: user.settings,
+        settings: nextSettings,
       },
     });
   } catch (err) {

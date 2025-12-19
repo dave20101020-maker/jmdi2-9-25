@@ -11,6 +11,7 @@ import ActionPlan from "../models/ActionPlan.js";
 import { prisma } from "../src/db/prismaClient.js";
 import { isMongoFallbackEnabled } from "../src/utils/readSwitch.js";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 
@@ -34,6 +35,16 @@ export const createActionPlan = async (req, res) => {
         .status(401)
         .json({ success: false, error: "Not authenticated" });
 
+    // ============================================================
+    // PHASE 6.7 LOCKED — Action Plan Reads
+    // - PG-first reads with Mongo fallback
+    // ============================================================
+    // ============================================================
+    // PHASE 7.2 — Action Plan Writes (PG authoritative)
+    // - Primary write: Postgres
+    // - Mongo write: best-effort shadow (optional)
+    // ============================================================
+
     const { pillarId, actions } = req.body || {};
     if (!pillarId || !Array.isArray(actions)) {
       return res.status(400).json({
@@ -42,38 +53,66 @@ export const createActionPlan = async (req, res) => {
       });
     }
 
-    const plan = new ActionPlan({ userId: user._id, pillarId, actions });
-    await plan.save();
+    const allowMongoShadow = isMongoFallbackEnabled();
+    const userId = user._id;
 
-    // Phase 6.7: Dual-write ActionPlan to Postgres (best-effort)
+    // Keep legacy ID shape stable for clients by minting a Mongo ObjectId,
+    // then using deterministic mapping for the Postgres UUID id.
+    const mongoId = new mongoose.Types.ObjectId();
+    const pgId = stableUuidFromString(`action_plan:mongo:${String(mongoId)}`);
+
+    const doc = {
+      _id: String(mongoId),
+      userId: String(userId),
+      pillarId,
+      actions,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    // Primary write: Postgres (authoritative)
+    let pgRow;
     try {
-      const doc =
-        typeof plan?.toObject === "function"
-          ? plan.toObject({ depopulate: true })
-          : plan;
-
-      const mongoId = String(plan?._id);
-      const pgId = stableUuidFromString(`action_plan:mongo:${mongoId}`);
-
-      await prisma.actionPlan.upsert({
-        where: { id: pgId },
-        create: {
+      pgRow = await prisma.actionPlan.create({
+        data: {
           id: pgId,
-          userId: String(plan.userId),
-          doc,
-        },
-        update: {
+          userId: String(userId),
           doc,
         },
       });
     } catch (err) {
-      console.warn("[PHASE 6.7][DUAL WRITE] action_plan pg_upsert_failed", {
-        actionPlanId: String(plan?._id),
-        userId: String(plan?.userId),
+      console.error("[PHASE 7.2][WRITE] action_plan postgres_failed", {
+        userId: String(userId),
         name: err?.name,
         code: err?.code,
         message: err?.message || String(err),
       });
+      return res.status(500).json({
+        success: false,
+        error: "Failed to create action plan",
+      });
+    }
+
+    // Optional shadow write: Mongo (best-effort)
+    if (allowMongoShadow) {
+      try {
+        await ActionPlan.create({
+          _id: mongoId,
+          userId,
+          pillarId,
+          actions,
+          createdAt: pgRow.createdAt,
+          updatedAt: pgRow.updatedAt,
+        });
+      } catch (err) {
+        console.warn("[PHASE 7.2][WRITE] action_plan mongo_shadow_failed", {
+          actionPlanId: String(mongoId),
+          userId: String(userId),
+          name: err?.name,
+          code: err?.code,
+          message: err?.message || String(err),
+        });
+      }
     }
 
     // create notification for user about saved plan
@@ -88,7 +127,7 @@ export const createActionPlan = async (req, res) => {
       console.debug("failed to create plan notification", e);
     }
 
-    return res.json({ success: true, plan });
+    return res.json({ success: true, plan: pgRow.doc ?? doc });
   } catch (err) {
     console.error("createActionPlan error", err);
     return res.status(500).json({ success: false, error: "Server error" });
@@ -108,6 +147,37 @@ export const getLatestPlanForPillar = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, error: "pillarId required" });
+
+    const userId = String(user._id);
+    const allowFallback = isMongoFallbackEnabled();
+
+    // Phase 6.7+: PG-first read; JSON field filter done in-process for simplicity.
+    try {
+      const rows = await prisma.actionPlan.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 2000,
+      });
+
+      const hit = rows.find((r) => r?.doc?.pillarId === pillarId);
+      if (hit) {
+        return res.json({ success: true, plan: hit.doc });
+      }
+
+      if (!allowFallback) {
+        return res.json({ success: true, plan: null });
+      }
+    } catch (err) {
+      console.warn("[PHASE 6.7][READ] action_plan_latest pg_read_failed", {
+        userId,
+        pillarId,
+        message: err?.message || String(err),
+      });
+
+      if (!allowFallback) {
+        return res.status(500).json({ success: false, error: "Server error" });
+      }
+    }
 
     const plan = await ActionPlan.findOne({ userId: user._id, pillarId })
       .sort({ createdAt: -1 })
@@ -172,29 +242,42 @@ export const deleteActionPlan = async (req, res) => {
     }
 
     const userId = user._id;
+    const allowMongoShadow = isMongoFallbackEnabled();
 
-    const result = await ActionPlan.deleteOne({ _id: planId, userId });
-    if (!result?.deletedCount) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Action plan not found" });
-    }
-
-    // Phase 6.7: Best-effort delete from Postgres
+    // Phase 7.2: Primary delete from Postgres (authoritative)
     try {
       const pgId = stableUuidFromString(`action_plan:mongo:${String(planId)}`);
-
-      await prisma.actionPlan.delete({
-        where: { id: pgId },
-      });
+      await prisma.actionPlan.delete({ where: { id: pgId } });
     } catch (err) {
-      console.warn("[PHASE 6.7][DELETE] action_plan pg_delete_failed", {
+      if (err?.code === "P2025") {
+        return res
+          .status(404)
+          .json({ success: false, error: "Action plan not found" });
+      }
+
+      console.warn("[PHASE 7.2][DELETE] action_plan pg_delete_failed", {
         actionPlanId: String(planId),
         userId: String(userId),
         name: err?.name,
         code: err?.code,
         message: err?.message || String(err),
       });
+      return res.status(500).json({ success: false, error: "Server error" });
+    }
+
+    // Optional shadow delete from Mongo (best-effort)
+    if (allowMongoShadow) {
+      try {
+        await ActionPlan.deleteOne({ _id: planId, userId });
+      } catch (err) {
+        console.warn("[PHASE 7.2][DELETE] action_plan mongo_shadow_failed", {
+          actionPlanId: String(planId),
+          userId: String(userId),
+          name: err?.name,
+          code: err?.code,
+          message: err?.message || String(err),
+        });
+      }
     }
 
     return res.json({ success: true });
