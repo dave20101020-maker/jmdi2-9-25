@@ -96,6 +96,9 @@ client.interceptors.response.use(
       // Mark error so downstream handlers don't toast
       if (error) {
         error.__suppressToast = true;
+        if (classification?.authRequired) {
+          error.__authRequired = true;
+        }
       }
       return Promise.resolve({ data: null });
     }
