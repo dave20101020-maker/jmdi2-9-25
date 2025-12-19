@@ -10,6 +10,21 @@ export const READ_FALLBACK_PREFIX = "[PHASE 6.4][READ FALLBACK]";
 
 export const isDev = () => process.env.NODE_ENV === "development";
 
+// ============================================================
+// PHASE 7 — Mongo fallback kill-switch (read path only)
+// Default:
+//  - development: enabled (smoother dev)
+//  - production: disabled (once you’re ready)
+//
+// Set explicitly:
+//  MONGO_FALLBACK_ENABLED=true|false
+// ============================================================
+export const isMongoFallbackEnabled = () => {
+  const raw = process.env.MONGO_FALLBACK_ENABLED;
+  if (raw === undefined || raw === null || raw === "") return isDev();
+  return String(raw).toLowerCase() === "true";
+};
+
 export const logReadSwitch = (message, meta) => {
   if (!isDev()) return;
   // eslint-disable-next-line no-console
@@ -37,6 +52,7 @@ const isEmptyResult = (value) => {
  * Phase 6.4 Pillar Check-ins migration complete and locked.
  */
 export const pgFirstRead = async ({ pgRead, mongoRead, label, meta }) => {
+  const allowFallback = isMongoFallbackEnabled();
   let pgResult;
   try {
     pgResult = await pgRead();
@@ -48,10 +64,11 @@ export const pgFirstRead = async ({ pgRead, mongoRead, label, meta }) => {
       code: error?.code,
       message: error?.message || String(error),
     });
+    if (!allowFallback) throw error;
     return mongoRead();
   }
 
-  if (isEmptyResult(pgResult)) {
+  if (allowFallback && isEmptyResult(pgResult)) {
     try {
       const mongoResult = await mongoRead();
       if (!isEmptyResult(mongoResult)) {

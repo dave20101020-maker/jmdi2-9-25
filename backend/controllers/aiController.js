@@ -14,7 +14,10 @@ import PillarCheckIn from "../models/PillarCheckIn.js";
 import AiMessage from "../models/AiMessage.js";
 import { applyAiDisclaimer } from "../src/ai/disclaimer.js";
 import { prisma } from "../src/db/prismaClient.js";
-import { pgFirstRead } from "../src/utils/readSwitch.js";
+import {
+  isMongoFallbackEnabled,
+  pgFirstRead,
+} from "../src/utils/readSwitch.js";
 
 const sendAiResponse = (res, payload, status = 200) =>
   res.status(status).json(applyAiDisclaimer(payload));
@@ -800,6 +803,7 @@ export const getAiMessages = async (req, res) => {
       500,
       Math.max(1, Number.parseInt(String(limitRaw ?? "100"), 10) || 100)
     );
+    const allowFallback = isMongoFallbackEnabled();
 
     // Phase 6.8: PG-first read with Mongo fallback
     try {
@@ -833,8 +837,14 @@ export const getAiMessages = async (req, res) => {
         sessionId,
         message: err?.message || String(err),
       });
+      if (!allowFallback) {
+        return sendAiResponse(res, { success: true, messages: [] }, 200);
+      }
     }
 
+    if (!allowFallback) {
+      return sendAiResponse(res, { success: true, messages: [] }, 200);
+    }
     const messages = await AiMessage.find({
       userId,
       ...(sessionId ? { sessionId } : {}),

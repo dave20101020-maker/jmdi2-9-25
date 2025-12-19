@@ -9,6 +9,7 @@
 
 import ActionPlan from "../models/ActionPlan.js";
 import { prisma } from "../src/db/prismaClient.js";
+import { isMongoFallbackEnabled } from "../src/utils/readSwitch.js";
 import crypto from "crypto";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
@@ -127,6 +128,7 @@ export const getActionPlans = async (req, res) => {
         .json({ success: false, error: "Not authenticated" });
 
     const userId = String(user._id);
+    const allowFallback = isMongoFallbackEnabled();
 
     // Phase 6.7: PG-first read with Mongo fallback
     try {
@@ -143,8 +145,12 @@ export const getActionPlans = async (req, res) => {
         userId,
         message: err?.message || String(err),
       });
+      if (!allowFallback) {
+        return res.status(500).json({ error: "Failed to fetch action plans" });
+      }
     }
 
+    if (!allowFallback) return res.json([]);
     const plans = await ActionPlan.find({ userId }).sort({ createdAt: -1 });
     return res.json(plans);
   } catch (err) {
