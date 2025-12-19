@@ -13,6 +13,12 @@ export default function ApiErrorToast() {
         return;
       }
 
+      // Never show auth-required toasts automatically
+      // Auth messaging is handled explicitly by auth flows
+      if (e?.detail?.__authRequired === true) {
+        return;
+      }
+
       setDetail(e?.detail ?? null);
     };
     window.addEventListener("api-error", handler);
