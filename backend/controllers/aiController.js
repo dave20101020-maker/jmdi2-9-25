@@ -706,6 +706,11 @@ export const weeklyReportAgent = async (req, res) => {
 
 // POST /api/ai/messages
 // Phase 6.8: persist chat transcript message (append-only)
+// ============================================================
+// PHASE 7.1 — AI Message Writes (PG authoritative)
+// - Primary write: Postgres
+// - Mongo write: best-effort shadow (optional)
+// ============================================================
 export const createAiMessage = async (req, res) => {
   try {
     const user = req.user;
@@ -726,6 +731,7 @@ export const createAiMessage = async (req, res) => {
     const role = String(body.role || "").trim();
     const content = body.content;
     const meta = body.meta;
+    const allowMongoShadow = isMongoFallbackEnabled();
 
     if (!role) {
       return sendAiResponse(
@@ -743,17 +749,10 @@ export const createAiMessage = async (req, res) => {
       );
     }
 
-    const message = await AiMessage.create({
-      userId,
-      sessionId,
-      role,
-      content,
-      meta,
-    });
-
-    // Phase 6.8: Dual-write AI message to Postgres (best-effort, append-only)
+    // Primary write: Postgres (authoritative)
+    let pgRow;
     try {
-      await prisma.aiMessage.create({
+      pgRow = await prisma.aiMessage.create({
         data: {
           userId: String(userId),
           sessionId: sessionId ? String(sessionId) : null,
@@ -763,16 +762,44 @@ export const createAiMessage = async (req, res) => {
         },
       });
     } catch (err) {
-      console.warn("[PHASE 6.8][DUAL WRITE] ai_message pg_insert_failed", {
+      console.error("[PHASE 7.1][WRITE] ai_message postgres_failed", {
         userId: String(userId),
         sessionId: sessionId ? String(sessionId) : null,
         name: err?.name,
         code: err?.code,
         message: err?.message || String(err),
       });
+      throw err;
     }
 
-    return sendAiResponse(res, { success: true, message });
+    // Optional shadow write: Mongo (best-effort)
+    if (allowMongoShadow) {
+      try {
+        const shadowMeta =
+          meta && typeof meta === "object" && !Array.isArray(meta)
+            ? { ...meta, pgId: pgRow.id }
+            : { original: meta ?? null, pgId: pgRow.id };
+
+        await AiMessage.create({
+          userId,
+          sessionId,
+          role,
+          content,
+          meta: shadowMeta,
+          createdAt: pgRow.createdAt,
+        });
+      } catch (err) {
+        console.warn("[PHASE 7.1][WRITE] ai_message mongo_shadow_failed", {
+          userId: String(userId),
+          sessionId: sessionId ? String(sessionId) : null,
+          name: err?.name,
+          code: err?.code,
+          message: err?.message || String(err),
+        });
+      }
+    }
+
+    return sendAiResponse(res, { success: true, message: pgRow });
   } catch (err) {
     console.error("createAiMessage error", err);
     return sendAiResponse(res, { success: false, error: "Server error" }, 500);
