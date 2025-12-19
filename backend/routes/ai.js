@@ -1,7 +1,16 @@
+// ============================================================
+// PHASE 6.8 LOCKED — AI Message Routes
+// - PG-first reads with Mongo fallback
+// - No further migration work required
+// ============================================================
+
 import express from "express";
 import OpenAI from "openai";
+import { z } from "zod";
 import {
   coachAgent,
+  createAiMessage,
+  getAiMessages,
   dailyPlanAgent,
   pillarAnalysisAgent,
   weeklyReflectionAgent,
@@ -125,5 +134,37 @@ router.post(
   asyncHandler(weeklyReflectionAgent)
 );
 router.get("/weekly-report", asyncHandler(weeklyReportAgent));
+
+/**
+ * POST /api/ai/messages
+ * Body: { sessionId?: string|null, role: string, content: any, meta?: any }
+ */
+router.post(
+  "/messages",
+  validate({
+    body: z.object({
+      sessionId: z.string().optional().nullable(),
+      role: z.string().min(1),
+      content: z.any(),
+      meta: z.any().optional().nullable(),
+    }),
+  }),
+  asyncHandler(createAiMessage)
+);
+
+/**
+ * GET /api/ai/messages
+ * Query: { sessionId?: string, limit?: string|number }
+ */
+router.get(
+  "/messages",
+  validate({
+    query: z.object({
+      sessionId: z.string().optional().nullable(),
+      limit: z.union([z.string(), z.number()]).optional(),
+    }),
+  }),
+  asyncHandler(getAiMessages)
+);
 
 export default router;

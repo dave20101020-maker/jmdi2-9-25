@@ -1,13 +1,64 @@
+// ============================================================
+// PHASE 6.6 LOCKED — User Core State
+// - Postgres (UserCoreState) is primary read source
+// - Mongo User document is fallback only
+// - Overlay applied centrally via auth middleware
+// - No further migration work required
+// ============================================================
+
 import { logAuditEvent } from "./auditLogger.js";
 import { resolveEntitlements } from "../utils/entitlements.js";
 import { checkSubscription } from "./subscriptionGuard.js";
 import auth0JwtMiddleware from "./auth0JwtMiddleware.js";
+import { prisma } from "../src/db/prismaClient.js";
 import {
   resolveSessionUser,
   getTokenFromRequest,
 } from "../utils/sessionTokens.js";
 
 let didLogAuthOptionalError = false;
+let didLogUserCoreOverlayError = false;
+
+const overlayUserCoreState = async (user) => {
+  try {
+    if (!user?._id) return;
+
+    const uid = String(user._id);
+    const row = await prisma.userCoreState.findUnique({
+      where: { userId: uid },
+      select: {
+        allowedPillars: true,
+        pillars: true,
+        settings: true,
+        subscriptionTier: true,
+      },
+    });
+
+    if (!row) return;
+
+    if (row.allowedPillars !== null && row.allowedPillars !== undefined) {
+      user.allowedPillars = row.allowedPillars;
+    }
+    if (row.pillars !== null && row.pillars !== undefined) {
+      user.pillars = row.pillars;
+    }
+    if (row.settings !== null && row.settings !== undefined) {
+      user.settings = row.settings;
+    }
+    if (row.subscriptionTier !== null && row.subscriptionTier !== undefined) {
+      user.subscriptionTier = row.subscriptionTier;
+    }
+  } catch (err) {
+    if (!didLogUserCoreOverlayError) {
+      didLogUserCoreOverlayError = true;
+      console.warn("[PHASE 6.6][READ SWITCH] user_core_state overlay failed", {
+        name: err?.name,
+        code: err?.code,
+        message: err?.message || String(err),
+      });
+    }
+  }
+};
 
 // Optional auth: populates req.user when a valid session exists.
 // Never throws and never blocks unauthenticated requests.
@@ -42,6 +93,7 @@ export const authOptional = async (req, res, next) => {
     }
 
     const user = session.user;
+    await overlayUserCoreState(user);
     req.user = user;
     req.entitlements = resolveEntitlements(user);
     req.sessionPayload = session.payload;
@@ -111,6 +163,7 @@ export const authRequired = async (req, res, next) => {
     }
 
     const user = session.user;
+    await overlayUserCoreState(user);
     const entitlements = resolveEntitlements(user);
     user.entitlements = entitlements;
     const subscription = await checkSubscription(user);

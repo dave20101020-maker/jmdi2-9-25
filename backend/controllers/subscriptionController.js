@@ -1,4 +1,5 @@
 import { checkSubscription } from "../middleware/subscriptionGuard.js";
+import { prisma } from "../src/db/prismaClient.js";
 import {
   getAllowedPillarsForTier,
   mapTierToLegacy,
@@ -91,6 +92,42 @@ export const upgradeSubscription = async (req, res) => {
     }
 
     await user.save();
+
+    // Phase 6.6: Dual-write UserCoreState after subscription mutation (best-effort).
+    try {
+      const uid = String(user._id);
+      const pillarsObj =
+        user?.pillars &&
+        typeof user.pillars === "object" &&
+        typeof user.pillars.toObject === "function"
+          ? user.pillars.toObject()
+          : user?.pillars;
+
+      await prisma.userCoreState.upsert({
+        where: { userId: uid },
+        create: {
+          userId: uid,
+          allowedPillars: user.allowedPillars ?? null,
+          pillars: pillarsObj ?? null,
+          settings: user.settings ?? null,
+          subscriptionTier: user.subscriptionTier ?? null,
+        },
+        update: {
+          allowedPillars: user.allowedPillars ?? null,
+          pillars: pillarsObj ?? null,
+          settings: user.settings ?? null,
+          subscriptionTier: user.subscriptionTier ?? null,
+        },
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("[PHASE 6.6][DUAL WRITE] user_core_state pg_upsert_failed", {
+        userId: String(user._id),
+        name: err?.name,
+        code: err?.code,
+        message: err?.message || String(err),
+      });
+    }
     const subscription = await checkSubscription(user);
 
     return res.json({ success: true, subscription });
@@ -140,6 +177,42 @@ export const startTrial = async (req, res) => {
     user.subscriptionTier = mapTierToLegacy("premium");
 
     await user.save();
+
+    // Phase 6.6: Dual-write UserCoreState after subscription mutation (best-effort).
+    try {
+      const uid = String(user._id);
+      const pillarsObj =
+        user?.pillars &&
+        typeof user.pillars === "object" &&
+        typeof user.pillars.toObject === "function"
+          ? user.pillars.toObject()
+          : user?.pillars;
+
+      await prisma.userCoreState.upsert({
+        where: { userId: uid },
+        create: {
+          userId: uid,
+          allowedPillars: user.allowedPillars ?? null,
+          pillars: pillarsObj ?? null,
+          settings: user.settings ?? null,
+          subscriptionTier: user.subscriptionTier ?? null,
+        },
+        update: {
+          allowedPillars: user.allowedPillars ?? null,
+          pillars: pillarsObj ?? null,
+          settings: user.settings ?? null,
+          subscriptionTier: user.subscriptionTier ?? null,
+        },
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("[PHASE 6.6][DUAL WRITE] user_core_state pg_upsert_failed", {
+        userId: String(user._id),
+        name: err?.name,
+        code: err?.code,
+        message: err?.message || String(err),
+      });
+    }
     const subscription = await checkSubscription(user);
 
     return res.json({ success: true, subscription });

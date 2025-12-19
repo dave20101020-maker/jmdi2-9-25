@@ -1,3 +1,11 @@
+// ============================================================
+// PHASE 6.6 LOCKED
+// User Core State (allowedPillars, pillars, settings, subscriptionTier)
+// - Dual-written to Postgres
+// - Read via auth middleware overlay
+// - API behavior frozen
+// ============================================================
+
 import User from "../models/User.js";
 import OnboardingProfile from "../models/OnboardingProfile.js";
 import { prisma } from "../src/db/prismaClient.js";
@@ -440,6 +448,42 @@ export const updateCurrentUser = async (req, res) => {
     }
 
     await user.save();
+
+    // Phase 6.6: Dual-write UserCoreState to Postgres (best-effort; never fail request).
+    try {
+      const uid = String(user._id);
+      const pillarsObj =
+        user?.pillars &&
+        typeof user.pillars === "object" &&
+        typeof user.pillars.toObject === "function"
+          ? user.pillars.toObject()
+          : user?.pillars;
+
+      await prisma.userCoreState.upsert({
+        where: { userId: uid },
+        create: {
+          userId: uid,
+          allowedPillars: user.allowedPillars ?? null,
+          pillars: pillarsObj ?? null,
+          settings: user.settings ?? null,
+          subscriptionTier: user.subscriptionTier ?? null,
+        },
+        update: {
+          allowedPillars: user.allowedPillars ?? null,
+          pillars: pillarsObj ?? null,
+          settings: user.settings ?? null,
+          subscriptionTier: user.subscriptionTier ?? null,
+        },
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("[PHASE 6.6][DUAL WRITE] user_core_state pg_upsert_failed", {
+        userId: String(user._id),
+        name: err?.name,
+        code: err?.code,
+        message: err?.message || String(err),
+      });
+    }
 
     return res.status(200).json({
       success: true,

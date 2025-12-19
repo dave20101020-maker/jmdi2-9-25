@@ -1,7 +1,17 @@
+// ============================================================
+// PHASE 6.8 LOCKED — AI Messages / Conversation Memory
+// - Postgres (ai_message) is primary read source
+// - Mongo AiMessage is fallback only
+// - Dual-write on append
+// - Deterministic ordering preserved
+// - API behavior frozen
+// ============================================================
+
 import OpenAI from "openai";
 import User from "../models/User.js";
 import OnboardingProfile from "../models/OnboardingProfile.js";
 import PillarCheckIn from "../models/PillarCheckIn.js";
+import AiMessage from "../models/AiMessage.js";
 import { applyAiDisclaimer } from "../src/ai/disclaimer.js";
 import { prisma } from "../src/db/prismaClient.js";
 import { pgFirstRead } from "../src/utils/readSwitch.js";
@@ -687,6 +697,154 @@ export const weeklyReportAgent = async (req, res) => {
     return sendAiResponse(res, { success: true, data: report });
   } catch (err) {
     console.error("weeklyReportAgent error", err);
+    return sendAiResponse(res, { success: false, error: "Server error" }, 500);
+  }
+};
+
+// POST /api/ai/messages
+// Phase 6.8: persist chat transcript message (append-only)
+export const createAiMessage = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user)
+      return sendAiResponse(
+        res,
+        { success: false, error: "Not authenticated" },
+        401
+      );
+
+    const userId = String(user._id);
+    const body = req.body || {};
+
+    const sessionId =
+      body.sessionId !== undefined && body.sessionId !== null
+        ? String(body.sessionId)
+        : null;
+    const role = String(body.role || "").trim();
+    const content = body.content;
+    const meta = body.meta;
+
+    if (!role) {
+      return sendAiResponse(
+        res,
+        { success: false, error: "role is required" },
+        400
+      );
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(body, "content")) {
+      return sendAiResponse(
+        res,
+        { success: false, error: "content is required" },
+        400
+      );
+    }
+
+    const message = await AiMessage.create({
+      userId,
+      sessionId,
+      role,
+      content,
+      meta,
+    });
+
+    // Phase 6.8: Dual-write AI message to Postgres (best-effort, append-only)
+    try {
+      await prisma.aiMessage.create({
+        data: {
+          userId: String(userId),
+          sessionId: sessionId ? String(sessionId) : null,
+          role: String(role),
+          content,
+          meta: meta ?? null,
+        },
+      });
+    } catch (err) {
+      console.warn("[PHASE 6.8][DUAL WRITE] ai_message pg_insert_failed", {
+        userId: String(userId),
+        sessionId: sessionId ? String(sessionId) : null,
+        name: err?.name,
+        code: err?.code,
+        message: err?.message || String(err),
+      });
+    }
+
+    return sendAiResponse(res, { success: true, message });
+  } catch (err) {
+    console.error("createAiMessage error", err);
+    return sendAiResponse(res, { success: false, error: "Server error" }, 500);
+  }
+};
+
+// GET /api/ai/messages?sessionId=...&limit=...
+// Phase 6.8: PG-first read with Mongo fallback (append-only)
+export const getAiMessages = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user)
+      return sendAiResponse(
+        res,
+        { success: false, error: "Not authenticated" },
+        401
+      );
+
+    const userId = String(user._id);
+    const sessionIdRaw = req.query?.sessionId;
+    const sessionId =
+      sessionIdRaw !== undefined && sessionIdRaw !== null && sessionIdRaw !== ""
+        ? String(sessionIdRaw)
+        : null;
+
+    const limitRaw = req.query?.limit;
+    const limit = Math.min(
+      500,
+      Math.max(1, Number.parseInt(String(limitRaw ?? "100"), 10) || 100)
+    );
+
+    // Phase 6.8: PG-first read with Mongo fallback
+    try {
+      const rows = await prisma.aiMessage.findMany({
+        where: {
+          userId: String(userId),
+          ...(sessionId ? { sessionId: String(sessionId) } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      });
+
+      if (rows.length > 0) {
+        return sendAiResponse(
+          res,
+          {
+            success: true,
+            messages: rows.reverse().map((r) => ({
+              role: r.role,
+              content: r.content,
+              meta: r.meta ?? undefined,
+              createdAt: r.createdAt,
+            })),
+          },
+          200
+        );
+      }
+    } catch (err) {
+      console.warn("[PHASE 6.8][READ] ai_message pg_read_failed", {
+        userId,
+        sessionId,
+        message: err?.message || String(err),
+      });
+    }
+
+    const messages = await AiMessage.find({
+      userId,
+      ...(sessionId ? { sessionId } : {}),
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    return sendAiResponse(res, { success: true, messages: messages.reverse() });
+  } catch (err) {
+    console.error("getAiMessages error", err);
     return sendAiResponse(res, { success: false, error: "Server error" }, 500);
   }
 };

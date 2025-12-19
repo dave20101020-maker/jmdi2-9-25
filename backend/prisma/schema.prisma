@@ -74,10 +74,49 @@ model PillarScore {
 model OnboardingProfile {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @unique @map("user_id") @db.Text
-  doc       Json
+  doc       Json     @map("doc")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([userId], map: "onboarding_profile_user_id_idx")
   @@map("onboarding_profile")
+}
+
+model UserCoreState {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @unique @map("user_id") @db.Text
+  allowedPillars   Json?    @map("allowed_pillars")
+  pillars          Json?    @map("pillars")
+  settings         Json?    @map("settings")
+  subscriptionTier String?  @map("subscription_tier") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId], map: "user_core_state_user_id_idx")
+  @@map("user_core_state")
+}
+
+model ActionPlan {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Text
+  doc       Json     @map("doc")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId], map: "action_plan_user_id_idx")
+  @@map("action_plan")
+}
+
+model AiMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Text
+  sessionId String?  @map("session_id") @db.Text
+  role      String   @db.Text // system | user | assistant | tool
+  content   Json
+  meta      Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt], map: "ai_message_user_time_idx")
+  @@index([sessionId], map: "ai_message_session_idx")
+  @@map("ai_message")
 }
