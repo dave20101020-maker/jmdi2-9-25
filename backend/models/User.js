@@ -119,6 +119,12 @@ const userSchema = new mongoose.Schema(
       sparse: true,
       index: true,
     },
+    auth0Sub: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
     passwordHash: {
       type: String,
       required: [true, "Password hash is required"],

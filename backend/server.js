@@ -16,6 +16,7 @@ import habitsRoutes from "./routes/habits.js";
 import entriesRoutes from "./routes/entries.js";
 import pillarsRoutes from "./routes/pillars.js";
 import authRoutes from "./routes/auth.js";
+import auth0Routes from "./routes/auth0Routes.js";
 import onboardingRoutes from "./routes/onboarding.js";
 import subscriptionRoutes from "./routes/subscription.js";
 import actionPlansRoutes from "./routes/actionPlans.js";
@@ -194,6 +195,9 @@ app.use("/api/ai", orchestratorRoutes);
 app.use("/api/habits", habitsRoutes);
 app.use("/api/entries", entriesRoutes);
 app.use("/api/pillars", pillarsRoutes);
+// Auth0 -> backend session exchange
+// NOTE: mount before any downstream auth guards that might block unauthenticated requests
+app.use("/api/auth", auth0Routes);
 app.use("/api/auth", authRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/action-plans", actionPlansRoutes);
