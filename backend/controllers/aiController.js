@@ -733,6 +733,13 @@ export const createAiMessage = async (req, res) => {
     const meta = body.meta;
     const allowMongoShadow = isMongoFallbackEnabled();
 
+    // eslint-disable-next-line no-console
+    console.info("[AUDIT] ai.messages.create", {
+      userId,
+      sessionId,
+      source: "api",
+    });
+
     if (!role) {
       return sendAiResponse(
         res,
@@ -831,6 +838,14 @@ export const getAiMessages = async (req, res) => {
       Math.max(1, Number.parseInt(String(limitRaw ?? "100"), 10) || 100)
     );
     const allowFallback = isMongoFallbackEnabled();
+
+    // eslint-disable-next-line no-console
+    console.info("[AUDIT] ai.messages.read", {
+      userId,
+      sessionId,
+      limit,
+      source: "api",
+    });
 
     // Phase 6.8: PG-first read with Mongo fallback
     try {
