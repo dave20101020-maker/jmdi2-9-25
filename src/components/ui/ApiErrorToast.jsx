@@ -8,6 +8,11 @@ export default function ApiErrorToast() {
 
   useEffect(() => {
     const handler = (e) => {
+      // Guard: only show toast if explicitly marked as user-visible
+      if (e?.detail?.__suppressToast === true) {
+        return;
+      }
+
       setDetail(e?.detail ?? null);
     };
     window.addEventListener("api-error", handler);

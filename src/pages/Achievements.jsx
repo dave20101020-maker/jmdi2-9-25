@@ -43,7 +43,7 @@ export default function Achievements() {
     queryKey: ["entries", user?.email],
     queryFn: () => api.getEntries({ created_by: user?.email }),
     enabled: !!user,
-    initialData: [],
+    placeholderData: [],
   });
 
   const { data: goals = [] } = useQuery({

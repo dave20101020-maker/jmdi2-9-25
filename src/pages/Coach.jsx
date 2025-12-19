@@ -346,7 +346,7 @@ export default function Coach() {
     queryKey: ["entries", user?.email],
     queryFn: () => api.getEntries({ created_by: user?.email }, "-date", 30),
     enabled: !!user,
-    initialData: [],
+    placeholderData: [],
   });
 
   const { data: goals = [] } = useQuery({

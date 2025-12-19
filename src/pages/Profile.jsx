@@ -74,7 +74,7 @@ export default function Profile() {
     queryKey: ["entries", user?.email],
     queryFn: () => api.getEntries({ created_by: user?.email }),
     enabled: !!user,
-    initialData: [],
+    placeholderData: [],
   });
 
   const { data: allConnections = [] } = useQuery({

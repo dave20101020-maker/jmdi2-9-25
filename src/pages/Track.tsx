@@ -235,7 +235,7 @@ function TrackContent({ user }: TrackContentProps) {
     },
     enabled: !!user?.email,
     staleTime: 30000,
-    initialData: [] as EntryProps[],
+    placeholderData: [] as EntryProps[],
   });
 
   const todayEntry = entries.find((e) => e.date === today);

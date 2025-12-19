@@ -138,7 +138,7 @@ function DashboardContent({ user }) {
     queryFn: () => api.getEntries({ created_by: user?.email }, "-date", 90),
     enabled: !!user?.email,
     staleTime: 30000,
-    initialData: [],
+    placeholderData: [],
   });
 
   const streak = useStreak(entries, user);
@@ -700,7 +700,7 @@ function DashboardContent({ user }) {
         </div>
 
         {/* Life Score Hero */}
-        <div className="text-center mt-8 mb-8">
+        <div id="mc-score" className="text-center mt-8 mb-8">
           <div className="flex justify-center">
             <ScoreOrb
               lifeScore={accessibleLifeScore}
@@ -763,7 +763,7 @@ function DashboardContent({ user }) {
         )}
 
         {comBPrimaryFocus && comBRecommendedActions.length > 0 && (
-          <section className="ns-card mb-6">
+          <section id="mc-priority" className="ns-card mb-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.4em] text-white/40">
@@ -996,11 +996,13 @@ function DashboardContent({ user }) {
           </div>
         </div>
 
-        <MultiPillarStreaks
-          overallCurrent={streak.currentStreak}
-          overallLongest={streak.longestStreak || user?.longest_streak || 0}
-          pillarStreaks={pillarStreaks}
-        />
+        <div id="mc-pillars">
+          <MultiPillarStreaks
+            overallCurrent={streak.currentStreak}
+            overallLongest={streak.longestStreak || user?.longest_streak || 0}
+            pillarStreaks={pillarStreaks}
+          />
+        </div>
 
         <AIErrorBoundary showHelp={true}>
           <AIInsights
@@ -1019,7 +1021,7 @@ function DashboardContent({ user }) {
         />
 
         {/* Talk to NorthStar */}
-        <div className="my-8">
+        <div id="mc-ai-entry" className="my-8">
           <CoachPanel
             label="Talk to NorthStar"
             path="coach"

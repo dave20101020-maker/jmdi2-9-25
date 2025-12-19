@@ -13,7 +13,7 @@ import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Onboarding from "./pages/Onboarding";
-import DashboardNorthStar from "./pages/northstar/DashboardNorthStar";
+import MissionControlRoot from "./missionControl/MissionControlRoot";
 import Habits from "./pages/Habits";
 import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
@@ -83,7 +83,7 @@ function AppRoutes() {
           path="/dashboard"
           element={
             <AuthGuard>
-              <DashboardNorthStar />
+              <MissionControlRoot />
             </AuthGuard>
           }
         />

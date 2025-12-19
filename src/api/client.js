@@ -1,4 +1,5 @@
 import axios from "axios";
+import { classifyApiError } from "./errorClassifier";
 
 const rawEnvBase =
   import.meta.env.VITE_API_URL ||
@@ -78,12 +79,25 @@ client.interceptors.response.use(
     return response;
   },
   (error) => {
+    const classification = classifyApiError(error);
+
     // Emit global error event for toast notifications
-    if (typeof window !== "undefined" && window.dispatchEvent) {
+    if (
+      classification?.showToast &&
+      typeof window !== "undefined" &&
+      window.dispatchEvent
+    ) {
       const message =
         error.response?.data?.message || error.message || "An error occurred";
       window.dispatchEvent(new CustomEvent("api-error", { detail: message }));
     }
+
+    if (classification?.silent) {
+      // Mark error so downstream handlers don't toast
+      error.__suppressToast = true;
+      return Promise.resolve({ data: null });
+    }
+
     return Promise.reject(error);
   }
 );

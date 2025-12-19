@@ -561,7 +561,7 @@ export default function Analytics() {
     queryKey: ["entries"],
     queryFn: () => api.getEntries({ created_by: user?.email }, "-date", 365),
     enabled: !!user,
-    initialData: [],
+    placeholderData: [],
   });
 
   const { subscription, hasPremiumAccess } = useSubscriptionStatus();
