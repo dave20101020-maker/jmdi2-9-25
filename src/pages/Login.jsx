@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { Chrome, Facebook, Lock, Mail } from "lucide-react";
+const ENABLE_FACEBOOK_AUTH =
+  import.meta.env.VITE_ENABLE_FACEBOOK_AUTH === "true";
 import { useAuth0 } from "@auth0/auth0-react";
 import AuthLayout from "@/components/Layout/AuthLayout";
 import NSInput from "@/components/ui/NSInput";
 import NSButton from "@/components/ui/NSButton";
 import { useAuth } from "@/hooks/useAuth";
+import NorthStarLoader from "@/components/NorthStarLoader";
 import { toast } from "sonner";
 import FacebookSignInButton from "@/components/auth/FacebookSignInButton";
 import { AUTH_MODE } from "@/config/authMode";
@@ -17,7 +20,11 @@ export default function Login() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const { user, isAuthenticated, initializing } = useAuth();
+  const { user, isAuthenticated, initializing, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <NorthStarLoader visible />;
+  }
   const { loginWithRedirect } = useAuth0();
   const navigate = useNavigate();
   const [form, setForm] = useState(INITIAL_FORM);
@@ -164,12 +171,14 @@ export default function Login() {
           >
             Continue with Google
           </NSButton>
-          <FacebookSignInButton
-            fullWidth
-            onStart={handleFacebookStart}
-            onError={handleFacebookError}
-            data-testid="login-facebook-button"
-          />
+          {ENABLE_FACEBOOK_AUTH ? (
+            <FacebookSignInButton
+              fullWidth
+              onStart={handleFacebookStart}
+              onError={handleFacebookError}
+              data-testid="login-facebook-button"
+            />
+          ) : null}
         </div>
       </div>
     </AuthLayout>

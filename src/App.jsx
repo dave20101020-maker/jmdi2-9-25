@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -51,6 +51,9 @@ import AuthDebugPanel from "./components/auth/AuthDebugPanel";
 import ApiErrorToast from "./components/ui/ApiErrorToast";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AUTH_MODE } from "@/config/authMode";
+import NorthStarLoader from "@/components/NorthStarLoader";
+import { useAuth } from "@/hooks/useAuth";
+import useAppStore from "@/store/useAppStore";
 
 function AppLayout({ children }) {
   return (
@@ -263,18 +266,37 @@ function AppOverlays() {
   );
 }
 
+function AppFrame() {
+  const { loading, initializing } = useAuth();
+  const appIsLoading = useAppStore((state) => Boolean(state.ui?.isLoading));
+  const [appReady, setAppReady] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setAppReady(true), 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  const authIsLoading = Boolean(loading || initializing);
+  const showLoader = appIsLoading || authIsLoading || !appReady;
+
+  return (
+    <AppLayout>
+      <NorthStarLoader visible={showLoader} />
+      <ApiErrorToast />
+      <AppRoutes />
+      <AppOverlays />
+      <SonnerToaster position="top-right" richColors closeButton />
+    </AppLayout>
+  );
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
           <BrowserRouter>
-            <AppLayout>
-              <ApiErrorToast />
-              <AppRoutes />
-              <AppOverlays />
-              <SonnerToaster position="top-right" richColors closeButton />
-            </AppLayout>
+            <AppFrame />
           </BrowserRouter>
         </ThemeProvider>
       </AuthProvider>

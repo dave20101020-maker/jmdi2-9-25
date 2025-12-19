@@ -26,7 +26,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const AuthContext = createContext({
   user: null,
+  status: "checking",
   isAuthenticated: false,
+  isLoading: true,
   authStatus: "checking",
   initializing: true,
   loading: true,
@@ -486,10 +488,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(() => {
+    const status = initializing
+      ? "initializing"
+      : loading
+      ? "loading"
+      : "ready";
+    const isLoading = status !== "ready";
+
     if (PARKED_MODE) {
       logParkedOnce();
       return {
         user: { id: "parked-user", name: "Parked User" },
+        status,
+        isLoading,
         isAuthenticated: true,
         authStatus: "authenticated",
         initializing: false,
@@ -516,6 +527,8 @@ export function AuthProvider({ children }) {
     if (DEMO_MODE) {
       return {
         user: { id: "demo-user", name: "Demo User" },
+        status,
+        isLoading,
         isAuthenticated: true,
         authStatus: "authenticated",
         initializing: false,
@@ -540,6 +553,8 @@ export function AuthProvider({ children }) {
     }
     return {
       user,
+      status,
+      isLoading,
       isAuthenticated,
       authStatus,
       initializing,

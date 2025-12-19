@@ -1,0 +1,41 @@
+@keyframes star-spin {
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(360deg);
+  }
+}
+
+@keyframes star-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.35))
+      drop-shadow(0 0 20px rgba(212, 175, 55, 0.15));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(212, 175, 55, 0.6))
+      drop-shadow(0 0 30px rgba(212, 175, 55, 0.25));
+  }
+}
+
+.northstar-loader {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(
+    circle at center,
+    rgba(10, 16, 41, 0.95),
+    rgba(10, 16, 41, 1)
+  );
+  z-index: 9999;
+}
+
+.northstar-star {
+  width: 72px;
+  height: 72px;
+  transform-style: preserve-3d;
+  animation: star-spin 2.6s linear infinite, star-glow 2.4s ease-in-out infinite;
+  will-change: transform, filter;
+}

@@ -61,6 +61,7 @@ module.exports = {
       },
       colors: {
         ns: northStarPalette.brand,
+        gold: northStarPalette.brand.gold,
         background: northStarPalette.semantic.background,
         foreground: northStarPalette.semantic.foreground,
         card: northStarPalette.semantic.card,

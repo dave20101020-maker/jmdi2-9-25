@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import RouteLoader from "@/components/fallbacks/RouteLoader";
 import GlobalErrorBoundary from "@/components/shared/ErrorBoundary";
+import NorthStarLoader from "@/components/NorthStarLoader";
 import { NAMED_ROUTES } from "@/config/routes";
 import pillarDetailScreens from "@/pages/pillars/PillarDetailScreens";
 
@@ -504,10 +504,8 @@ const renderRoute = (
   Component,
   { isProtected = true, loadingMessage } = {}
 ) => {
-  const fallbackMessage = loadingMessage || "Calibrating mission HUD...";
-
   const content = (
-    <Suspense fallback={<RouteLoader message={fallbackMessage} />}>
+    <Suspense fallback={<NorthStarLoader visible />}>
       <Component />
     </Suspense>
   );
@@ -558,7 +556,7 @@ export default function AppRouter() {
 
   const mainLayoutElement = (
     <GlobalErrorBoundary>
-      <Suspense fallback={<RouteLoader message="Aligning command deck..." />}>
+      <Suspense fallback={<NorthStarLoader visible />}>
         <MainLayout />
       </Suspense>
     </GlobalErrorBoundary>
