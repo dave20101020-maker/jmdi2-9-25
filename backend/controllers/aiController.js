@@ -13,11 +13,12 @@ import OnboardingProfile from "../models/OnboardingProfile.js";
 import PillarCheckIn from "../models/PillarCheckIn.js";
 import AiMessage from "../models/AiMessage.js";
 import { applyAiDisclaimer } from "../src/ai/disclaimer.js";
-import { prisma } from "../src/db/prismaClient.js";
+import prisma from "../src/db/prismaClient.js";
 import {
   isMongoFallbackEnabled,
   pgFirstRead,
 } from "../src/utils/readSwitch.js";
+import { emitAuditEvent } from "../src/utils/auditLog.js";
 
 const sendAiResponse = (res, payload, status = 200) =>
   res.status(status).json(applyAiDisclaimer(payload));
@@ -733,8 +734,8 @@ export const createAiMessage = async (req, res) => {
     const meta = body.meta;
     const allowMongoShadow = isMongoFallbackEnabled();
 
-    // eslint-disable-next-line no-console
-    console.info("[AUDIT] ai.messages.create", {
+    emitAuditEvent({
+      event: "ai.messages.create",
       userId,
       sessionId,
       source: "api",
@@ -768,7 +769,23 @@ export const createAiMessage = async (req, res) => {
           meta: meta ?? null,
         },
       });
+
+      emitAuditEvent({
+        event: "ai_message_write",
+        userId,
+        sessionId,
+        storage: "postgres",
+        ok: true,
+      });
     } catch (err) {
+      emitAuditEvent({
+        event: "ai_message_write",
+        userId,
+        sessionId,
+        storage: "postgres",
+        ok: false,
+        error: err?.message,
+      });
       console.error("[PHASE 7.1][WRITE] ai_message postgres_failed", {
         userId: String(userId),
         sessionId: sessionId ? String(sessionId) : null,
@@ -839,14 +856,6 @@ export const getAiMessages = async (req, res) => {
     );
     const allowFallback = isMongoFallbackEnabled();
 
-    // eslint-disable-next-line no-console
-    console.info("[AUDIT] ai.messages.read", {
-      userId,
-      sessionId,
-      limit,
-      source: "api",
-    });
-
     // Phase 6.8: PG-first read with Mongo fallback
     try {
       const rows = await prisma.aiMessage.findMany({
@@ -856,6 +865,14 @@ export const getAiMessages = async (req, res) => {
         },
         orderBy: { createdAt: "desc" },
         take: limit,
+      });
+
+      emitAuditEvent({
+        event: "ai_message_read",
+        userId,
+        sessionId,
+        storage: "postgres",
+        ok: true,
       });
 
       if (rows.length > 0) {
@@ -874,6 +891,14 @@ export const getAiMessages = async (req, res) => {
         );
       }
     } catch (err) {
+      emitAuditEvent({
+        event: "ai_message_read",
+        userId,
+        sessionId,
+        storage: "postgres",
+        ok: false,
+        error: err?.message,
+      });
       console.warn("[PHASE 6.8][READ] ai_message pg_read_failed", {
         userId,
         sessionId,
@@ -887,14 +912,37 @@ export const getAiMessages = async (req, res) => {
     if (!allowFallback) {
       return sendAiResponse(res, { success: true, messages: [] }, 200);
     }
-    const messages = await AiMessage.find({
-      userId,
-      ...(sessionId ? { sessionId } : {}),
-    })
-      .sort({ createdAt: -1 })
-      .limit(limit);
+    try {
+      const messages = await AiMessage.find({
+        userId,
+        ...(sessionId ? { sessionId } : {}),
+      })
+        .sort({ createdAt: -1 })
+        .limit(limit);
 
-    return sendAiResponse(res, { success: true, messages: messages.reverse() });
+      emitAuditEvent({
+        event: "ai_message_read",
+        userId,
+        sessionId,
+        storage: "mongo_fallback",
+        ok: true,
+      });
+
+      return sendAiResponse(res, {
+        success: true,
+        messages: messages.reverse(),
+      });
+    } catch (err) {
+      emitAuditEvent({
+        event: "ai_message_read",
+        userId,
+        sessionId,
+        storage: "mongo_fallback",
+        ok: false,
+        error: err?.message,
+      });
+      throw err;
+    }
   } catch (err) {
     console.error("getAiMessages error", err);
     return sendAiResponse(res, { success: false, error: "Server error" }, 500);

@@ -13,16 +13,15 @@ export const isDev = () => process.env.NODE_ENV === "development";
 // ============================================================
 // PHASE 7 — Mongo fallback kill-switch (read path only)
 // Default:
-//  - development: enabled (smoother dev)
-//  - production: disabled (once you’re ready)
+//  - non-production: enabled (smoother dev)
+//  - production: always disabled
 //
-// Set explicitly:
-//  MONGO_FALLBACK_ENABLED=true|false
+// Disable explicitly:
+//  MONGO_FALLBACK_ENABLED=false
 // ============================================================
 export const isMongoFallbackEnabled = () => {
-  const raw = process.env.MONGO_FALLBACK_ENABLED;
-  if (raw === undefined || raw === null || raw === "") return isDev();
-  return String(raw).toLowerCase() === "true";
+  if (process.env.NODE_ENV === "production") return false;
+  return process.env.MONGO_FALLBACK_ENABLED !== "false";
 };
 
 export const logReadSwitch = (message, meta) => {
