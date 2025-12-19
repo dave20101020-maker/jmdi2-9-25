@@ -55,7 +55,7 @@ import { AUTH_MODE } from "@/config/authMode";
 import NorthStarLoader from "@/components/NorthStarLoader";
 import { useAuth } from "@/hooks/useAuth";
 import useAppStore from "@/store/useAppStore";
-import { featureFlags } from "./config/featureRuntime";
+import { FEATURE_FLAGS } from "./config/featureFlags";
 
 function AppLayout({ children }) {
   return (
@@ -85,7 +85,7 @@ function AppRoutes() {
           path="/dashboard"
           element={
             <AuthGuard>
-              {featureFlags.FEATURE_MISSION_CONTROL_V2 ? (
+              {FEATURE_FLAGS.FEATURE_MISSION_CONTROL_V2 ? (
                 <MissionControlRoot />
               ) : (
                 <Dashboard />
