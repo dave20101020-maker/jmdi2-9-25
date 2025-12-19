@@ -41,11 +41,13 @@ export function classifyApiError(error) {
     };
   }
 
-  // Auth-related issues should surface clearly
+  // Auth-required noise during dev / unauthenticated shell
+  // Do not surface auth toasts unless the user explicitly initiated auth-gated action
   if (status === 401 || status === 403) {
     return {
-      showToast: true,
-      level: "auth",
+      showToast: false,
+      silent: true,
+      authRequired: true,
     };
   }
 

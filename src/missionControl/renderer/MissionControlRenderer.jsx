@@ -4,9 +4,9 @@ import PriorityActionModule from "../modules/PriorityActionModule";
 import NarrativeInsightModule from "../modules/NarrativeInsightModule";
 import OverallScoreModule from "../modules/OverallScoreModule";
 import PillarOverviewModule from "../modules/PillarOverviewModule";
+import SupportModule from "../modules/SupportModule";
 import MomentumModule from "../modules/MomentumModule";
 import AIEntryModule from "../modules/AIEntryModule";
-import SupportModule from "../modules/SupportModule";
 
 export default function MissionControlRenderer({ modules }) {
   return (
