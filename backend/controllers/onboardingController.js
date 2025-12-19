@@ -11,7 +11,14 @@ import UserConsent from "../models/UserConsent.js";
 import { VALID_PILLARS, normalizePillarId } from "../utils/pillars.js";
 import { recordEvent } from "../utils/eventLogger.js";
 import { prisma } from "../src/db/prismaClient.js";
-import { pgFirstRead } from "../src/utils/readSwitch.js";
+import {
+  isMongoFallbackEnabled,
+  pgFirstRead,
+} from "../src/utils/readSwitch.js";
+
+// ============================================================
+// PHASE 7.4 — Onboarding Profile Writes (PG authoritative)
+// ============================================================
 
 const clampScore = (value) => Math.max(0, Math.min(10, Number(value) || 0));
 
@@ -43,6 +50,8 @@ export const submitOnboarding = async (req, res) => {
     if (!userId)
       return res.status(401).json({ success: false, error: "Auth required" });
 
+    const allowMongoShadow = isMongoFallbackEnabled();
+
     const normalizedGoals = ensureGoalIntegrity(goals);
     const baselineScore = computeBaselineScore(comB);
     const northStarScore = Math.round((baselineScore || 0) * 1.1);
@@ -61,45 +70,54 @@ export const submitOnboarding = async (req, res) => {
       completedAt: new Date(),
     };
 
-    const profile = await OnboardingProfile.findOneAndUpdate(
-      { userId: String(userId) },
-      payload,
-      {
-        new: true,
-        upsert: true,
-        setDefaultsOnInsert: true,
-      }
-    );
-
-    // Phase 6.5: Dual-write onboarding profile to Postgres (best-effort).
-    // Mongo remains authoritative. Postgres failures must never fail the request.
+    // Primary write: Postgres (authoritative)
+    let pgRow;
     try {
-      const doc =
-        typeof profile?.toObject === "function"
-          ? profile.toObject({ depopulate: true })
-          : profile;
-
-      await prisma.onboardingProfile.upsert({
+      pgRow = await prisma.onboardingProfile.upsert({
         where: { userId: String(userId) },
         create: {
           userId: String(userId),
-          doc,
+          doc: payload,
         },
         update: {
-          doc,
+          doc: payload,
         },
       });
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        "[PHASE 6.5][DUAL WRITE] onboarding_profile pg_upsert_failed",
-        {
-          userId: String(userId),
-          name: err?.name,
-          code: err?.code,
-          message: err?.message || String(err),
-        }
-      );
+      console.error("[PHASE 7.4][WRITE] onboarding_profile postgres_failed", {
+        userId: String(userId),
+        name: err?.name,
+        code: err?.code,
+        message: err?.message || String(err),
+      });
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to save onboarding profile" });
+    }
+
+    // Optional shadow write: Mongo (best-effort)
+    if (allowMongoShadow) {
+      try {
+        await OnboardingProfile.findOneAndUpdate(
+          { userId: String(userId) },
+          payload,
+          {
+            new: false,
+            upsert: true,
+            setDefaultsOnInsert: true,
+          }
+        );
+      } catch (err) {
+        console.warn(
+          "[PHASE 7.4][WRITE] onboarding_profile mongo_shadow_failed",
+          {
+            userId: String(userId),
+            name: err?.name,
+            code: err?.code,
+            message: err?.message || String(err),
+          }
+        );
+      }
     }
 
     await recordEvent("onboarding_completed", {
@@ -118,7 +136,7 @@ export const submitOnboarding = async (req, res) => {
       data: {
         baselineScore,
         northStarScore,
-        profile,
+        profile: pgRow?.doc ?? payload,
       },
     });
   } catch (error) {

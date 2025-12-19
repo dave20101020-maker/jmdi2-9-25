@@ -4,8 +4,16 @@ import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 import { normalizePillarId, VALID_PILLARS } from "../utils/pillars.js";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import { prisma } from "../src/db/prismaClient.js";
-import { pgFirstRead } from "../src/utils/readSwitch.js";
+import {
+  isMongoFallbackEnabled,
+  pgFirstRead,
+} from "../src/utils/readSwitch.js";
+
+// ============================================================
+// PHASE 7.5 — Pillar Check-in Writes (PG authoritative)
+// ============================================================
 
 const DUAL_WRITE_LOG_PREFIX = "[PHASE 6.4][DUAL WRITE]";
 
@@ -284,92 +292,117 @@ export const postPillarCheckIn = async (req, res, next) => {
         .status(400)
         .json({ success: false, error: "value must be between 0 and 10" });
 
-    // Save check-in record
-    const checkin = new PillarCheckIn({
-      userId: user._id,
-      pillarId: normalizedPillar,
-      value,
-      note: note || "",
-    });
-    await checkin.save();
+    const allowMongoShadow = isMongoFallbackEnabled();
 
-    // Update or create aggregate PillarScore (score is 0-100)
-    const scoreValue = Math.round(value * 10);
-    const existing = await PillarScore.findOne({
-      userId: String(user._id),
-      pillar: normalizedPillar,
-    });
+    // Mint a Mongo ObjectId for legacy shape + deterministic PG mapping.
+    const mongoId = new mongoose.Types.ObjectId();
+    const pgCheckinId = stableUuidFromString(
+      `pillar_check_in:mongo:${String(mongoId)}`
+    );
 
-    let scoreDoc;
-    if (existing) {
-      existing.score = scoreValue;
-      existing.weeklyScores = [
-        ...(existing.weeklyScores || []),
-        scoreValue,
-      ].slice(-12);
-      existing.updatedAt = new Date();
-      existing.calculateTrend();
-      scoreDoc = await existing.save();
-    } else {
-      const created = new PillarScore({
-        userId: String(user._id),
-        pillar: normalizedPillar,
-        score: scoreValue,
-        weeklyScores: [scoreValue],
+    const checkinValue = Number.isFinite(Number(value))
+      ? Math.round(Number(value))
+      : 0;
+
+    // Primary write: Postgres (authoritative)
+    let pgCheckin;
+    try {
+      pgCheckin = await prisma.pillarCheckIn.create({
+        data: {
+          id: pgCheckinId,
+          userId: String(user._id),
+          pillarIdentifier: normalizedPillar,
+          value: checkinValue,
+          note: note || "",
+        },
       });
-      created.calculateTrend();
-      scoreDoc = await created.save();
+    } catch (err) {
+      console.error("[PHASE 7.5][WRITE] pillar_checkin postgres_failed", {
+        userId: String(user._id),
+        pillarIdentifier: normalizedPillar,
+        name: err?.name,
+        code: err?.code,
+        message: err?.message || String(err),
+      });
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to create pillar check-in" });
     }
 
-    // Phase 6.4.3: DUAL-WRITE (Mongo authoritative)
-    // - MongoDB write MUST succeed or the request fails.
-    // - PostgreSQL write is best-effort and MUST NOT affect the response.
-    // Phase 6.4 Pillar Check-ins migration complete and locked.
+    // Optional shadow write: Mongo (best-effort)
+    let checkin = {
+      _id: String(mongoId),
+      userId: user._id,
+      pillarId: normalizedPillar,
+      value: checkinValue,
+      note: note || "",
+      createdAt: pgCheckin.createdAt,
+      updatedAt: pgCheckin.updatedAt,
+    };
+    if (allowMongoShadow) {
+      try {
+        checkin = await PillarCheckIn.create({
+          _id: mongoId,
+          userId: user._id,
+          pillarId: normalizedPillar,
+          value: checkinValue,
+          note: note || "",
+          createdAt: pgCheckin.createdAt,
+          updatedAt: pgCheckin.updatedAt,
+        });
+      } catch (err) {
+        console.warn("[PHASE 7.5][WRITE] pillar_checkin mongo_shadow_failed", {
+          userId: String(user._id),
+          pillarIdentifier: normalizedPillar,
+          name: err?.name,
+          code: err?.code,
+          message: err?.message || String(err),
+        });
+      }
+    }
+
+    // Update or create aggregate PillarScore (score is 0-100)
+    const scoreValue = Math.round(checkinValue * 10);
+
+    // Primary write: Postgres PillarScore (authoritative)
     try {
       const pgUserId = String(user._id);
-      const pgCheckinId = stableUuidFromString(
-        `pillar_check_in:mongo:${String(checkin._id)}`
-      );
 
-      const checkinValue = Number.isFinite(Number(value))
-        ? Math.round(Number(value))
-        : 0;
-
-      const pgCheckinWrite = prisma.pillarCheckIn.upsert({
-        where: { id: pgCheckinId },
-        create: {
-          id: pgCheckinId,
-          userId: pgUserId,
-          pillarIdentifier: normalizedPillar,
-          value: checkinValue,
-          note: checkin.note || "",
-          createdAt: checkin.createdAt,
-          updatedAt: checkin.updatedAt,
-        },
-        update: {
-          userId: pgUserId,
-          pillarIdentifier: normalizedPillar,
-          value: checkinValue,
-          note: checkin.note || "",
-          updatedAt: checkin.updatedAt,
+      const existing = await prisma.pillarScore.findUnique({
+        where: {
+          userId_pillarIdentifier: {
+            userId: pgUserId,
+            pillarIdentifier: normalizedPillar,
+          },
         },
       });
 
-      const trend =
-        scoreDoc && typeof scoreDoc.trend === "string"
-          ? scoreDoc.trend
-          : "stable";
-      const weeklyScores = Array.isArray(scoreDoc?.weeklyScores)
-        ? scoreDoc.weeklyScores
+      const weeklyScores = Array.isArray(existing?.weeklyScores)
+        ? [...existing.weeklyScores, scoreValue].slice(-12)
+        : [scoreValue];
+      const monthlyScores = Array.isArray(existing?.monthlyScores)
+        ? existing.monthlyScores
         : [];
-      const monthlyScores = Array.isArray(scoreDoc?.monthlyScores)
-        ? scoreDoc.monthlyScores
-        : [];
-      const quickWins = Array.isArray(scoreDoc?.quickWins)
-        ? scoreDoc.quickWins
+      const quickWins = Array.isArray(existing?.quickWins)
+        ? existing.quickWins
         : [];
 
-      const pgScoreWrite = prisma.pillarScore.upsert({
+      // Trend calculation mirrors backend/models/PillarScore.js
+      let trend = "stable";
+      if (weeklyScores.length >= 2) {
+        const recent = weeklyScores.slice(-4);
+        const older = weeklyScores.slice(-8, -4) || [weeklyScores[0]];
+        const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+        const olderAvg =
+          older.length > 0
+            ? older.reduce((a, b) => a + b, 0) / older.length
+            : recentAvg;
+        const threshold = 5;
+        if (recentAvg > olderAvg + threshold) trend = "improving";
+        else if (recentAvg < olderAvg - threshold) trend = "declining";
+      }
+
+      await prisma.pillarScore.upsert({
         where: {
           userId_pillarIdentifier: {
             userId: pgUserId,
@@ -379,57 +412,71 @@ export const postPillarCheckIn = async (req, res, next) => {
         create: {
           userId: pgUserId,
           pillarIdentifier: normalizedPillar,
-          score: Number(scoreDoc?.score ?? scoreValue),
+          score: scoreValue,
           trend,
           weeklyScores,
           monthlyScores,
           quickWins,
-          createdAt: scoreDoc?.createdAt || new Date(),
-          updatedAt: scoreDoc?.updatedAt || new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
         update: {
-          score: Number(scoreDoc?.score ?? scoreValue),
+          score: scoreValue,
           trend,
           weeklyScores,
           monthlyScores,
           quickWins,
-          updatedAt: scoreDoc?.updatedAt || new Date(),
+          updatedAt: new Date(),
         },
       });
-
-      const results = await Promise.allSettled([pgCheckinWrite, pgScoreWrite]);
-      const failures = results
-        .map((r, idx) => ({ r, idx }))
-        .filter(({ r }) => r.status === "rejected");
-
-      if (failures.length > 0) {
-        for (const f of failures) {
-          const target = f.idx === 0 ? "pillar_check_in" : "pillar_score";
-          // Prod-safe logging: no tokens, no request body, minimal identifiers.
-          console.error(`${DUAL_WRITE_LOG_PREFIX} Postgres write failed`, {
-            target,
-            userId: pgUserId,
-            pillarIdentifier: normalizedPillar,
-            message: f.r.reason?.message || String(f.r.reason),
-            name: f.r.reason?.name,
-            code: f.r.reason?.code,
-          });
-        }
-      } else if (isDev()) {
-        console.info(`${DUAL_WRITE_LOG_PREFIX} Postgres writes ok`, {
-          checkIn: 1,
-          pillarScore: 1,
-        });
-      }
-    } catch (e) {
-      // Absolute safety net: dual-write must never affect the request.
-      console.error(`${DUAL_WRITE_LOG_PREFIX} Postgres dual-write crashed`, {
+    } catch (err) {
+      console.error("[PHASE 7.5][WRITE] pillar_score postgres_failed", {
         userId: String(user._id),
         pillarIdentifier: normalizedPillar,
-        message: e?.message || String(e),
-        name: e?.name,
-        code: e?.code,
+        name: err?.name,
+        code: err?.code,
+        message: err?.message || String(err),
       });
+      // Score is part of the authoritative read path; fail the request.
+      return res.status(500).json({ success: false, error: "Server error" });
+    }
+
+    // Optional shadow write: Mongo PillarScore (best-effort)
+    if (allowMongoShadow) {
+      try {
+        const existingMongo = await PillarScore.findOne({
+          userId: String(user._id),
+          pillar: normalizedPillar,
+        });
+
+        if (existingMongo) {
+          existingMongo.score = scoreValue;
+          existingMongo.weeklyScores = [
+            ...(existingMongo.weeklyScores || []),
+            scoreValue,
+          ].slice(-12);
+          existingMongo.updatedAt = new Date();
+          existingMongo.calculateTrend();
+          await existingMongo.save();
+        } else {
+          const created = new PillarScore({
+            userId: String(user._id),
+            pillar: normalizedPillar,
+            score: scoreValue,
+            weeklyScores: [scoreValue],
+          });
+          created.calculateTrend();
+          await created.save();
+        }
+      } catch (err) {
+        console.warn("[PHASE 7.5][WRITE] pillar_score mongo_shadow_failed", {
+          userId: String(user._id),
+          pillarIdentifier: normalizedPillar,
+          name: err?.name,
+          code: err?.code,
+          message: err?.message || String(err),
+        });
+      }
     }
 
     // --- STREAK & BADGES LOGIC ---
@@ -444,17 +491,39 @@ export const postPillarCheckIn = async (req, res, next) => {
       startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
       // Determine if user already had a check-in today (excluding the one we just saved)
-      const alreadyToday = await PillarCheckIn.findOne({
-        userId: user._id,
-        _id: { $ne: checkin._id },
-        createdAt: { $gte: startOfToday },
-      });
+      let alreadyToday;
+      let prev;
+      if (allowMongoShadow) {
+        alreadyToday = await PillarCheckIn.findOne({
+          userId: user._id,
+          _id: { $ne: checkin._id },
+          createdAt: { $gte: startOfToday },
+        });
 
-      // Find the most recent previous checkin (before this one)
-      const prev = await PillarCheckIn.findOne({
-        userId: user._id,
-        _id: { $ne: checkin._id },
-      }).sort({ createdAt: -1 });
+        // Find the most recent previous checkin (before this one)
+        prev = await PillarCheckIn.findOne({
+          userId: user._id,
+          _id: { $ne: checkin._id },
+        }).sort({ createdAt: -1 });
+      } else {
+        alreadyToday = await prisma.pillarCheckIn.findFirst({
+          where: {
+            userId: String(user._id),
+            createdAt: { gte: startOfToday },
+            NOT: { id: pgCheckinId },
+          },
+          select: { id: true },
+        });
+
+        prev = await prisma.pillarCheckIn.findFirst({
+          where: {
+            userId: String(user._id),
+            NOT: { id: pgCheckinId },
+          },
+          orderBy: { createdAt: "desc" },
+          select: { createdAt: true },
+        });
+      }
 
       let newStreak = 1;
       if (alreadyToday) {
