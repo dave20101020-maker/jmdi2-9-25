@@ -106,7 +106,7 @@ app.set("trust proxy", 1);
 
 // --- HARD HEALTH CHECK (prevents 502) ---
 app.get("/api/health", (_req, res) => {
-  res.status(200).json({ ok: true });
+  res.status(200).json({ ok: true, service: "northstar-backend" });
 });
 
 // Middleware
