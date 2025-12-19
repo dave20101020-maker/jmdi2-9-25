@@ -13,6 +13,7 @@ import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Onboarding from "./pages/Onboarding";
+import Dashboard from "./pages/Dashboard";
 import MissionControlRoot from "./missionControl/MissionControlRoot";
 import Habits from "./pages/Habits";
 import Pricing from "./pages/Pricing";
@@ -54,6 +55,7 @@ import { AUTH_MODE } from "@/config/authMode";
 import NorthStarLoader from "@/components/NorthStarLoader";
 import { useAuth } from "@/hooks/useAuth";
 import useAppStore from "@/store/useAppStore";
+import { featureFlags } from "./config/featureRuntime";
 
 function AppLayout({ children }) {
   return (
@@ -83,7 +85,11 @@ function AppRoutes() {
           path="/dashboard"
           element={
             <AuthGuard>
-              <MissionControlRoot />
+              {featureFlags.FEATURE_MISSION_CONTROL_V2 ? (
+                <MissionControlRoot />
+              ) : (
+                <Dashboard />
+              )}
             </AuthGuard>
           }
         />

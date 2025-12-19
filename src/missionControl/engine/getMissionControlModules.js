@@ -1,6 +1,26 @@
 import { MODULE_TYPES } from "./moduleTypes";
 import { normalizeUserState } from "./normalizeUserState";
 
+function getPriorityPillar(user) {
+  if (!user?.pillars) return null;
+
+  const order = [
+    "sleep",
+    "nutrition",
+    "mental",
+    "exercise",
+    "physical",
+    "finances",
+    "social",
+    "purpose",
+  ];
+
+  return order.find(
+    (key) =>
+      user.pillars[key]?.score !== undefined && user.pillars[key].score < 60
+  );
+}
+
 /**
  * Determines which Mission Control modules to show, and in what order.
  * This function is PURE and deterministic.
@@ -14,19 +34,40 @@ export function getMissionControlModules(
   const user = normalizeUserState(rawUserState);
   const modules = [];
 
+  const unauthenticated = rawUserState?.isAuthenticated === false;
+  const hasNoData = rawUserState?.lifeScore === 0;
+  const priorityPillar = getPriorityPillar(user);
+
   // PHASE 1.5: Progressive surfacing rules
   // Enforce single dominant priority
   // (Hicks Law: reduce choice to one high-impact action)
   const hasCompletedToday = user.todayCompleted === true;
 
-  // 1. Priority Action (always first)
-  modules.push({
-    type: MODULE_TYPES.PRIORITY_ACTION,
-    reason: "Single highest-impact action for today",
-  });
+  // 1. Primary surfaced module
+  if (unauthenticated) {
+    modules.push({
+      type: MODULE_TYPES.PRIORITY_ACTION,
+      reason: "auth",
+    });
+  } else if (hasNoData) {
+    modules.push({
+      type: "EMPTY_STATE_GUIDANCE",
+      reason: "No data yet — show onboarding guidance",
+    });
+  } else if (priorityPillar) {
+    modules.push({
+      type: MODULE_TYPES.PRIORITY_ACTION,
+      pillar: priorityPillar,
+    });
+  } else {
+    modules.push({
+      type: MODULE_TYPES.PRIORITY_ACTION,
+      reason: "Single highest-impact action for today",
+    });
+  }
 
   // 2. Narrative Insight (only if user has data)
-  if (user.hasAnyData && !hasCompletedToday) {
+  if (!unauthenticated && !hasNoData && user.hasAnyData && !hasCompletedToday) {
     modules.push({
       type: MODULE_TYPES.NARRATIVE_INSIGHT,
       reason: "Contextual insight to reduce cognitive load",

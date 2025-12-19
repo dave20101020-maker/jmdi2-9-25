@@ -1,6 +1,7 @@
 import { MODULE_TYPES } from "../engine/moduleTypes";
 
 import PriorityActionModule from "../modules/PriorityActionModule";
+import EmptyStateGuidance from "../modules/EmptyStateGuidance";
 import NarrativeInsightModule from "../modules/NarrativeInsightModule";
 import OverallScoreModule from "../modules/OverallScoreModule";
 import PillarOverviewModule from "../modules/PillarOverviewModule";
@@ -15,6 +16,9 @@ export default function MissionControlRenderer({ modules }) {
         switch (module.type) {
           case MODULE_TYPES.PRIORITY_ACTION:
             return <PriorityActionModule key={index} module={module} />;
+
+          case "EMPTY_STATE_GUIDANCE":
+            return <EmptyStateGuidance key={index} />;
 
           case MODULE_TYPES.NARRATIVE_INSIGHT:
             return <NarrativeInsightModule key={index} module={module} />;
