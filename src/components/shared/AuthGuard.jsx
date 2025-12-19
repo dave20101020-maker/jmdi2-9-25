@@ -14,7 +14,13 @@ export default function AuthGuard({ children }) {
   }
 
   if (initializing) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-sm opacity-80">
+          Verifying your NorthStar session…
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated || !user) {

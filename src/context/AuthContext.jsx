@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import PropTypes from "prop-types";
+import { useAuth0 } from "@auth0/auth0-react";
 import { api } from "@/utils/apiClient";
 import { redirectToGoogleOAuth } from "@/lib/oauth/google";
 import { redirectToFacebookOAuth } from "@/lib/oauth/facebook";
@@ -20,6 +21,8 @@ const logParkedOnce = () => {
 };
 
 const noop = async () => null;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const AuthContext = createContext({
   user: null,
@@ -112,6 +115,12 @@ const authInfo = (message, detail = {}) => {
 export function AuthProvider({ children }) {
   if (PARKED_MODE) logParkedOnce();
 
+  const {
+    isLoading: auth0Loading,
+    isAuthenticated: auth0Authenticated,
+    getIdTokenClaims,
+  } = useAuth0();
+
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authStatus, setAuthStatus] = useState("checking");
@@ -125,6 +134,8 @@ export function AuthProvider({ children }) {
   });
   const loadingRef = useRef(false);
   const lastKnownUserRef = useRef(null);
+  const exchangeDoneRef = useRef(false);
+  const exchangeInFlightRef = useRef(false);
 
   const syncUser = useCallback((nextUser) => {
     lastKnownUserRef.current = nextUser ?? null;
@@ -227,6 +238,66 @@ export function AuthProvider({ children }) {
     }
   }, [syncUser]);
 
+  const hydrateFromBackend = useCallback(async (signal) => {
+    try {
+      const res = await fetch("/api/auth/me", {
+        method: "GET",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+        signal,
+      });
+
+      if (!res.ok) {
+        return { ok: false, status: res.status };
+      }
+
+      const data = await res.json().catch(() => null);
+      return { ok: true, user: extractUser(data) };
+    } catch (error) {
+      if (error?.name === "AbortError") return { ok: false, aborted: true };
+      return { ok: false, error };
+    }
+  }, []);
+
+  const exchangeSession = useCallback(
+    async (signal) => {
+      if (exchangeDoneRef.current) return { ok: true, skipped: true };
+      if (exchangeInFlightRef.current) return { ok: false, inFlight: true };
+      exchangeInFlightRef.current = true;
+
+      try {
+        const claims = await getIdTokenClaims();
+        const raw = claims?.__raw;
+        if (!raw) return { ok: false, error: "missing_id_token" };
+
+        const res = await fetch("/api/auth/auth0/exchange", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${raw}`,
+            Accept: "application/json",
+          },
+          signal,
+        });
+
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          return {
+            ok: false,
+            error: `exchange_failed:${res.status}`,
+            details: txt,
+          };
+        }
+
+        exchangeDoneRef.current = true;
+        return { ok: true };
+      } finally {
+        exchangeInFlightRef.current = false;
+      }
+    },
+    [getIdTokenClaims]
+  );
+
   useEffect(() => {
     if (PARKED_MODE) {
       const parkedUser = { id: "parked-user", name: "Parked User" };
@@ -244,30 +315,79 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
+    const ac = new AbortController();
     let cancelled = false;
+
     const load = async () => {
       if (loadingRef.current) return;
       loadingRef.current = true;
       setLoading(true);
-      authInfo("App load: start auth rehydrate", {
-        mechanism: "httpOnly-cookie",
-        storage: snapshotAuthStorage(),
-      });
+      setInitializing(true);
+      setAuthError(null);
+      setAuthStatus("checking");
+
       try {
-        const resolvedUser = await refreshUser();
-        setAuthError(null);
-        authInfo("App load: auth rehydrate complete", {
-          isAuthenticated: Boolean(resolvedUser),
-          user: userLabel(resolvedUser),
-        });
+        // 1) Try backend session first (fast path)
+        const first = await hydrateFromBackend(ac.signal);
+        if (!cancelled && first.ok) {
+          syncUser(first.user);
+          setLastAuthCheck({
+            at: new Date().toISOString(),
+            status: "ok",
+            error: null,
+          });
+          return;
+        }
+
+        // 2) If Auth0 isn't ready yet, wait briefly (prevents race)
+        if (auth0Loading) {
+          await sleep(50);
+        }
+
+        // 3) If Auth0 says logged in, do ONE exchange then re-hydrate backend
+        if (!auth0Loading && auth0Authenticated) {
+          setAuthStatus("exchanging");
+          const ex = await exchangeSession(ac.signal);
+          if (ex.ok) {
+            const second = await hydrateFromBackend(ac.signal);
+            if (!cancelled && second.ok) {
+              syncUser(second.user);
+              setLastAuthCheck({
+                at: new Date().toISOString(),
+                status: "ok",
+                error: null,
+              });
+              return;
+            }
+          }
+        }
+
+        // 4) Otherwise: logged out
+        if (!cancelled) {
+          syncUser(null);
+          setLastAuthCheck({
+            at: new Date().toISOString(),
+            status: "unauthenticated",
+            error: null,
+          });
+        }
       } catch (error) {
-        if (!(error?.status === 401 || error?.status === 403)) {
-          console.error("[AuthProvider] Unable to resolve auth state", error);
+        if (!cancelled) {
+          console.error("[auth] init failed:", error);
+          syncUser(null);
+          setLastAuthCheck({
+            at: new Date().toISOString(),
+            status: "error",
+            error: error?.message || "unknown",
+          });
         }
       } finally {
         if (!cancelled) {
           setInitializing(false);
           setLoading(false);
+          if (!lastKnownUserRef.current) {
+            setAuthStatus("guest");
+          }
         }
         loadingRef.current = false;
       }
@@ -276,8 +396,15 @@ export function AuthProvider({ children }) {
     load();
     return () => {
       cancelled = true;
+      ac.abort();
     };
-  }, [refreshUser]);
+  }, [
+    auth0Loading,
+    auth0Authenticated,
+    exchangeSession,
+    hydrateFromBackend,
+    syncUser,
+  ]);
 
   const signIn = useCallback(
     async (emailOrUsername, password) => {
