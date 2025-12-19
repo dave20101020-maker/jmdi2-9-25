@@ -17,6 +17,8 @@ import Dashboard from "../pages/Dashboard";
  * All future dashboard logic swaps happen here.
  */
 export default function MissionControlRoot(props) {
+  // Phase 1.6: Mission Control must render even when unauthenticated
+
   // Phase 0.5: always render legacy dashboard
   // Phase 1+: this flag will enable Mission Control V2
 
