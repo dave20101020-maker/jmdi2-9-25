@@ -57,6 +57,25 @@ export const pgFirstRead = async ({ pgRead, mongoRead, label, meta }) => {
   try {
     pgResult = await pgRead();
     logReadSwitch(`primary=postgres label=${label}`, meta);
+
+    // Phase 8.1 — runtime parity validation (read-only)
+    if (process.env.RUNTIME_PARITY_CHECK === "true" && mongoRead) {
+      try {
+        const mongoResult = await mongoRead();
+        const pgCount = Array.isArray(pgResult) ? pgResult.length : 1;
+        const mongoCount = Array.isArray(mongoResult) ? mongoResult.length : 1;
+
+        if (pgCount !== mongoCount) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[PARITY][WARN] ${label}: pg=${pgCount} mongo=${mongoCount}`
+          );
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn(`[PARITY][ERROR] ${label}:`, err?.message || String(err));
+      }
+    }
   } catch (error) {
     logReadFallback(`postgres_failed label=${label}`, {
       ...meta,
