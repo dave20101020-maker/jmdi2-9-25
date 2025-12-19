@@ -18,7 +18,9 @@ export default function AuthGuard({
   if (initializing) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-sm opacity-80">Verifying your NorthStar session…</div>
+        <div className="text-sm opacity-80">
+          Verifying your NorthStar session…
+        </div>
       </div>
     );
   }
