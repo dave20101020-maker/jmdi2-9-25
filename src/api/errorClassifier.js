@@ -7,7 +7,16 @@
 
 export function classifyApiError(error) {
   if (!error) {
-    return { showToast: false };
+    return { showToast: false, silent: true };
+  }
+
+  // HARD STOP: dev proxy / backend offline noise must never surface
+  if (
+    error?.code === "ECONNREFUSED" ||
+    error?.message?.includes("ECONNREFUSED") ||
+    error?.message?.includes("proxy error")
+  ) {
+    return { showToast: false, silent: true };
   }
 
   const status =
@@ -17,17 +26,13 @@ export function classifyApiError(error) {
   const path =
     error?.path || error?.config?.url || error?.response?.config?.url || "";
 
-  // Network-level errors (e.g. ECONNREFUSED via Vite proxy)
-  // These often occur during dev or when optional services are offline
-  if (error?.code === "ECONNREFUSED") {
-    return {
-      showToast: false,
-      silent: true,
-    };
+  // Optional read-only endpoints must never toast
+  if (path.includes("/entries") || path.includes("/subscription")) {
+    return { showToast: false, silent: true };
   }
 
   // Known optional / non-blocking endpoints
-  const optionalPaths = ["/subscription", "/entries", "/timeline", "/stats"];
+  const optionalPaths = ["/timeline", "/stats"];
 
   if (optionalPaths.some((p) => path.includes(p))) {
     return {

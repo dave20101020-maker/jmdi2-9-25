@@ -94,7 +94,9 @@ client.interceptors.response.use(
 
     if (classification?.silent) {
       // Mark error so downstream handlers don't toast
-      error.__suppressToast = true;
+      if (error) {
+        error.__suppressToast = true;
+      }
       return Promise.resolve({ data: null });
     }
 

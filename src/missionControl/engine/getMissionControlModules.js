@@ -14,6 +14,11 @@ export function getMissionControlModules(
   const user = normalizeUserState(rawUserState);
   const modules = [];
 
+  // PHASE 1.5: Progressive surfacing rules
+  // Enforce single dominant priority
+  // (Hicks Law: reduce choice to one high-impact action)
+  const hasCompletedToday = user.todayCompleted === true;
+
   // 1. Priority Action (always first)
   modules.push({
     type: MODULE_TYPES.PRIORITY_ACTION,
@@ -21,7 +26,7 @@ export function getMissionControlModules(
   });
 
   // 2. Narrative Insight (only if user has data)
-  if (user.hasAnyData) {
+  if (user.hasAnyData && !hasCompletedToday) {
     modules.push({
       type: MODULE_TYPES.NARRATIVE_INSIGHT,
       reason: "Contextual insight to reduce cognitive load",
@@ -31,11 +36,14 @@ export function getMissionControlModules(
   // 3. Overall Score (supporting, never dominant)
   modules.push({
     type: MODULE_TYPES.OVERALL_SCORE,
+    emphasis: "secondary",
   });
 
   // 4. Pillar Overview (collapsed)
   modules.push({
     type: MODULE_TYPES.PILLAR_OVERVIEW,
+    userConfigurable: true,
+    collapsed: true,
   });
 
   // 5. Conditional Momentum
