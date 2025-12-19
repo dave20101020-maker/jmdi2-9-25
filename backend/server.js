@@ -5,6 +5,9 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import path from "path";
+import dotenv from "dotenv";
+
+dotenv.config();
 import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
 import logger from "./utils/logger.js";
@@ -108,6 +111,11 @@ const corsOptions = {
       if (!entry) return false;
       if (entry instanceof RegExp) return entry.test(origin);
       return origin === entry;
+
+      // --- HARD HEALTH CHECK (prevents 502) ---
+      app.get("/api/health", (_req, res) => {
+        res.status(200).json({ ok: true });
+      });
     });
     if (isAllowed) return callback(null, true);
     return callback(new Error(`CORS blocked origin: ${origin}`));

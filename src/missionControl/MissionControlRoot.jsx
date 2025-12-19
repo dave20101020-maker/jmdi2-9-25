@@ -1,10 +1,5 @@
-import { featureFlags } from "../config/featureRuntime";
-
 import { getMissionControlModules } from "./engine/getMissionControlModules";
 import MissionControlRenderer from "./renderer/MissionControlRenderer";
-
-// Existing dashboard (legacy, stable)
-import Dashboard from "../pages/Dashboard";
 
 // Future Mission Control V2 (not implemented yet)
 // import MissionControlV2 from "./MissionControlV2";
@@ -31,9 +26,12 @@ export default function MissionControlRoot(props) {
 
   const modules = getMissionControlModules(mockUserState);
 
-  if (featureFlags.FEATURE_MISSION_CONTROL_V2) {
-    return <MissionControlRenderer modules={modules} />;
-  }
-
-  return <Dashboard {...props} />;
+  return (
+    <div className="min-h-screen bg-navy text-white">
+      {/* Mission Control is the OS surface */}
+      {/* Dashboard is a state machine, not a page */}
+      {/* One priority, one insight, one action */}
+      <MissionControlRenderer modules={modules} />
+    </div>
+  );
 }
