@@ -1,6 +1,9 @@
 import { MODULE_TYPES } from "./moduleTypes";
 import { normalizeUserState } from "./normalizeUserState";
 import { MISSION_CONTROL_MODULES as M } from "../modules/missionControlRegistry";
+import { missionControlRegistry } from "../modules/missionControlRegistry";
+
+const REGISTRY_COMPOSITION_ENABLED = false;
 
 function getPriorityPillar(user) {
   if (!user?.pillars) return null;
@@ -32,6 +35,20 @@ export function getMissionControlModules(
   timeContext = {},
   preferences = {}
 ) {
+  if (REGISTRY_COMPOSITION_ENABLED) {
+    return Object.values(missionControlRegistry)
+      .filter((entry) => entry?.defaultVisible)
+      .sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))
+      .map((entry) => ({
+        id: entry.id,
+        type: entry.type,
+      }));
+  }
+
+  return getEngineComputedModules(rawUserState, timeContext, preferences);
+}
+
+function getEngineComputedModules(rawUserState, timeContext = {}, preferences = {}) {
   if (import.meta?.env?.DEV) {
     const seen = new Set();
     for (const entry of Object.values(M)) {
