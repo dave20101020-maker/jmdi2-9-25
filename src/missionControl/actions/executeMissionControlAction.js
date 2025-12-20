@@ -49,6 +49,19 @@ export async function executeMissionControlAction(actionId, context = {}) {
       // Never block action execution due to persistence
     }
 
+    // UI-only signal for lightweight micro-responses (no persistence, no AI)
+    try {
+      if (typeof window !== "undefined" && "CustomEvent" in window) {
+        window.dispatchEvent(
+          new CustomEvent("mission-control:action", {
+            detail: { actionId, phase: "completed", outcome: "success" },
+          })
+        );
+      }
+    } catch {
+      // Never block action execution due to UI affordances
+    }
+
     return result;
   } catch (err) {
     // Phase 4.0: append-only "completed" event (error)
@@ -62,6 +75,18 @@ export async function executeMissionControlAction(actionId, context = {}) {
       });
     } catch {
       // Never block action execution due to persistence
+    }
+
+    try {
+      if (typeof window !== "undefined" && "CustomEvent" in window) {
+        window.dispatchEvent(
+          new CustomEvent("mission-control:action", {
+            detail: { actionId, phase: "completed", outcome: "error" },
+          })
+        );
+      }
+    } catch {
+      // Never block action execution due to UI affordances
     }
 
     throw err;
