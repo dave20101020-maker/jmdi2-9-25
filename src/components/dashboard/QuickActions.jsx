@@ -1,5 +1,12 @@
 import React from "react";
 import { ArrowUpRight, CheckCircle2, MessageCircle } from "lucide-react";
+import { executeMissionControlAction } from "@/missionControl/actions/executeMissionControlAction";
+
+const ACTION_ID_BY_QUICK_ACTION = {
+  coach: "ASK_AI_COACH",
+  habit: "LOG_HABIT",
+  priority: "REVIEW_PRIORITIES",
+};
 
 const ACTIONS = [
   {
@@ -32,6 +39,11 @@ export default function QuickActions({ actions = ACTIONS }) {
             key={id}
             type="button"
             className="w-full text-left rounded-xl bg-white/5 hover:bg-white/10 transition p-3 border border-white/5 text-white"
+            onClick={() =>
+              executeMissionControlAction(ACTION_ID_BY_QUICK_ACTION[id] || id, {
+                source: "MISSION_CONTROL",
+              })
+            }
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-white/5">
