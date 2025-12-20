@@ -1,10 +1,13 @@
-import { MODULE_TYPES } from "./moduleTypes";
-import { normalizeUserState } from "./normalizeUserState";
-import { MISSION_CONTROL_MODULES as M } from "../modules/missionControlRegistry";
-import { missionControlRegistry } from "../modules/missionControlRegistry";
-import { composeMissionControlModules } from "../composition/composeMissionControlModules.js";
+/**
+ * Phase 5.0 — Registry-Driven Composition
+ *
+ * Deterministic, rule-based module composition.
+ * No AI. No persistence influence.
+ */
 
-const REGISTRY_COMPOSITION_ENABLED = false;
+import { MODULE_TYPES } from "../engine/moduleTypes";
+import { normalizeUserState } from "../engine/normalizeUserState";
+import { MISSION_CONTROL_MODULES as M } from "../modules/missionControlRegistry";
 
 function getPriorityPillar(user) {
   if (!user?.pillars) return null;
@@ -20,40 +23,23 @@ function getPriorityPillar(user) {
     "purpose",
   ];
 
-  return order.find(
-    (key) =>
-      user.pillars[key]?.score !== undefined && user.pillars[key].score < 60
+  return (
+    order.find(
+      (key) =>
+        user.pillars[key]?.score !== undefined && user.pillars[key].score < 60
+    ) ?? null
   );
 }
 
-/**
- * Determines which Mission Control modules to show, and in what order.
- * This function is PURE and deterministic.
- */
-
-export function getMissionControlModules(
+export function composeMissionControlModules(
   rawUserState,
   timeContext = {},
   preferences = {}
 ) {
-  if (REGISTRY_COMPOSITION_ENABLED) {
-    return Object.values(missionControlRegistry)
-      .filter((entry) => entry?.defaultVisible)
-      .sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))
-      .map((entry) => ({
-        id: entry.id,
-        type: entry.type,
-      }));
-  }
+  // Note: timeContext/preferences are reserved for later phases.
+  void timeContext;
+  void preferences;
 
-  return composeMissionControlModules(rawUserState, timeContext, preferences);
-}
-
-function getEngineComputedModules(
-  rawUserState,
-  timeContext = {},
-  preferences = {}
-) {
   if (import.meta?.env?.DEV) {
     const seen = new Set();
     for (const entry of Object.values(M)) {
@@ -75,7 +61,7 @@ function getEngineComputedModules(
 
   // PHASE 1.5: Progressive surfacing rules
   // Enforce single dominant priority
-  // (Hicks Law: reduce choice to one high-impact action)
+  // (Hick’s Law: reduce choice to one high-impact action)
   const hasCompletedToday = user.todayCompleted === true;
 
   // 1. Primary surfaced module

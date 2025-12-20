@@ -1,12 +1,15 @@
-import { MODULE_TYPES } from "./moduleTypes";
-import { normalizeUserState } from "./normalizeUserState";
+/**
+ * Phase 5.0 — Registry-Driven Composition
+ *
+ * Deterministic, rule-based module composition.
+ * No AI. No persistence influence.
+ */
+
+import { MODULE_TYPES } from "../engine/moduleTypes";
+import { normalizeUserState } from "../engine/normalizeUserState";
 import { MISSION_CONTROL_MODULES as M } from "../modules/missionControlRegistry";
-import { missionControlRegistry } from "../modules/missionControlRegistry";
-import { composeMissionControlModules } from "../composition/composeMissionControlModules.js";
 
-const REGISTRY_COMPOSITION_ENABLED = false;
-
-function getPriorityPillar(user) {
+function getPriorityPillar(user: any): string | null {
   if (!user?.pillars) return null;
 
   const order = [
@@ -20,44 +23,27 @@ function getPriorityPillar(user) {
     "purpose",
   ];
 
-  return order.find(
-    (key) =>
-      user.pillars[key]?.score !== undefined && user.pillars[key].score < 60
+  return (
+    order.find(
+      (key) =>
+        user.pillars[key]?.score !== undefined && user.pillars[key].score < 60
+    ) ?? null
   );
 }
 
-/**
- * Determines which Mission Control modules to show, and in what order.
- * This function is PURE and deterministic.
- */
-
-export function getMissionControlModules(
-  rawUserState,
-  timeContext = {},
-  preferences = {}
+export function composeMissionControlModules(
+  rawUserState: any,
+  timeContext: Record<string, unknown> = {},
+  preferences: Record<string, unknown> = {}
 ) {
-  if (REGISTRY_COMPOSITION_ENABLED) {
-    return Object.values(missionControlRegistry)
-      .filter((entry) => entry?.defaultVisible)
-      .sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))
-      .map((entry) => ({
-        id: entry.id,
-        type: entry.type,
-      }));
-  }
+  // Note: timeContext/preferences are reserved for later phases.
+  void timeContext;
+  void preferences;
 
-  return composeMissionControlModules(rawUserState, timeContext, preferences);
-}
-
-function getEngineComputedModules(
-  rawUserState,
-  timeContext = {},
-  preferences = {}
-) {
   if (import.meta?.env?.DEV) {
-    const seen = new Set();
+    const seen = new Set<string>();
     for (const entry of Object.values(M)) {
-      const type = entry?.type;
+      const type = (entry as any)?.type;
       if (!type) continue;
       if (seen.has(type)) {
         console.warn("[MissionControl] Duplicate module type:", type);
@@ -67,7 +53,7 @@ function getEngineComputedModules(
   }
 
   const user = normalizeUserState(rawUserState);
-  const modules = [];
+  const modules: Array<Record<string, unknown>> = [];
 
   const unauthenticated = rawUserState?.isAuthenticated === false;
   const hasNoData = rawUserState?.lifeScore === 0;
@@ -75,7 +61,7 @@ function getEngineComputedModules(
 
   // PHASE 1.5: Progressive surfacing rules
   // Enforce single dominant priority
-  // (Hicks Law: reduce choice to one high-impact action)
+  // (Hick’s Law: reduce choice to one high-impact action)
   const hasCompletedToday = user.todayCompleted === true;
 
   // 1. Primary surfaced module
