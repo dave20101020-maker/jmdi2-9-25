@@ -10,6 +10,7 @@
 import { capabilities } from "../flags/capabilities";
 import type { MissionControlActionEvent } from "./types";
 import { appendActionEvent } from "./localStorageAdapter";
+import { recordActionEvent } from "../telemetry/telemetryAggregator";
 
 /**
  * Emit an append-only action event.
@@ -23,4 +24,9 @@ export async function emitMissionControlActionEvent(
 
   // Phase 4.1: local dev persistence (append-only)
   appendActionEvent(_event);
+
+  // Phase 3.5: derived telemetry (HARD-OFF)
+  if (capabilities.MC_TELEMETRY_ENABLED) {
+    recordActionEvent(_event);
+  }
 }

@@ -10,4 +10,9 @@ export const capabilities = {
    * HARD-OFF by default.
    */
   MC_PERSISTENCE_ENABLED: false,
+  /**
+   * Phase 3.5 — Mission Control telemetry (derived metrics only).
+   * HARD-OFF by default.
+   */
+  MC_TELEMETRY_ENABLED: false,
 } as const;
