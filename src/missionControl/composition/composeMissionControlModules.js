@@ -8,6 +8,7 @@
 import { MODULE_TYPES } from "../engine/moduleTypes";
 import { normalizeUserState } from "../engine/normalizeUserState";
 import { MISSION_CONTROL_MODULES as M } from "../modules/missionControlRegistry";
+import { getMissionControlPersonalisation } from "../personalisation/personalisationAdapter.ts";
 
 function getPriorityPillar(user) {
   if (!user?.pillars) return null;
@@ -54,6 +55,7 @@ export function composeMissionControlModules(
 
   const user = normalizeUserState(rawUserState);
   const modules = [];
+  const personalisation = getMissionControlPersonalisation();
 
   const unauthenticated = rawUserState?.isAuthenticated === false;
   const hasNoData = rawUserState?.lifeScore === 0;
@@ -137,5 +139,35 @@ export function composeMissionControlModules(
     type: MODULE_TYPES.AI_ENTRY,
   });
 
-  return modules;
+  let visibleModules = modules;
+
+  // Phase 6.0 — explicit hide
+  if (personalisation?.hiddenModuleIds?.length) {
+    visibleModules = visibleModules.filter(
+      (m) => !personalisation.hiddenModuleIds.includes(m.id)
+    );
+  }
+
+  // Phase 6.0 — explicit ordering
+  if (personalisation?.orderedModuleIds?.length) {
+    const order = personalisation.orderedModuleIds;
+    visibleModules = [...visibleModules].sort((a, b) => {
+      const ia = order.indexOf(a.id);
+      const ib = order.indexOf(b.id);
+      if (ia === -1 && ib === -1) return 0;
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }
+
+  // Phase 6.0 — explicit pin (moves to front, preserves order)
+  if (personalisation?.pinnedModuleIds?.length) {
+    const pinned = personalisation.pinnedModuleIds;
+    const pinnedModules = visibleModules.filter((m) => pinned.includes(m.id));
+    const rest = visibleModules.filter((m) => !pinned.includes(m.id));
+    visibleModules = [...pinnedModules, ...rest];
+  }
+
+  return visibleModules;
 }
