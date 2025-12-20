@@ -20,5 +20,5 @@ export function executeMissionControlAction(actionId, context = {}) {
     return;
   }
 
-  handler();
+  handler(context);
 }
