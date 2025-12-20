@@ -20,4 +20,9 @@ export const capabilities = {
    * HARD-OFF by default.
    */
   MC_PERSONALISATION_PERSISTENCE_ENABLED: false,
+  /**
+   * Phase 7.0 — Ethical retention (B2B-first).
+   * HARD-OFF by default.
+   */
+  MC_RETENTION_ENABLED: false,
 } as const;
