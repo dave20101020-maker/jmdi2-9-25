@@ -47,25 +47,25 @@ export function getMissionControlModules(
   // 1. Primary surfaced module
   if (unauthenticated) {
     modules.push({
-      id: M.PRIORITY_ACTION,
+      id: M.PRIORITY_ACTION.id,
       type: MODULE_TYPES.PRIORITY_ACTION,
       reason: "auth",
     });
   } else if (hasNoData) {
     modules.push({
-      id: M.EMPTY_STATE_GUIDANCE,
+      id: M.EMPTY_STATE_GUIDANCE.id,
       type: "EMPTY_STATE_GUIDANCE",
       reason: "No data yet — show onboarding guidance",
     });
   } else if (priorityPillar) {
     modules.push({
-      id: M.PRIORITY_ACTION,
+      id: M.PRIORITY_ACTION.id,
       type: MODULE_TYPES.PRIORITY_ACTION,
       pillar: priorityPillar,
     });
   } else {
     modules.push({
-      id: M.PRIORITY_ACTION,
+      id: M.PRIORITY_ACTION.id,
       type: MODULE_TYPES.PRIORITY_ACTION,
       reason: "Single highest-impact action for today",
     });
@@ -74,7 +74,7 @@ export function getMissionControlModules(
   // 2. Narrative Insight (only if user has data)
   if (!unauthenticated && !hasNoData && user.hasAnyData && !hasCompletedToday) {
     modules.push({
-      id: M.NARRATIVE_INSIGHT,
+      id: M.NARRATIVE_INSIGHT.id,
       type: MODULE_TYPES.NARRATIVE_INSIGHT,
       reason: "Contextual insight to reduce cognitive load",
     });
@@ -82,14 +82,14 @@ export function getMissionControlModules(
 
   // 3. Overall Score (supporting, never dominant)
   modules.push({
-    id: M.OVERALL_SCORE,
+    id: M.OVERALL_SCORE.id,
     type: MODULE_TYPES.OVERALL_SCORE,
     emphasis: "secondary",
   });
 
   // 4. Pillar Overview (collapsed)
   modules.push({
-    id: M.PILLAR_OVERVIEW,
+    id: M.PILLAR_OVERVIEW.id,
     type: MODULE_TYPES.PILLAR_OVERVIEW,
     userConfigurable: true,
     collapsed: true,
@@ -98,7 +98,7 @@ export function getMissionControlModules(
   // 5. Conditional Momentum
   if (user.momentum.checkIns > 0) {
     modules.push({
-      id: M.MOMENTUM,
+      id: M.MOMENTUM.id,
       type: MODULE_TYPES.MOMENTUM,
     });
   }
@@ -106,14 +106,14 @@ export function getMissionControlModules(
   // 6. Support (only if signals detected)
   if (user.distressSignals) {
     modules.push({
-      id: M.SUPPORT,
+      id: M.SUPPORT.id,
       type: MODULE_TYPES.SUPPORT,
     });
   }
 
   // 7. AI Entry (always last)
   modules.push({
-    id: M.AI_ENTRY,
+    id: M.AI_ENTRY.id,
     type: MODULE_TYPES.AI_ENTRY,
   });
 

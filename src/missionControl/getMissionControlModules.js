@@ -3,13 +3,13 @@ import { MISSION_CONTROL_MODULES as M } from "./modules/missionControlRegistry";
 export function getMissionControlModules() {
   // Static for now — intelligence comes later
   return [
-    M.CRISIS_MODE,
-    M.SMART_NOTIFICATIONS,
-    M.GOAL_ROADMAP,
-    M.NEXT_BEST_STEP,
-    M.QUICK_ACTIONS,
-    M.DAILY_READINESS,
-    M.PILLAR_PROGRESS,
-    M.STREAK_TRACKER,
+    M.CRISIS_MODE.id,
+    M.SMART_NOTIFICATIONS.id,
+    M.GOAL_ROADMAP.id,
+    M.NEXT_BEST_STEP.id,
+    M.QUICK_ACTIONS.id,
+    M.DAILY_READINESS.id,
+    M.PILLAR_PROGRESS.id,
+    M.STREAK_TRACKER.id,
   ];
 }
