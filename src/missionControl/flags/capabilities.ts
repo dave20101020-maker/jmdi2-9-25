@@ -15,4 +15,9 @@ export const capabilities = {
    * HARD-OFF by default.
    */
   MC_TELEMETRY_ENABLED: false,
+  /**
+   * Phase 6.1 — Mission Control personalisation persistence.
+   * HARD-OFF by default.
+   */
+  MC_PERSONALISATION_PERSISTENCE_ENABLED: false,
 } as const;

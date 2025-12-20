@@ -5,7 +5,13 @@
  */
 
 import type { MissionControlPersonalisation } from "./types";
+import { capabilities } from "../flags/capabilities";
+import { readLocalPersonalisation } from "./localPersonalisationAdapter";
 
 export function getMissionControlPersonalisation(): MissionControlPersonalisation | null {
-  return null;
+  if (!capabilities.MC_PERSONALISATION_PERSISTENCE_ENABLED) {
+    return null;
+  }
+
+  return readLocalPersonalisation();
 }
