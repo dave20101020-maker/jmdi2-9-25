@@ -9,6 +9,7 @@
 
 import { capabilities } from "../flags/capabilities";
 import type { MissionControlActionEvent } from "./types";
+import { appendActionEvent } from "./localStorageAdapter";
 
 /**
  * Emit an append-only action event.
@@ -20,12 +21,6 @@ export async function emitMissionControlActionEvent(
 ): Promise<void> {
   if (!capabilities.MC_PERSISTENCE_ENABLED) return;
 
-  /**
-   * NOTE (Phase 4):
-   * This is intentionally a stub. We'll plug in:
-   * - localStorage (dev) OR
-   * - backend endpoint
-   * in a later Phase 4.x step, still behind the same seam.
-   */
-  return;
+  // Phase 4.1: local dev persistence (append-only)
+  appendActionEvent(_event);
 }
