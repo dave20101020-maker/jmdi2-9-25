@@ -1,7 +1,24 @@
+import { missionControlActions } from "./missionControlActions";
+import { localActionHandlers } from "./localActionHandlers";
+
 export function executeMissionControlAction(actionId, context = {}) {
-  if (process.env.NODE_ENV !== "development") {
+  const action = missionControlActions[actionId];
+
+  if (!action) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[MC] Unknown action:", actionId);
+    }
     return;
   }
 
-  console.info("[MissionControl] action invoked:", actionId, context);
+  const handler = localActionHandlers[actionId];
+
+  if (!handler) {
+    if (process.env.NODE_ENV === "development") {
+      console.info("[MC] No-op action:", actionId, context);
+    }
+    return;
+  }
+
+  handler();
 }

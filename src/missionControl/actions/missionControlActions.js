@@ -12,3 +12,5 @@ export const MISSION_CONTROL_ACTIONS = {
     description: "Surface weakest pillar for review",
   },
 };
+
+export const missionControlActions = MISSION_CONTROL_ACTIONS;
