@@ -32,6 +32,18 @@ export function getMissionControlModules(
   timeContext = {},
   preferences = {}
 ) {
+  if (import.meta?.env?.DEV) {
+    const seen = new Set();
+    for (const entry of Object.values(M)) {
+      const type = entry?.type;
+      if (!type) continue;
+      if (seen.has(type)) {
+        console.warn("[MissionControl] Duplicate module type:", type);
+      }
+      seen.add(type);
+    }
+  }
+
   const user = normalizeUserState(rawUserState);
   const modules = [];
 
