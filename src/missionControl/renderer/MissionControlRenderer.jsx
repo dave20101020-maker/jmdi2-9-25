@@ -8,6 +8,7 @@ import PillarOverviewModule from "../modules/PillarOverviewModule";
 import SupportModule from "../modules/SupportModule";
 import MomentumModule from "../modules/MomentumModule";
 import AIEntryModule from "../modules/AIEntryModule";
+import PrimaryActionCard from "../modules/PrimaryActionCard";
 
 export default function MissionControlRenderer({ modules = [] }) {
   if (!Array.isArray(modules) || modules.length === 0) {
@@ -18,6 +19,9 @@ export default function MissionControlRenderer({ modules = [] }) {
     <div className="space-y-6">
       {modules.map((module, index) => {
         switch (module.type) {
+          case "primaryAction":
+            return <PrimaryActionCard key={index} module={module} />;
+
           case MODULE_TYPES.PRIORITY_ACTION:
             return <PriorityActionModule key={index} module={module} />;
 

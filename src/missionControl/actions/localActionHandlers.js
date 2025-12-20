@@ -60,6 +60,11 @@ export const localActionHandlers = {
     openMissionControlOverlay("ASK_AI_COACH");
   },
 
+  START_SLEEP_PROTOCOL: () => {
+    console.info("[MC][Action] Open sleep protocol placeholder");
+    openMissionControlOverlay("START_SLEEP_PROTOCOL");
+  },
+
   LOG_HABIT: () => {
     console.info("[MC][Action] Open habit log placeholder");
     openMissionControlOverlay("LOG_HABIT");

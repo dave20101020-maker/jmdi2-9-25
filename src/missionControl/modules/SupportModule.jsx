@@ -1,9 +1,9 @@
-import { Link } from "react-router-dom";
+import MissionControlCard from "../components/MissionControlCard";
 
 export default function SupportModule() {
   return (
     <section className="mt-6" id="mc-support">
-      <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md p-4">
+      <MissionControlCard to="/neuroshield">
         <p className="text-xs uppercase tracking-[0.3em] text-white/40">
           Support
         </p>
@@ -12,15 +12,10 @@ export default function SupportModule() {
           If you’re feeling overwhelmed, use a short grounding protocol and get
           back to baseline.
         </p>
-        <div className="mt-4">
-          <Link
-            to="/neuroshield"
-            className="inline-flex items-center justify-center rounded-xl px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-sm border border-white/10"
-          >
-            Open toolkit
-          </Link>
+        <div className="mt-4 inline-flex items-center justify-center rounded-xl px-4 py-2 bg-white/10 text-white text-sm border border-white/10">
+          Open toolkit
         </div>
-      </div>
+      </MissionControlCard>
     </section>
   );
 }

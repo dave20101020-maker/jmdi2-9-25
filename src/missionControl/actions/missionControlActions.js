@@ -3,6 +3,10 @@ export const MISSION_CONTROL_ACTIONS = {
     id: "ASK_AI_COACH",
     description: "Invoke NorthStar AI for today's guidance",
   },
+  START_SLEEP_PROTOCOL: {
+    id: "START_SLEEP_PROTOCOL",
+    description: "Start a sleep protocol (placeholder)",
+  },
   LOG_HABIT: {
     id: "LOG_HABIT",
     description: "Log a quick habit check-in",

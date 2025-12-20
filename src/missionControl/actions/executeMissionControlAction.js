@@ -2,7 +2,25 @@ import { missionControlActions } from "./missionControlActions";
 import { localActionHandlers } from "./localActionHandlers";
 import { emitMissionControlActionEvent } from "../persistence/missionControlPersistence";
 
+let actionFeedbackTimer = null;
+
 export async function executeMissionControlAction(actionId, context = {}) {
+  // Phase 9.3 — immediate UI feedback (never blocks)
+  try {
+    if (typeof document !== "undefined" && document?.body?.classList) {
+      document.body.classList.add("mc-action-active");
+      if (actionFeedbackTimer) {
+        window.clearTimeout(actionFeedbackTimer);
+      }
+      actionFeedbackTimer = window.setTimeout(() => {
+        document.body.classList.remove("mc-action-active");
+        actionFeedbackTimer = null;
+      }, 300);
+    }
+  } catch {
+    // Never block action execution due to UI affordances
+  }
+
   // Phase 4.0: append-only "invoked" event (HARD-OFF via capability flag)
   try {
     await emitMissionControlActionEvent({

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { PILLAR_ORBITS } from "./pillarOrbitConfig";
 
 function clampScore(value) {
@@ -6,75 +6,150 @@ function clampScore(value) {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-const ORBIT_RADIUS = 110; // px
+// Solar-system style: 8 fixed rings, each ring rotates (calm), planet is stable on ring.
+const RING_ORDER = [
+  "mental", // Mercury
+  "social", // Venus
+  "exercise", // Mars
+  "physical", // Earth
+  "finances", // Jupiter
+  "sleep", // Saturn
+  "spiritual", // Uranus
+  "diet", // Neptune
+];
 
-function getAngleForIndex(index, total) {
-  return (360 / total) * index;
-}
+const BASE_RING_RADIUS = 72;
+const RING_STEP = 14;
 
-function PillarDot({ pillarKey, score, color }) {
-  const clamped = clampScore(score);
+// Fixed angles so the system feels stable (no randomness).
+const FIXED_ANGLES = {
+  mental: 18,
+  social: 65,
+  exercise: 122,
+  physical: 200,
+  finances: 255,
+  sleep: 310,
+  spiritual: 145,
+  diet: 35,
+};
 
-  return (
-    <div
-      className="group w-5 h-5 rounded-full grid place-items-center border border-white/60 outline-none"
-      style={{ backgroundColor: color }}
-      tabIndex={0}
-      aria-label={`${pillarKey} score ${clamped}`}
-    >
-      <span className="text-[12px] font-semibold text-navy opacity-0 group-hover:opacity-100 group-focus:opacity-100">
-        {clamped}
-      </span>
-    </div>
-  );
-}
+// Very slow, calm orbital speeds (seconds per revolution).
+const RING_PERIOD_S = [60, 78, 96, 120, 150, 190, 240, 300];
 
 export default function OrbitalLifeSystem({
   lifeScore = 0,
   pillarScores = {},
 }) {
-  const totalPillars = PILLAR_ORBITS.length;
+  const clampedLifeScore = clampScore(lifeScore);
+
+  const planets = useMemo(() => {
+    const configByKey = Object.fromEntries(
+      Array.isArray(PILLAR_ORBITS) ? PILLAR_ORBITS.map((p) => [p.key, p]) : []
+    );
+
+    return RING_ORDER.map((pillarId, idx) => {
+      const cfg = configByKey[pillarId] ?? { key: pillarId, label: pillarId };
+      const score = clampScore(pillarScores?.[pillarId]);
+      const angle = FIXED_ANGLES[pillarId] ?? idx * 45;
+      const radius = BASE_RING_RADIUS + idx * RING_STEP;
+      const period = RING_PERIOD_S[idx] ?? 120;
+      return {
+        pillarId,
+        cfg,
+        score,
+        angle,
+        radius,
+        period,
+        idx,
+      };
+    });
+  }, [pillarScores]);
+
+  const [pulseLifeScore, setPulseLifeScore] = useState(false);
+  const pulseTimerRef = useRef(null);
+
+  useEffect(() => {
+    setPulseLifeScore(true);
+
+    if (pulseTimerRef.current) {
+      window.clearTimeout(pulseTimerRef.current);
+    }
+
+    pulseTimerRef.current = window.setTimeout(() => {
+      setPulseLifeScore(false);
+      pulseTimerRef.current = null;
+    }, 260);
+
+    return () => {
+      if (pulseTimerRef.current) {
+        window.clearTimeout(pulseTimerRef.current);
+        pulseTimerRef.current = null;
+      }
+    };
+  }, [clampedLifeScore]);
 
   return (
-    <div className="relative w-80 h-80 mx-auto flex items-center justify-center overflow-visible">
-      {/* Subtle guide ring (structure, no animation) */}
+    <div className="orbital-solar">
+      {/* STAR CORE */}
       <div
-        className="absolute inset-10 rounded-full border border-white/5"
-        aria-hidden="true"
-      />
-
-      {/* Center (immutable) */}
-      <div className="relative z-10 w-[72px] h-[72px] rounded-full bg-gold shadow-ns-card flex items-center justify-center">
-        <span
-          className="text-[48px] font-semibold leading-none text-navy"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          {clampScore(lifeScore)}
-        </span>
+        className={`orbital-star ${pulseLifeScore ? "lifescore-pulse" : ""}`}
+        aria-label={`NorthStar LifeScore ${clampedLifeScore}`}
+      >
+        <div className="orbital-starCore">{clampedLifeScore}</div>
       </div>
 
-      {/* Orbits (exactly 8 bodies) */}
-      {PILLAR_ORBITS.map((pillar, index) => {
-        const score = pillarScores?.[pillar.key];
+      {/* ORBIT RINGS (8) */}
+      {planets.map((p) => {
+        const style = {
+          "--ring-radius": `${p.radius}px`,
+          "--ring-period": `${p.period}s`,
+          "--planet-angle": `${p.angle}deg`,
+          "--planet-accent":
+            p.cfg?.accent ?? "hsl(var(--pillar-default) / 0.18)",
+        };
 
-        const angle = getAngleForIndex(index, totalPillars);
         return (
           <div
-            key={pillar.key}
-            className="absolute left-1/2 top-1/2"
-            style={{
-              transform: `translate(-50%, -50%) rotate(${angle}deg) translate(${ORBIT_RADIUS}px) rotate(-${angle}deg)`,
-              transformOrigin: "center",
-            }}
+            key={p.pillarId}
+            className={`orbit-ring orbit-ring--${p.idx}`}
+            style={style}
+            aria-hidden="true"
           >
-            <PillarDot
-              pillarKey={pillar.key}
-              score={score}
-              color={pillar.color}
-            />
+            <div className="orbit-rotator">
+              <div
+                className={`orbit-planet orbit-planet--${p.pillarId}`}
+                style={{
+                  transform:
+                    "rotate(var(--planet-angle)) translateX(var(--ring-radius))",
+                }}
+              >
+                {/* planet body only (no numbers here) */}
+                <span className="orbit-planetBody" />
+              </div>
+            </div>
           </div>
         );
       })}
+
+      {/* ALWAYS-VISIBLE SCORE LEGEND (no hover friction) */}
+      <div className="orbit-legend" role="list" aria-label="Pillar scores">
+        {planets.map((p) => (
+          <div key={p.pillarId} className="orbit-legendItem" role="listitem">
+            <span
+              className="orbit-legendDot"
+              style={{
+                background:
+                  p.cfg?.accent ?? "hsl(var(--pillar-default) / 0.18)",
+              }}
+              aria-hidden="true"
+            />
+            <span className="orbit-legendLabel">
+              {p.cfg?.label ?? p.pillarId}
+            </span>
+            <span className="orbit-legendScore">{p.score}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

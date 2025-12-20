@@ -71,10 +71,13 @@ export default function MissionControlActionOverlay({ registerApi }) {
   if (!activeActionId) return null;
 
   const isCoach = activeActionId === "ASK_AI_COACH";
+  const isSleepProtocol = activeActionId === "START_SLEEP_PROTOCOL";
   const isHabit = activeActionId === "LOG_HABIT";
 
   const title = isCoach
     ? "AI coach (placeholder)"
+    : isSleepProtocol
+    ? "Sleep protocol (placeholder)"
     : isHabit
     ? "Log a habit (placeholder)"
     : "";
@@ -105,7 +108,9 @@ export default function MissionControlActionOverlay({ registerApi }) {
           className={
             "mx-auto max-w-2xl rounded-t-2xl bg-white/10 border border-white/20 backdrop-blur-lg p-5 text-white " +
             "transition-all duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none " +
-            (isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4")
+            (isVisible
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-4")
           }
         >
           <div className="flex items-start justify-between gap-4">
@@ -181,6 +186,15 @@ export default function MissionControlActionOverlay({ registerApi }) {
                   Save
                 </button>
               </div>
+            </div>
+          )}
+
+          {isSleepProtocol && (
+            <div className="mt-4 space-y-3 text-white/80">
+              <p>
+                This is a local placeholder. The full sleep protocol flow will
+                live here.
+              </p>
             </div>
           )}
         </div>

@@ -1,4 +1,5 @@
 import QuickActions from "@/components/dashboard/QuickActions";
+import MissionControlCard from "../components/MissionControlCard";
 
 export default function PriorityActionModule({ module }) {
   const pillar = module?.pillar;
@@ -24,7 +25,7 @@ export default function PriorityActionModule({ module }) {
 
   return (
     <section className="mt-2 mb-6" id="mc-priority">
-      <div className="rounded-2xl bg-white/10 border border-white/20 backdrop-blur-lg p-6">
+      <MissionControlCard className="bg-white/10 border-white/20 backdrop-blur-lg p-6">
         <p className="text-xs uppercase tracking-[0.35em] text-white/50">
           Mission Control
         </p>
@@ -33,7 +34,7 @@ export default function PriorityActionModule({ module }) {
         <div className="mt-5">
           <QuickActions />
         </div>
-      </div>
+      </MissionControlCard>
     </section>
   );
 }

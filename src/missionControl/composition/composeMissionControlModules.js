@@ -57,6 +57,16 @@ export function composeMissionControlModules(
   const modules = [];
   const personalisation = getMissionControlPersonalisation();
 
+  // Phase 9.2 — Primary Action Slot
+  // Always one clear "Begin" action to reduce paralysis.
+  modules.push({
+    id: "primary-action",
+    type: "primaryAction",
+    title: "Today's Focus",
+    description: "One step that will move the needle today.",
+    actionId: "ASK_AI_COACH",
+  });
+
   const unauthenticated = rawUserState?.isAuthenticated === false;
   const hasNoData = rawUserState?.lifeScore === 0;
   const priorityPillar = getPriorityPillar(user);

@@ -70,6 +70,7 @@
   --ns-card-shadow: 0 0 30px rgba(212, 175, 55, 0.16);
   --ns-gold: var(--ns-color-primary);
   --ns-gold-strong: #b8902d;
+  --ns-gold-rgb: 212 175 55;
   --ns-text-strong: var(--ns-color-foreground);
   --ns-text-soft: rgba(226, 232, 240, 0.75);
   --ns-pillar-default: #d4af37;
@@ -81,6 +82,334 @@
   --ns-pillar-finances: #2dd4bf;
   --ns-pillar-social: #facc15;
   --ns-pillar-spirituality: #c77dff;
+
+  /* Orbital accents (HSL triplets for controlled alpha/desaturation) */
+  --pillar-default: 46 65% 52%;
+  --pillar-sleep: 238 82% 65%;
+  --pillar-diet: 140 65% 57%;
+  --pillar-exercise: 0 100% 71%;
+  --pillar-physical_health: 342 100% 79%;
+  --pillar-mental_health: 194 85% 62%;
+  --pillar-finances: 172 66% 50%;
+  --pillar-social: 48 96% 53%;
+  --pillar-spirituality: 274 100% 75%;
+}
+
+/* =========================
+   PHASE 9 — MISSION CONTROL UX
+   ========================= */
+
+.mc-card--interactive {
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+
+.mc-card--interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgb(var(--ns-gold-rgb) / 0.15);
+  border-color: rgb(var(--ns-gold-rgb) / 0.6);
+}
+
+.mc-card--interactive:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.6),
+    0 10px 30px rgba(212, 175, 55, 0.18);
+}
+
+.mc-card--interactive:active {
+  transform: translateY(0);
+}
+
+.mc-card--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mc-card--disabled:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.primary-action-card {
+  padding: 24px;
+  border-radius: 18px;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--ns-gold-rgb) / 0.08),
+    rgb(var(--ns-gold-rgb) / 0.02)
+  );
+  border: 1px solid rgb(var(--ns-gold-rgb) / 0.4);
+}
+
+.primary-action-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: rgb(var(--ns-gold-rgb) / 0.7);
+  margin-bottom: 8px;
+}
+
+.primary-action-title {
+  color: var(--ns-color-foreground);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.primary-action-description {
+  margin-top: 10px;
+  color: rgb(255 255 255 / 0.72);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.primary-action-button {
+  margin-top: 16px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: var(--ns-color-primary);
+  color: var(--ns-color-primary-foreground);
+  font-weight: 600;
+}
+
+body.mc-action-active {
+  cursor: progress;
+}
+
+body.mc-action-active .primary-action-button {
+  box-shadow: 0 0 0 6px rgb(var(--ns-gold-rgb) / 0.15);
+}
+
+/* =========================
+   PHASE 10.0 — PILLAR CURTAIN
+   Calm, scientific, decisive.
+   ========================= */
+
+.pillar-curtain {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 3rem;
+}
+
+.pillar-curtain__header h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.pillar-curtain__insight {
+  margin-top: 0.75rem;
+  opacity: 0.75;
+  line-height: 1.5;
+}
+
+.pillar-curtain__action {
+  margin-top: 2rem;
+}
+
+.pillar-curtain__support {
+  margin-top: 2.5rem;
+  opacity: 0.85;
+}
+
+/* =========================
+   ORBITAL V2: SOLAR SYSTEM
+   Calm, physics-like, premium.
+   ========================= */
+
+.orbital-solar {
+  position: relative;
+  width: 100%;
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+}
+
+/* STAR */
+.orbital-star {
+  position: absolute;
+  width: 92px;
+  height: 92px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgb(255 255 255 / 0.35) 0%,
+    var(--ns-color-primary) 60%,
+    var(--ns-gold-strong) 100%
+  );
+  box-shadow: 0 0 30px rgb(212 175 55 / 0.35), 0 0 90px rgb(212 175 55 / 0.12);
+  display: grid;
+  place-items: center;
+}
+
+.orbital-starCore {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ns-color-primary-foreground);
+  font-size: 28px;
+  line-height: 1;
+}
+
+/* RINGS */
+.orbit-ring {
+  position: absolute;
+  width: calc(var(--ring-radius) * 2);
+  height: calc(var(--ring-radius) * 2);
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+
+/* Each ring rotates; planet is “carried”. */
+.orbit-rotator {
+  width: 100%;
+  height: 100%;
+  animation: orbit-rotate var(--ring-period) linear infinite;
+  transform-origin: center;
+}
+
+@keyframes orbit-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Planet should orbit but not spin in-place. */
+.orbit-planetBody {
+  animation: orbit-counter var(--ring-period) linear infinite;
+}
+
+@keyframes orbit-counter {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-rotator,
+  .orbit-planetBody {
+    animation: none;
+  }
+}
+
+/* PLANET wrapper */
+.orbit-planet {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+}
+
+/* PLANET body */
+.orbit-planetBody {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  display: block;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgb(255 255 255 / 0.2),
+    rgb(0 0 0 / 0.45)
+  );
+  box-shadow: inset -1px -1px 2px rgb(0 0 0 / 0.45),
+    0 0 10px var(--planet-accent);
+}
+
+/* Minimal identity — structural, calm */
+.orbit-planet--sleep .orbit-planetBody {
+  width: 15px;
+  height: 15px;
+}
+
+.orbit-planet--exercise .orbit-planetBody {
+  border: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.orbit-planet--finances .orbit-planetBody {
+  box-shadow: inset -1px -1px 2px rgb(0 0 0 / 0.45),
+    0 0 14px rgb(212 175 55 / 0.18);
+}
+
+.orbit-planet--social .orbit-planetBody {
+  box-shadow: inset -1px -1px 2px rgb(0 0 0 / 0.45),
+    0 0 10px var(--planet-accent);
+}
+
+/* LEGEND (always visible scores, zero friction) */
+.orbit-legend {
+  position: absolute;
+  bottom: -12px;
+  width: min(720px, 92%);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.03);
+  border: 1px solid rgb(255 255 255 / 0.06);
+  backdrop-filter: blur(10px);
+}
+
+@media (max-width: 720px) {
+  .orbit-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.orbit-legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.orbit-legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgb(255 255 255 / 0.08);
+  flex: 0 0 auto;
+}
+
+.orbit-legendLabel {
+  color: rgb(255 255 255 / 0.72);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.orbit-legendScore {
+  margin-left: auto;
+  color: rgb(255 255 255 / 0.9);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes lifescore-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.015);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.lifescore-pulse {
+  animation: lifescore-pulse 260ms linear;
 }
 
 * {

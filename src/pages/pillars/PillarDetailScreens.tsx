@@ -1,5 +1,6 @@
 import React from "react";
 import PillarPage from "./PillarPage";
+import SleepPillar from "./SleepPillar";
 
 const buildPillarScreen = (pillarId: string, displayName: string) => {
   const Component = () => <PillarPage pillarIdOverride={pillarId} />;
@@ -7,7 +8,7 @@ const buildPillarScreen = (pillarId: string, displayName: string) => {
   return Component;
 };
 
-export const SleepPillarPage = buildPillarScreen("sleep", "Sleep");
+export const SleepPillarPage = () => <SleepPillar />;
 export const DietPillarPage = buildPillarScreen("diet", "Diet");
 export const ExercisePillarPage = buildPillarScreen("exercise", "Exercise");
 export const PhysicalHealthPillarPage = buildPillarScreen(
