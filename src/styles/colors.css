@@ -1,0 +1,8 @@
+:root {
+  /* Brand */
+  --ns-navy: #0a1029;
+  --ns-gold: #d4af37;
+  --ns-platinum: #e6e8eb;
+
+  /* Pillar tokens live in pillar-theme.css (single source of truth). */
+}

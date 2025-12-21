@@ -1,0 +1,172 @@
+:root {
+  /* Phase 12 — Pillar system (canonical, glow-only)
+     Pillar colours are glow-only.
+     Never used for:
+     - backgrounds
+     - text
+     - borders
+  */
+
+  /* Canonical pillar glow colours (hex) */
+  --pillar-glow-sleep: #6b7fd7;
+  --pillar-glow-mental-health: #4cc9f0;
+  --pillar-glow-nutrition: #3a8f7a;
+  --pillar-glow-fitness: #c84c4c;
+  --pillar-glow-physical-health: #8faf8f;
+  --pillar-glow-finances: #5e9ed6;
+  --pillar-glow-social: #d6a84c;
+  --pillar-glow-spirituality: #9b8edb;
+
+  /* Back-compat aliases used across the codebase */
+  --pill-sleep: var(--pillar-glow-sleep);
+  --pill-mental: var(--pillar-glow-mental-health);
+  --pill-mental-health: var(--pillar-glow-mental-health);
+  --pill-nutrition: var(--pillar-glow-nutrition);
+  --pill-diet: var(--pillar-glow-nutrition);
+  --pill-fitness: var(--pillar-glow-fitness);
+  --pill-exercise: var(--pillar-glow-fitness);
+  --pill-physical: var(--pillar-glow-physical-health);
+  --pill-physical-health: var(--pillar-glow-physical-health);
+  --pill-finances: var(--pillar-glow-finances);
+  --pill-social: var(--pillar-glow-social);
+  --pill-spirituality: var(--pillar-glow-spirituality);
+
+  /* Glow hooks (inactive by default) */
+  --pillar-glow-opacity: 0;
+  --pillar-glow-color: transparent;
+}
+
+/* =========================
+   Phase 12.1 — Pillar identity without colour
+   Structural cues only (felt, not noticed).
+   Applied to pillar pages only — never Mission Control.
+   ========================= */
+
+.pillar-page {
+  --pillar-radius: var(--radius-md);
+  --pillar-section-gap: 24px;
+  --pillar-body-leading: 1.55;
+  --pillar-heading-weight: 600;
+  --pillar-heading-tracking: -0.01em;
+}
+
+.pillar-page .pillar-header,
+.pillar-page .pillar-section {
+  border-radius: var(--pillar-radius);
+}
+
+.pillar-page .pillar-header {
+  position: relative;
+}
+
+.pillar-page .pillar-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 28px var(--pillar-glow-color);
+  opacity: var(--pillar-glow-opacity);
+}
+
+/* Override Tailwind's space-y rhythm with pillar-specific rhythm */
+.pillar-page.space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: var(--pillar-section-gap);
+}
+
+.pillar-page .pillar-header p,
+.pillar-page .pillar-section p {
+  line-height: var(--pillar-body-leading);
+}
+
+.pillar-page .pillar-header h1,
+.pillar-page .pillar-section h2 {
+  font-weight: var(--pillar-heading-weight);
+  letter-spacing: var(--pillar-heading-tracking);
+}
+
+/* Sleep — softer radius + slower spacing */
+.pillar-page[data-pillar="sleep"],
+.pillar-curtain[data-pillar="sleep"] {
+  --pillar-radius: calc(var(--radius-md) + 4px);
+  --pillar-section-gap: 28px;
+  --pillar-body-leading: 1.65;
+}
+
+/* Pillar curtain (Sleep uses this layout today) */
+.pillar-curtain {
+  --pillar-curtain-action-gap: 2rem;
+  --pillar-curtain-support-gap: 2.5rem;
+  --pillar-curtain-leading: 1.5;
+}
+
+.pillar-curtain__insight {
+  line-height: var(--pillar-curtain-leading);
+}
+
+.pillar-curtain__action {
+  margin-top: var(--pillar-curtain-action-gap);
+}
+
+.pillar-curtain__support {
+  margin-top: var(--pillar-curtain-support-gap);
+}
+
+.pillar-curtain[data-pillar="sleep"] {
+  --pillar-curtain-action-gap: 2.25rem;
+  --pillar-curtain-support-gap: 2.75rem;
+  --pillar-curtain-leading: 1.65;
+}
+
+/* Mental Health — lighter weight + increased line spacing */
+.pillar-page[data-pillar="mental_health"],
+.pillar-page[data-pillar="mental-health"] {
+  --pillar-heading-weight: 500;
+  --pillar-body-leading: 1.7;
+}
+
+/* Fitness (Exercise) — sharper radius + tighter rhythm */
+.pillar-page[data-pillar="exercise"],
+.pillar-page[data-pillar="fitness"] {
+  --pillar-radius: calc(var(--radius-md) - 4px);
+  --pillar-section-gap: 20px;
+  --pillar-body-leading: 1.45;
+}
+
+/* Physical Health — neutral baseline (no overrides) */
+
+/* Nutrition (Diet) — subtle vertical divider */
+.pillar-page[data-pillar="diet"],
+.pillar-page[data-pillar="nutrition"] {
+  --pillar-heading-tracking: -0.005em;
+}
+
+.pillar-page[data-pillar="diet"] .pillar-header__score,
+.pillar-page[data-pillar="nutrition"] .pillar-header__score {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  padding-left: 16px;
+}
+
+/* Finances — squared radius + tighter typography */
+.pillar-page[data-pillar="finances"] {
+  --pillar-radius: calc(var(--radius-md) - 6px);
+  --pillar-body-leading: 1.45;
+  --pillar-heading-tracking: -0.015em;
+}
+
+/* Social — relaxed padding (wider feel without new layout) */
+.pillar-page[data-pillar="social"] .pillar-header,
+.pillar-page[data-pillar="social"] .pillar-section {
+  padding: 20px;
+}
+
+/* Spirituality — increased negative space + thinner borders */
+.pillar-page[data-pillar="spirituality"] {
+  --pillar-section-gap: 30px;
+  --pillar-body-leading: 1.65;
+}
+
+.pillar-page[data-pillar="spirituality"] .pillar-header,
+.pillar-page[data-pillar="spirituality"] .pillar-section {
+  border-color: rgba(255, 255, 255, 0.05);
+}

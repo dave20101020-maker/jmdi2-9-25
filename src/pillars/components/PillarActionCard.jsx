@@ -13,6 +13,7 @@ export default function PillarActionCard({
       description={description}
       onClick={onClick}
       disabled={disabled}
+      emphasis="primary"
     >
       {children}
     </MissionControlCard>

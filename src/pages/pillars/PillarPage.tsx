@@ -18,6 +18,7 @@ export default function PillarPage({
   const activePillarId = (pillarIdProp ?? routePillarId ?? "").toLowerCase();
   const pillar = findPillar(activePillarId);
   const content = getPillarContent(pillar?.id);
+  const pillarKey = (pillar?.id ?? activePillarId).toLowerCase();
 
   const openPillarCoach = () => {
     const label = pillar?.label || "this pillar";
@@ -33,8 +34,8 @@ export default function PillarPage({
   };
 
   return (
-    <div className="space-y-6">
-      <header className={`${themeTokens.panel} space-y-3 p-4`}>
+    <div className="pillar-page space-y-6" data-pillar={pillarKey}>
+      <header className={`pillar-header ${themeTokens.panel} space-y-3 p-4`}>
         <p className="text-xs uppercase tracking-[0.35em] text-white/60">
           Pillar
         </p>
@@ -45,7 +46,7 @@ export default function PillarPage({
             </h1>
             <p className="text-sm text-white/70">{content.intent}</p>
           </div>
-          <div className="rounded-xl border border-[var(--ns-color-border)] bg-white/5 px-4 py-3 text-right shadow-ns-card">
+          <div className="pillar-header__score rounded-xl border border-[var(--ns-color-border)] bg-white/5 px-4 py-3 text-right shadow-ns-card">
             <p className="text-xs uppercase tracking-[0.3em] text-white/60">
               NorthStar Score
             </p>
@@ -57,7 +58,7 @@ export default function PillarPage({
         </div>
       </header>
 
-      <section className={`${themeTokens.card} space-y-4 p-4`}>
+      <section className={`pillar-section ${themeTokens.card} space-y-4 p-4`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
             <p className="text-xs uppercase tracking-[0.25em] text-white/60">
@@ -113,7 +114,7 @@ export default function PillarPage({
         </div>
       </section>
 
-      <section className={`${themeTokens.card} space-y-3 p-4`}>
+      <section className={`pillar-section ${themeTokens.card} space-y-3 p-4`}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Focus areas</h2>
           <span className="rounded-full bg-ns-gold/10 px-3 py-1 text-xs font-semibold text-ns-gold">
@@ -138,7 +139,7 @@ export default function PillarPage({
         </div>
       </section>
 
-      <section className={`${themeTokens.card} space-y-3 p-4`}>
+      <section className={`pillar-section ${themeTokens.card} space-y-3 p-4`}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Quick wins</h2>
           <p className="text-xs text-white/60">
@@ -158,7 +159,7 @@ export default function PillarPage({
         </div>
       </section>
 
-      <section className={`${themeTokens.card} space-y-3 p-4`}>
+      <section className={`pillar-section ${themeTokens.card} space-y-3 p-4`}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">
             Rituals & reminders

@@ -24,8 +24,8 @@ export default function PriorityActionModule({ module }) {
     : "NorthStar is finding what matters most.";
 
   return (
-    <section className="mt-2 mb-6" id="mc-priority">
-      <MissionControlCard className="bg-white/10 border-white/20 backdrop-blur-lg p-6">
+    <section id="mc-priority">
+      <MissionControlCard className="p-6" emphasis="primary">
         <p className="text-xs uppercase tracking-[0.35em] text-white/50">
           Mission Control
         </p>

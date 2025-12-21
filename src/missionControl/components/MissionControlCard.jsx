@@ -9,6 +9,7 @@ export default function MissionControlCard({
   href,
   to,
   disabled = false,
+  emphasis = "normal", // "primary" | "normal"
   children,
   ...rest
 }) {
@@ -18,7 +19,8 @@ export default function MissionControlCard({
     "mc-card",
     isInteractive && "mc-card--interactive",
     disabled && "mc-card--disabled",
-    "rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md p-4",
+    emphasis === "primary" && "mc-card--primary",
+    "p-4",
     className,
   ]
     .filter(Boolean)
@@ -26,7 +28,7 @@ export default function MissionControlCard({
 
   const content = (
     <>
-      {title ? <h3>{title}</h3> : null}
+      {title ? <h3 className="mc-card__title">{title}</h3> : null}
       {description ? <p>{description}</p> : null}
       {children}
     </>

@@ -95,7 +95,7 @@ export default function OrbitalLifeSystem({
         className={`orbital-star ${pulseLifeScore ? "lifescore-pulse" : ""}`}
         aria-label={`NorthStar LifeScore ${clampedLifeScore}`}
       >
-        <div className="orbital-starCore">{clampedLifeScore}</div>
+        <div className="orbital-starCore lifescore">{clampedLifeScore}</div>
       </div>
 
       {/* ORBIT RINGS (8) */}
@@ -138,8 +138,10 @@ export default function OrbitalLifeSystem({
             <span
               className="orbit-legendDot"
               style={{
-                background:
-                  p.cfg?.accent ?? "hsl(var(--pillar-default) / 0.18)",
+                background: "rgb(255 255 255 / 0.14)",
+                boxShadow: `0 0 12px ${
+                  p.cfg?.accent ?? "hsl(var(--pillar-default) / 0.18)"
+                }`,
               }}
               aria-hidden="true"
             />

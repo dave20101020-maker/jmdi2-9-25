@@ -7,7 +7,7 @@ export default function NarrativeInsightModule({ module }) {
     "One clear insight to reduce decision fatigue and keep you aligned.";
 
   return (
-    <section className="mt-4" id="mc-narrative">
+    <section className="narrative-insight mc-readable" id="mc-narrative">
       <MissionControlCard>
         <p className="text-xs uppercase tracking-[0.3em] text-white/40">
           Insight
