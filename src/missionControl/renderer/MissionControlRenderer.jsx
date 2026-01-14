@@ -1,24 +1,31 @@
+import React, { useMemo, useRef, useState } from "react";
 import { MODULE_TYPES } from "../engine/moduleTypes";
 
-import PriorityActionModule from "../modules/PriorityActionModule";
 import EmptyStateGuidance from "../modules/EmptyStateGuidance";
-import NarrativeInsightModule from "../modules/NarrativeInsightModule";
-import OverallScoreModule from "../modules/OverallScoreModule";
-import PillarOverviewModule from "../modules/PillarOverviewModule";
-import SupportModule from "../modules/SupportModule";
-import MomentumModule from "../modules/MomentumModule";
-import AIEntryModule from "../modules/AIEntryModule";
-import PrimaryActionCard from "../modules/PrimaryActionCard";
-import DisclosureSection from "../../shared/components/DisclosureSection";
+import { executeMissionControlAction } from "../actions/executeMissionControlAction";
+import { useMissionControlGestures } from "../hooks/useMissionControlGestures";
 
-export default function MissionControlRenderer({ modules = [] }) {
+function clampScore(value) {
+  const n = Number.isFinite(value) ? value : 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function firstSentence(text) {
+  if (typeof text !== "string") return "";
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+  const match = cleaned.match(/^(.+?[.!?])\s|^(.+)$|^(.+?[.!?])$/);
+  const sentence = (match?.[1] || match?.[2] || match?.[3] || cleaned).trim();
+  return sentence.length > 140 ? `${sentence.slice(0, 137).trim()}…` : sentence;
+}
+
+export default function MissionControlRenderer({ modules = [], userState }) {
   if (!Array.isArray(modules) || modules.length === 0) {
     return <EmptyStateGuidance />;
   }
 
-  const overallScoreModule = modules.find(
-    (module) => module?.type === MODULE_TYPES.OVERALL_SCORE
-  );
+  const lifeScore = clampScore(userState?.lifeScore);
+
   const priorityActionModule = modules.find(
     (module) => module?.type === MODULE_TYPES.PRIORITY_ACTION
   );
@@ -29,65 +36,11 @@ export default function MissionControlRenderer({ modules = [] }) {
     (module) => module?.type === MODULE_TYPES.NARRATIVE_INSIGHT
   );
 
-  const renderModule = (module, index) => {
-    switch (module.type) {
-      case "primaryAction":
-        return <PrimaryActionCard key={module?.id || index} module={module} />;
+  const [layer, setLayer] = useState("calm");
+  const [pillarIndex, setPillarIndex] = useState(0);
 
-      case MODULE_TYPES.PRIORITY_ACTION:
-        return (
-          <PriorityActionModule key={module?.id || index} module={module} />
-        );
-
-      case "EMPTY_STATE_GUIDANCE":
-        return <EmptyStateGuidance key={module?.id || index} />;
-
-      case MODULE_TYPES.NARRATIVE_INSIGHT:
-        return (
-          <NarrativeInsightModule key={module?.id || index} module={module} />
-        );
-
-      case MODULE_TYPES.OVERALL_SCORE:
-        return <OverallScoreModule key={module?.id || index} />;
-
-      case MODULE_TYPES.PILLAR_OVERVIEW:
-        return <PillarOverviewModule key={module?.id || index} />;
-
-      case MODULE_TYPES.MOMENTUM:
-        return <MomentumModule key={module?.id || index} />;
-
-      case MODULE_TYPES.SUPPORT:
-        return <SupportModule key={module?.id || index} />;
-
-      case MODULE_TYPES.AI_ENTRY:
-        return <AIEntryModule key={module?.id || index} module={module} />;
-
-      default:
-        return null;
-    }
-  };
-
-  const supportingModules = modules.filter((module) => {
-    if (!module?.type) return false;
-    if (module.type === MODULE_TYPES.OVERALL_SCORE) return false;
-    if (module.type === MODULE_TYPES.PRIORITY_ACTION) return false;
-    if (module.type === MODULE_TYPES.NARRATIVE_INSIGHT) return false;
-    if (module.type === "primaryAction") return false;
-    if (module.type === MODULE_TYPES.AI_ENTRY) return false;
-    return true;
-  });
-
-  const titleForSupportingModule = (module) => {
-    switch (module?.type) {
-      case MODULE_TYPES.MOMENTUM:
-        return "Progress & momentum";
-      case MODULE_TYPES.PILLAR_OVERVIEW:
-        return "Pillars";
-      case MODULE_TYPES.SUPPORT:
-        return "Support";
-      default:
-        return module?.title || "More context";
-    }
+  const cyclePillar = (direction) => {
+    setPillarIndex((current) => current + direction);
   };
 
   const openNorthStar = () => {
@@ -101,64 +54,113 @@ export default function MissionControlRenderer({ modules = [] }) {
     );
   };
 
+  const primaryAction = useMemo(() => {
+    const actionId = primaryActionModule?.actionId ?? "ASK_AI_COACH";
+
+    const labelFromPriorityPillar = (() => {
+      const pillar = priorityActionModule?.pillar;
+      const copyByPillar = {
+        sleep: "Wind down earlier tonight",
+        nutrition: "Do a simple nutrition check-in",
+        mental: "Take a short mental reset",
+        exercise: "Do light movement now",
+      };
+      return pillar ? copyByPillar[pillar] : "Do this now";
+    })();
+
+    const label =
+      typeof primaryActionModule?.title === "string" &&
+      primaryActionModule.title
+        ? primaryActionModule.title
+        : labelFromPriorityPillar;
+
+    return { actionId, label };
+  }, [primaryActionModule, priorityActionModule]);
+
+  const insight = useMemo(() => {
+    const fallback = "Energy is stable, but one system needs attention today.";
+    const source =
+      narrativeInsightModule?.body || narrativeInsightModule?.title || fallback;
+    return firstSentence(source) || fallback;
+  }, [narrativeInsightModule]);
+
+  const longPressTimerRef = useRef(null);
+  const longPressTriggeredRef = useRef(false);
+
+  const startStarLongPress = () => {
+    longPressTriggeredRef.current = false;
+
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+    }
+
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      openNorthStar();
+    }, 520);
+  };
+
+  const cancelStarLongPress = () => {
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const onStarClick = () => {
+    if (longPressTriggeredRef.current) return;
+    executeMissionControlAction(primaryAction.actionId);
+  };
+
+  const gestures = useMissionControlGestures({
+    onUp: () => setLayer("actions"),
+    onDown: () => setLayer("calm"),
+    onLeft: () => cyclePillar(-1),
+    onRight: () => cyclePillar(1),
+  });
+
+  void layer;
+  void pillarIndex;
+
   return (
-    <div className="mission-control">
-      <section className="mc-spine">
-        <div className="mc-section" id="mc-score">
-          <div className="mc-section-label">Overall score</div>
-          {overallScoreModule ? renderModule(overallScoreModule, 0) : null}
-        </div>
+    <div className="mc-core" {...gestures}>
+      <div className="mc-life" aria-label={`LifeScore ${lifeScore}`}>
+        <button
+          type="button"
+          className="mc-lifeStar"
+          aria-label="Execute primary action"
+          onPointerDown={startStarLongPress}
+          onPointerUp={cancelStarLongPress}
+          onPointerCancel={cancelStarLongPress}
+          onPointerLeave={cancelStarLongPress}
+          onClick={onStarClick}
+        >
+          <span className="mc-lifeStar__score lifescore">{lifeScore}</span>
+        </button>
+      </div>
 
-        <div className="mc-section" id="mc-action">
-          <div className="mc-section-label">Priority</div>
-          {priorityActionModule
-            ? renderModule(priorityActionModule, 1)
-            : primaryActionModule
-            ? renderModule(primaryActionModule, 1)
-            : null}
-        </div>
-
-        <div className="mc-section" id="mc-ai">
-          <div className="mc-section-label">AI</div>
-          <div className="ai-anchor">
-            <button
-              type="button"
-              className="ai-anchor__button"
-              onClick={openNorthStar}
-            >
-              NorthStar command
-            </button>
-          </div>
-        </div>
-
-        <div className="mc-section" id="mc-insight">
-          <div className="mc-section-label">Narrative insight</div>
-          {narrativeInsightModule
-            ? renderModule(narrativeInsightModule, 2)
-            : null}
-        </div>
-      </section>
+      <p className="mc-oneSentence" aria-live="polite">
+        {insight}
+      </p>
 
       <div>
-        {supportingModules.map((module, index) => {
-          const rendered = renderModule(module, index);
-          if (!rendered) return null;
-
-          return (
-            <div
-              className="mc-section"
-              key={module?.id || `${module?.type || "module"}-${index}`}
-            >
-              <div className="mc-section-label">
-                {titleForSupportingModule(module)}
-              </div>
-              <DisclosureSection title={titleForSupportingModule(module)}>
-                {rendered}
-              </DisclosureSection>
-            </div>
-          );
-        })}
+        <button
+          type="button"
+          className="mc-primary-action"
+          onClick={() => executeMissionControlAction(primaryAction.actionId)}
+        >
+          {primaryAction.label}
+        </button>
       </div>
+
+      <button
+        type="button"
+        className="mc-aiDock"
+        aria-label="Open AI command"
+        onClick={openNorthStar}
+      >
+        <span className="mc-aiDock__star" aria-hidden="true" />
+      </button>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { getMissionControlModules } from "./engine/getMissionControlModules";
 import MissionControlRenderer from "./renderer/MissionControlRenderer";
-import MissionControlOrbitalHeader from "./components/MissionControlOrbitalHeader";
+// Phase 13: Orbit/context returns via gestures (not default plane)
+// import MissionControlOrbitalHeader from "./components/MissionControlOrbitalHeader";
 
 // Future Mission Control V2 (not implemented yet)
 // import MissionControlV2 from "./MissionControlV2";
@@ -44,8 +45,7 @@ export default function MissionControlRoot(props) {
       {/* Mission Control is the OS surface */}
       {/* Dashboard is a state machine, not a page */}
       {/* One priority, one insight, one action */}
-      <MissionControlOrbitalHeader userState={userState} />
-      <MissionControlRenderer modules={modules} />
+      <MissionControlRenderer modules={modules} userState={userState} />
     </div>
   );
 }
