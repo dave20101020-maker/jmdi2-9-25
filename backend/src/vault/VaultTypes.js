@@ -3,6 +3,8 @@ export const VAULT_RECORD_TYPES = {
   CALENDAR_EVENT: "calendar_event",
   EMAIL_HEADER: "email_header",
   DRIVE_FILE: "drive_file",
+  MISSION_CONTROL_ACTION_EVENT: "mission_control_action_event",
+  MISSION_CONTROL_ACTION_STATE: "mission_control_action_state",
   ONBOARDING_PROFILE: "onboarding_profile",
 };
 

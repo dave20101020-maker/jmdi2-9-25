@@ -42,6 +42,7 @@ import assessmentsRoutes from "./routes/assessments.js";
 import connectorsRoutes from "./routes/connectors.js";
 import debugAiTestRoutes from "./routes/debugAiTest.js";
 import internalPostgresHealthRoutes from "./routes/internalPostgresHealth.js";
+import missionControlRoutes from "./routes/missionControl.js";
 import { primeProviderHealth } from "./utils/providerHealth.js";
 
 const envName = process.env.NODE_ENV || "development";
@@ -223,6 +224,7 @@ app.use("/api/insights", insightsRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/checkin", checkinRoutes);
 app.use("/api/assessments", assessmentsRoutes);
+app.use("/api/mission-control", missionControlRoutes);
 app.use("/api/connectors", connectorsRoutes);
 app.use("/api/pages", pagesRoutes);
 app.use("/api/nav", navRoutes);

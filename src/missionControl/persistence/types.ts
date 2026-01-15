@@ -5,10 +5,15 @@
  * Emission is HARD-OFF by default via capabilities.MC_PERSISTENCE_ENABLED.
  */
 
-export type MissionControlActionEventType = "invoked" | "completed";
+export type MissionControlActionLifecycle =
+  | "shown"
+  | "acted"
+  | "deferred"
+  | "dismissed"
+  | MissionControlActionEventType;
 
 export interface MissionControlActionEvent {
-  type: MissionControlActionEventType;
+  type: MissionControlActionLifecycle;
   actionId: string;
   /**
    * Timestamp for event ordering (append-only).
@@ -18,8 +23,17 @@ export interface MissionControlActionEvent {
    * Optional lightweight metadata (must not affect UI/module selection yet).
    */
   meta?: Record<string, unknown>;
-  /**
-   * Present for "completed" events.
-   */
-  outcome?: "success" | "error";
+  priorityContext?: Record<string, unknown>;
+}
+
+export interface MissionControlActionState {
+  actionId: string;
+  lifecycle: MissionControlActionLifecycle;
+  lastUpdatedAt: number;
+  userAgency?: {
+    deferred?: boolean;
+    dismissed?: boolean;
+    pinned?: boolean;
+  };
+  priorityContext?: Record<string, unknown>;
 }

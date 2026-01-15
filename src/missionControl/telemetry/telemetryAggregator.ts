@@ -19,19 +19,15 @@ export function recordActionEvent(event: MissionControlActionEvent): void {
     errorCount: 0,
   };
 
-  if (event.type === "invoked") {
+  if (event.type === "shown") {
     entry.invokedCount += 1;
     entry.lastInvokedTs = event.ts;
     inFlightInvocations.set(event.actionId, event.ts);
   }
 
-  if (event.type === "completed") {
+  if (event.type === "acted") {
     entry.completedCount += 1;
     entry.lastCompletedTs = event.ts;
-
-    if (event.outcome === "error") {
-      entry.errorCount += 1;
-    }
 
     const startTs = inFlightInvocations.get(event.actionId);
     if (startTs) {

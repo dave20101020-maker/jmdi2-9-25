@@ -21,13 +21,13 @@ export async function executeMissionControlAction(actionId, context = {}) {
     // Never block action execution due to UI affordances
   }
 
-  // Phase 4.0: append-only "invoked" event (HARD-OFF via capability flag)
+  // Phase 4.0: append-only lifecycle event (HARD-OFF via capability flag)
   try {
     await emitMissionControlActionEvent({
-      type: "invoked",
+      type: "acted",
       actionId,
       ts: Date.now(),
-      meta: { source: "mission-control" },
+      meta: { source: "mission-control", phase: "start" },
     });
   } catch {
     // Never block action execution due to persistence
@@ -54,14 +54,13 @@ export async function executeMissionControlAction(actionId, context = {}) {
   try {
     const result = await Promise.resolve(handler(context));
 
-    // Phase 4.0: append-only "completed" event (success)
+    // Phase 4.0: append-only lifecycle event (success)
     try {
       await emitMissionControlActionEvent({
-        type: "completed",
+        type: "acted",
         actionId,
         ts: Date.now(),
-        outcome: "success",
-        meta: { source: "mission-control" },
+        meta: { source: "mission-control", ok: true },
       });
     } catch {
       // Never block action execution due to persistence
@@ -82,14 +81,17 @@ export async function executeMissionControlAction(actionId, context = {}) {
 
     return result;
   } catch (err) {
-    // Phase 4.0: append-only "completed" event (error)
+    // Phase 4.0: append-only lifecycle event (error)
     try {
       await emitMissionControlActionEvent({
-        type: "completed",
+        type: "acted",
         actionId,
         ts: Date.now(),
-        outcome: "error",
-        meta: { source: "mission-control" },
+        meta: {
+          source: "mission-control",
+          ok: false,
+          error: err?.message || "action_failed",
+        },
       });
     } catch {
       // Never block action execution due to persistence

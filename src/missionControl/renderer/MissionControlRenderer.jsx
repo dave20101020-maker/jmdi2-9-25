@@ -5,6 +5,28 @@ import EmptyStateGuidance from "../modules/EmptyStateGuidance";
 import { executeMissionControlAction } from "../actions/executeMissionControlAction";
 import { useMissionControlGestures } from "../hooks/useMissionControlGestures";
 import { openAiChat } from "@/ai/launch/aiChatLauncher";
+import {
+  emitMissionControlActionEvent,
+  fetchMissionControlActionState,
+  persistMissionControlActionState,
+} from "../persistence/missionControlPersistence";
+
+const ACTION_ORDER = [
+  "ASK_AI_COACH",
+  "LOG_HABIT",
+  "START_SLEEP_PROTOCOL",
+  "REVIEW_PRIORITIES",
+];
+
+const resolveActionId = (actionId) =>
+  ACTION_ORDER.includes(actionId) ? actionId : ACTION_ORDER[0];
+
+const getNextActionId = (actionId) => {
+  const current = resolveActionId(actionId);
+  const index = ACTION_ORDER.indexOf(current);
+  if (index === -1) return ACTION_ORDER[0];
+  return ACTION_ORDER[(index + 1) % ACTION_ORDER.length];
+};
 
 function clampScore(value) {
   const n = Number.isFinite(value) ? value : 0;
@@ -74,6 +96,82 @@ export default function MissionControlRenderer({ modules = [], userState }) {
     return { actionId, label };
   }, [primaryActionModule, priorityActionModule]);
 
+  const [actionOverride, setActionOverride] = useState(null);
+
+  React.useEffect(() => {
+    let active = true;
+
+    const loadActionState = async () => {
+      const state = await fetchMissionControlActionState();
+      if (!active || !state?.actionId) return;
+
+      if (state.lifecycle === "dismissed") {
+        const nextActionId = getNextActionId(state.actionId);
+        setActionOverride(nextActionId);
+        await persistMissionControlActionState({
+          actionId: nextActionId,
+          lifecycle: "shown",
+          lastUpdatedAt: Date.now(),
+        });
+        return;
+      }
+
+      setActionOverride(resolveActionId(state.actionId));
+    };
+
+    loadActionState().catch(() => {
+      // Fail-soft: never block Mission Control render due to persistence.
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const activeActionId = actionOverride || primaryAction.actionId;
+  const actionLabelById = {
+    LOG_HABIT: "Log a quick habit",
+    START_SLEEP_PROTOCOL: "Start the sleep protocol",
+    REVIEW_PRIORITIES: "Review your priorities",
+  };
+  const activeActionLabel =
+    actionLabelById[activeActionId] || primaryAction.label;
+
+  const handleDefer = async () => {
+    const timestamp = Date.now();
+    await emitMissionControlActionEvent({
+      type: "deferred",
+      actionId: activeActionId,
+      ts: timestamp,
+      meta: { source: "mission-control", surface: "primary-action" },
+    }).catch(() => {});
+
+    await persistMissionControlActionState({
+      actionId: activeActionId,
+      lifecycle: "deferred",
+      lastUpdatedAt: timestamp,
+      userAgency: { deferred: true },
+    });
+  };
+
+  const handleDismiss = async () => {
+    const timestamp = Date.now();
+    await emitMissionControlActionEvent({
+      type: "dismissed",
+      actionId: activeActionId,
+      ts: timestamp,
+      meta: { source: "mission-control", surface: "primary-action" },
+    }).catch(() => {});
+
+    const nextActionId = getNextActionId(activeActionId);
+    setActionOverride(nextActionId);
+    await persistMissionControlActionState({
+      actionId: nextActionId,
+      lifecycle: "shown",
+      lastUpdatedAt: timestamp,
+    });
+  };
+
   const insight = useMemo(() => {
     const fallback = "Energy is stable, but one system needs attention today.";
     const source =
@@ -106,7 +204,7 @@ export default function MissionControlRenderer({ modules = [], userState }) {
 
   const onStarClick = () => {
     if (longPressTriggeredRef.current) return;
-    executeMissionControlAction(primaryAction.actionId);
+    executeMissionControlAction(activeActionId);
   };
 
   const gestures = useMissionControlGestures({
@@ -144,10 +242,18 @@ export default function MissionControlRenderer({ modules = [], userState }) {
         <button
           type="button"
           className="mc-primary-action"
-          onClick={() => executeMissionControlAction(primaryAction.actionId)}
+          onClick={() => executeMissionControlAction(activeActionId)}
         >
-          {primaryAction.label}
+          {activeActionLabel}
         </button>
+        <div className="mt-3 flex flex-wrap gap-3 text-sm text-white/70">
+          <button type="button" onClick={handleDefer}>
+            Defer
+          </button>
+          <button type="button" onClick={handleDismiss}>
+            Dismiss
+          </button>
+        </div>
       </div>
 
       <button
