@@ -19,13 +19,21 @@ export async function startAssessmentSession({
 
   const resolvedPillar =
     typeof pillar === "string" && pillar.trim() ? pillar.trim() : "general";
+  const normalizedKey = String(assessmentKey).trim();
+  const assessmentId =
+    normalizedKey === "ISI" || normalizedKey === "SLEEP"
+      ? "sleep_hygiene"
+      : normalizedKey === "ADHD_CHECK" || normalizedKey === "ADHD"
+      ? "adhd"
+      : normalizedKey.toLowerCase();
 
   return {
     ok: true,
     payload: {
       type: "assessment.start",
       pillar: resolvedPillar,
-      assessmentKey,
+      assessmentId,
+      schemaVersion: "v1",
       userId,
       startedAt: new Date().toISOString(),
     },

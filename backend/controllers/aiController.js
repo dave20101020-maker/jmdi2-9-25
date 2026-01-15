@@ -6,8 +6,6 @@
 // - Deterministic ordering preserved
 // - API behavior frozen
 // ============================================================
-
-import OpenAI from "openai";
 import User from "../models/User.js";
 import OnboardingProfile from "../models/OnboardingProfile.js";
 import PillarCheckIn from "../models/PillarCheckIn.js";
@@ -19,20 +17,12 @@ import {
   pgFirstRead,
 } from "../src/utils/readSwitch.js";
 import { emitAuditEvent } from "../src/utils/auditLog.js";
+import { getAIModelAdapter } from "../src/ai/models/index.js";
 
 const sendAiResponse = (res, payload, status = 200) =>
   res.status(status).json(applyAiDisclaimer(payload));
 
-// Lazy initialization of OpenAI client
-let openai = null;
-const getOpenAIClient = () => {
-  if (!openai && process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-};
+const aiModel = getAIModelAdapter();
 
 // Per-pillar short configs (system role + preferred tone)
 const pillarConfigs = {
@@ -264,23 +254,23 @@ export const coachAgent = async (req, res) => {
       },
     ];
 
-    const response = await getOpenAIClient().beta.messages.create({
+    const response = await aiModel.generateMessage({
       model: "gpt-4-turbo",
-      max_tokens: 1024,
+      maxTokens: 1024,
       messages,
-      betas: ["openai-beta.json-mode-latest"],
+      jsonMode: true,
     });
 
-    const content = response.content[0];
-    if (content.type !== "text")
-      throw new Error("Unexpected response type from OpenAI");
+    if (!response.ok) {
+      throw new Error(response.error || "AI provider unavailable");
+    }
 
     let coachingData;
     try {
-      coachingData = JSON.parse(content.text);
+      coachingData = JSON.parse(response.contentText);
     } catch {
       coachingData = {
-        coaching: content.text,
+        coaching: response.contentText,
         encouragement: "You are making progress!",
         actionItems: [],
         nextSteps: "Continue your wellness journey.",
@@ -318,9 +308,9 @@ export const dailyPlanAgent = async (req, res) => {
     if (!prompt)
       return sendAiResponse(res, { error: "Prompt is required" }, 400);
 
-    const response = await getOpenAIClient().beta.messages.create({
+    const response = await aiModel.generateMessage({
       model: "gpt-4-turbo",
-      max_tokens: 1500,
+      maxTokens: 1500,
       messages: [
         {
           role: "user",
@@ -329,17 +319,16 @@ export const dailyPlanAgent = async (req, res) => {
           )}. Return a JSON object with: morningRoutine (array of tasks with times), mainTasks (prioritized array with durations), eveningRoutine (array of tasks), estimatedTime (total hours needed), and energyManagement (tips for maintaining energy).`,
         },
       ],
-      betas: ["openai-beta.json-mode-latest"],
+      jsonMode: true,
     });
 
-    const content = response.content[0];
-    if (content.type !== "text") {
-      throw new Error("Unexpected response type from OpenAI");
+    if (!response.ok) {
+      throw new Error(response.error || "AI provider unavailable");
     }
 
     let planData;
     try {
-      planData = JSON.parse(content.text);
+      planData = JSON.parse(response.contentText);
     } catch {
       planData = {
         morningRoutine: [
@@ -412,22 +401,21 @@ export const pillarAnalysisAgent = async (req, res) => {
       },
     ];
 
-    const response = await getOpenAIClient().beta.messages.create({
+    const response = await aiModel.generateMessage({
       model: "gpt-4-turbo",
-      max_tokens: 1200,
+      maxTokens: 1200,
       messages,
-      betas: ["openai-beta.json-mode-latest"],
+      jsonMode: true,
     });
-    const content = response.content[0];
-    if (content.type !== "text")
-      throw new Error("Unexpected response type from OpenAI");
+    if (!response.ok)
+      throw new Error(response.error || "AI provider unavailable");
 
     let analysisData;
     try {
-      analysisData = JSON.parse(content.text);
+      analysisData = JSON.parse(response.contentText);
     } catch {
       analysisData = {
-        pillarAnalysis: { [target]: content.text },
+        pillarAnalysis: { [target]: response.contentText },
         recommendations: [],
         strengths: [],
         improvements: [],
@@ -465,9 +453,9 @@ export const weeklyReflectionAgent = async (req, res) => {
     if (!prompt)
       return sendAiResponse(res, { error: "Prompt is required" }, 400);
 
-    const response = await getOpenAIClient().beta.messages.create({
+    const response = await aiModel.generateMessage({
       model: "gpt-4-turbo",
-      max_tokens: 1500,
+      maxTokens: 1500,
       messages: [
         {
           role: "user",
@@ -478,17 +466,16 @@ export const weeklyReflectionAgent = async (req, res) => {
           )}. Return a JSON object with: 1) weeklyInsights (summary of the week), 2) keyAccomplishments (array of wins), 3) lessonsLearned (array of insights), 4) nextWeekGoals (array of goals for next week), 5) motivationalMessage (encouraging message).`,
         },
       ],
-      betas: ["openai-beta.json-mode-latest"],
+      jsonMode: true,
     });
 
-    const content = response.content[0];
-    if (content.type !== "text") {
-      throw new Error("Unexpected response type from OpenAI");
+    if (!response.ok) {
+      throw new Error(response.error || "AI provider unavailable");
     }
 
     let reflectionData;
     try {
-      reflectionData = JSON.parse(content.text);
+      reflectionData = JSON.parse(response.contentText);
     } catch {
       reflectionData = {
         weeklyInsights: "You had a productive week with good progress.",
@@ -623,33 +610,28 @@ export const buildWeeklyReport = async (userId) => {
     let actions = [];
     let aiSummary = "";
     try {
-      if (openai && process.env.OPENAI_API_KEY) {
-        const prompt = `Weekly report data for user:\nPillar averages (0-100): ${JSON.stringify(
-          Object.fromEntries(
-            pillars.map((p) => [p, summary[p].recentScore || 0])
-          )
-        )}\nBiggest improvement: ${
-          biggestImprovement
-            ? biggestImprovement.pillar + " (" + biggestImprovement.change + ")"
-            : "none"
-        }\nWeakest pillar: ${weakest.pillar} (${
-          weakest.score
-        })\nProvide a short email-style summary and 3 recommended actions as a JSON object { title, summary, improvements, declines, actions }`;
-        const response = await getOpenAIClient().beta.messages.create({
-          model: "gpt-4-turbo",
-          max_tokens: 800,
-          messages: [{ role: "user", content: prompt }],
-          betas: ["openai-beta.json-mode-latest"],
-        });
-        const content = response.content[0];
-        if (content?.type === "text") {
-          try {
-            const parsed = JSON.parse(content.text);
-            aiSummary = parsed.summary || "";
-            actions = parsed.actions || [];
-          } catch {
-            aiSummary = content.text || "";
-          }
+      const prompt = `Weekly report data for user:\nPillar averages (0-100): ${JSON.stringify(
+        Object.fromEntries(pillars.map((p) => [p, summary[p].recentScore || 0]))
+      )}\nBiggest improvement: ${
+        biggestImprovement
+          ? biggestImprovement.pillar + " (" + biggestImprovement.change + ")"
+          : "none"
+      }\nWeakest pillar: ${weakest.pillar} (${
+        weakest.score
+      })\nProvide a short email-style summary and 3 recommended actions as a JSON object { title, summary, improvements, declines, actions }`;
+      const response = await aiModel.generateMessage({
+        model: "gpt-4-turbo",
+        maxTokens: 800,
+        messages: [{ role: "user", content: prompt }],
+        jsonMode: true,
+      });
+      if (response.ok) {
+        try {
+          const parsed = JSON.parse(response.contentText);
+          aiSummary = parsed.summary || "";
+          actions = parsed.actions || [];
+        } catch {
+          aiSummary = response.contentText || "";
         }
       }
     } catch (err) {

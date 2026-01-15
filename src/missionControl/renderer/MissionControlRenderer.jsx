@@ -4,6 +4,7 @@ import { MODULE_TYPES } from "../engine/moduleTypes";
 import EmptyStateGuidance from "../modules/EmptyStateGuidance";
 import { executeMissionControlAction } from "../actions/executeMissionControlAction";
 import { useMissionControlGestures } from "../hooks/useMissionControlGestures";
+import { openAiChat } from "@/ai/launch/aiChatLauncher";
 
 function clampScore(value) {
   const n = Number.isFinite(value) ? value : 0;
@@ -44,14 +45,10 @@ export default function MissionControlRenderer({ modules = [], userState }) {
   };
 
   const openNorthStar = () => {
-    if (typeof window === "undefined") return;
-    window.dispatchEvent(
-      new CustomEvent("northstar:open", {
-        detail: {
-          draft: "Help me decide what matters most today.",
-        },
-      })
-    );
+    openAiChat({
+      draft: "Help me decide what matters most today.",
+      aiContext: { mode: "northstar_intro", source: "mission_control" },
+    });
   };
 
   const primaryAction = useMemo(() => {

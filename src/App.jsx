@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-} from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./components/ThemeProvider";
 import AppShell from "./components/layout/AppShell";
@@ -34,7 +28,6 @@ import queryClient from "./app/queryClient";
 import Pillars from "@/pages/Pillars";
 import { NAMED_ROUTES } from "@/config/routes";
 import CoachHub from "./pages/coach/CoachHub";
-import NorthStarAssistant from "@/ai/NorthStarAssistant";
 import Privacy from "./pages/compliance/Privacy";
 import Terms from "./pages/compliance/Terms";
 import TrustCenter from "./pages/compliance/TrustCenter";
@@ -46,14 +39,12 @@ import Leaderboards from "./pages/northstar/Leaderboards";
 import Analytics from "./pages/Analytics";
 import WeeklyReflection from "./pages/WeeklyReflection";
 import WeeklyReport from "./pages/WeeklyReport";
-import AITestPanel from "./components/ai/AITestPanel";
-import AuthDebugPanel from "./components/auth/AuthDebugPanel";
 import ApiErrorToast from "./components/ui/ApiErrorToast";
 import { AuthProvider } from "@/hooks/useAuth";
-import { AUTH_MODE } from "@/config/authMode";
 import NorthStarLoader from "@/components/NorthStarLoader";
 import { useAuth } from "@/hooks/useAuth";
 import useAppStore from "@/store/useAppStore";
+import AppOverlays from "@/overlays/AppOverlays";
 
 function AppLayout({ children }) {
   return (
@@ -235,27 +226,6 @@ function AppRoutes() {
 
       <Route path="*" element={<NotFound />} />
     </Routes>
-  );
-}
-
-function AppOverlays() {
-  const location = useLocation();
-  const pathname = location?.pathname || "";
-  const isAuthRoute =
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/forgot-password" ||
-    pathname === "/sign-in" ||
-    pathname === "/sign-up";
-
-  if (isAuthRoute) return null;
-
-  return (
-    <>
-      <NorthStarAssistant />
-      <AITestPanel />
-      {AUTH_MODE !== "PARKED" ? <AuthDebugPanel /> : null}
-    </>
   );
 }
 

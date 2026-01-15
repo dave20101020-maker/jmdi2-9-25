@@ -1,5 +1,5 @@
-import { api } from "@/utils/apiClient";
-import React, { useState } from "react";
+import { api, apiClient } from "@/utils/apiClient";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl, PILLARS } from "@/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,6 +40,64 @@ export default function Onboarding() {
   const [firstLogValue, setFirstLogValue] = useState(7);
   const [firstLogNotes, setFirstLogNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [googleStatus, setGoogleStatus] = useState({
+    connected: false,
+    updatedAt: null,
+  });
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState(null);
+
+  const loadGoogleStatus = async () => {
+    try {
+      const response = await apiClient.request("/connectors", {
+        method: "GET",
+      });
+      const google = response?.connectors?.find((item) => item.id === "google");
+      if (google) {
+        setGoogleStatus({
+          connected: google.status === "connected",
+          updatedAt: google.updatedAt || null,
+        });
+      }
+    } catch (error) {
+      console.error("Google connector status error:", error);
+    }
+  };
+
+  const handleGoogleConnect = async () => {
+    setGoogleLoading(true);
+    setGoogleError(null);
+    try {
+      const response = await apiClient.request("/connectors/google/connect", {
+        method: "POST",
+        body: {},
+      });
+
+      if (response?.authUrl) {
+        window.location.assign(response.authUrl);
+        return;
+      }
+
+      if (response?.status === "connected" || response?.ok) {
+        setGoogleStatus((prev) => ({
+          ...prev,
+          connected: true,
+          updatedAt: new Date().toISOString(),
+        }));
+      }
+    } catch (error) {
+      console.error("Google connect error:", error);
+      setGoogleError("Unable to connect Google right now.");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (step === 5) {
+      loadGoogleStatus();
+    }
+  }, [step]);
 
   const togglePillar = (pillarId) => {
     if (selectedPillars.includes(pillarId)) {
@@ -388,6 +446,73 @@ export default function Onboarding() {
         return (
           <motion.div
             key="step5"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto"
+          >
+            <div className="text-center mb-8">
+              <div className="text-5xl mb-4">🔗</div>
+              <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
+                Connect Google
+              </h1>
+              <p className="text-white/70">
+                Import calendar, Gmail headers, and Drive metadata to build your
+                initial context.
+              </p>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-white font-bold text-lg">Google</div>
+                  <div className="text-white/60 text-sm">
+                    Calendar availability, email headers, and Drive files
+                  </div>
+                </div>
+                <div className="text-sm text-white/70">
+                  {googleStatus.connected ? "Connected" : "Not connected"}
+                </div>
+              </div>
+
+              {googleStatus.updatedAt && (
+                <div className="text-xs text-white/50 mt-2">
+                  Last updated:{" "}
+                  {new Date(googleStatus.updatedAt).toLocaleString()}
+                </div>
+              )}
+            </div>
+
+            {googleError ? (
+              <div className="text-sm text-amber-200 mb-4">{googleError}</div>
+            ) : null}
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setStep(6)}
+                variant="ghost"
+                className="flex-1 border border-white/20 text-white hover:bg-white/10"
+              >
+                Skip for now
+              </Button>
+              <Button
+                onClick={handleGoogleConnect}
+                disabled={googleLoading}
+                className="btn-primary flex-1 text-lg py-6"
+              >
+                {googleLoading
+                  ? "Connecting..."
+                  : googleStatus.connected
+                  ? "Connected"
+                  : "Connect Google"}
+              </Button>
+            </div>
+          </motion.div>
+        );
+
+      case 6:
+        return (
+          <motion.div
+            key="step6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -446,7 +571,7 @@ export default function Onboarding() {
             </div>
 
             <Button
-              onClick={() => setStep(6)}
+              onClick={() => setStep(7)}
               disabled={selectedPillars.length < 3}
               className="btn-primary w-full text-lg py-6 disabled:opacity-50"
             >
@@ -457,7 +582,7 @@ export default function Onboarding() {
           </motion.div>
         );
 
-      case 6: {
+      case 7: {
         const firstSelectedPillar = selectedPillars[0]
           ? PILLARS[selectedPillars[0]]
           : null;
@@ -471,7 +596,7 @@ export default function Onboarding() {
 
         return (
           <motion.div
-            key="step6"
+            key="step7"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="max-w-2xl mx-auto"
@@ -522,14 +647,14 @@ export default function Onboarding() {
 
             <div className="flex gap-3">
               <Button
-                onClick={() => setStep(7)}
+                onClick={() => setStep(8)}
                 variant="ghost"
                 className="flex-1 border border-white/20 text-white hover:bg-white/10"
               >
                 Skip for now
               </Button>
               <Button
-                onClick={() => setStep(7)}
+                onClick={() => setStep(8)}
                 disabled={!goalText.trim()}
                 className="btn-primary flex-1 text-lg py-6"
               >
@@ -540,10 +665,10 @@ export default function Onboarding() {
         );
       }
 
-      case 7:
+      case 8:
         return (
           <motion.div
-            key="step7"
+            key="step8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="max-w-2xl mx-auto"
@@ -609,14 +734,14 @@ export default function Onboarding() {
 
             <div className="flex gap-3">
               <Button
-                onClick={() => setStep(8)}
+                onClick={() => setStep(9)}
                 variant="ghost"
                 className="flex-1 border border-white/20 text-white hover:bg-white/10"
               >
                 Skip for now
               </Button>
               <Button
-                onClick={() => setStep(8)}
+                onClick={() => setStep(9)}
                 className="btn-primary flex-1 text-lg py-6"
               >
                 {reminderEnabled ? "Enable Notifications" : "Continue"}
@@ -625,14 +750,14 @@ export default function Onboarding() {
           </motion.div>
         );
 
-      case 8: {
+      case 9: {
         const firstPillar = selectedPillars[0]
           ? PILLARS[selectedPillars[0]]
           : null;
 
         return (
           <motion.div
-            key="step8"
+            key="step9"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="max-w-2xl mx-auto"
@@ -691,7 +816,7 @@ export default function Onboarding() {
             </div>
 
             <Button
-              onClick={() => setStep(9)}
+              onClick={() => setStep(10)}
               className="btn-primary w-full text-lg py-6"
             >
               Save My First Entry 🌟
@@ -700,10 +825,10 @@ export default function Onboarding() {
         );
       }
 
-      case 9:
+      case 10:
         return (
           <motion.div
-            key="step9"
+            key="step10"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="max-w-3xl mx-auto text-center"
@@ -867,7 +992,7 @@ export default function Onboarding() {
               {step > 1 && (
                 <div className="mb-8">
                   <div className="flex justify-center gap-2 mb-2">
-                    {[...Array(9)].map((_, i) => (
+                    {[...Array(10)].map((_, i) => (
                       <div
                         key={i}
                         className={`h-2 rounded-full transition-all ${
@@ -879,7 +1004,7 @@ export default function Onboarding() {
                     ))}
                   </div>
                   <div className="text-center text-white/60 text-sm">
-                    Step {step} of 9
+                    Step {step} of 10
                   </div>
                 </div>
               )}

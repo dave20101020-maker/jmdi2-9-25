@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { getAiLaunchContext, getCurrentAIContext } from "@/ai/context";
 import { PILLARS } from "@/config/pillars";
+import { parseAssessmentStartPayload } from "@/ai/modules/assessmentModuleAdapter";
 
 const fallbackReply = (prompt) =>
   `Mock reply for: "${prompt}". The AI service is temporarily unavailable.`;
@@ -73,6 +74,7 @@ export default function CopilotChatModal({
   onClose,
   initialDraft,
   aiLaunchContext,
+  onAssessmentStart,
 }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -107,6 +109,15 @@ export default function CopilotChatModal({
 
   const [contextHint, setContextHint] = useState(null);
   const [contextHintPhase, setContextHintPhase] = useState("hidden");
+  const notifyAssessmentStart = useCallback(
+    (replyText) => {
+      const payload = parseAssessmentStartPayload(replyText);
+      if (payload && onAssessmentStart) {
+        onAssessmentStart(payload);
+      }
+    },
+    [onAssessmentStart]
+  );
 
   const contextLabel = useMemo(() => {
     const path = String(location?.pathname || "/");
@@ -200,6 +211,7 @@ export default function CopilotChatModal({
           ...prev,
           { id: crypto.randomUUID(), role: "assistant", text: reply },
         ]);
+        notifyAssessmentStart(reply);
         evaluateCrisisSignal(data);
       } catch (err) {
         const normalizedDiagnostics = normalizeAiDiagnosticsFromError(
@@ -438,6 +450,7 @@ export default function CopilotChatModal({
         ...prev,
         { id: crypto.randomUUID(), role: "assistant", text: reply },
       ]);
+      notifyAssessmentStart(reply);
       evaluateCrisisSignal(data);
     } catch (err) {
       const normalizedDiagnostics = normalizeAiDiagnosticsFromError(
