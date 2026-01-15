@@ -8,6 +8,9 @@ import HealthIntegrations from "@/components/HealthIntegrations";
 import { AppSettingsContext } from "@/context/AppSettingsContext.jsx";
 import DiagnosticsPanel from "./Settings/DiagnosticsPanel";
 import { NAMED_ROUTES } from "@/config/routes";
+import { getAIMemorySummary, resetAIMemory } from "@/api/aiMemoryClient";
+import { getUserConsent, updateUserConsent } from "@/api/userConsentClient";
+import { emitAuditEvent } from "@/api/auditClient";
 
 export default function Settings() {
   const { settings, setSetting } = useContext(AppSettingsContext);
@@ -23,6 +26,11 @@ export default function Settings() {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [changingEmail, setChangingEmail] = useState(false);
+  const [memorySummary, setMemorySummary] = useState("");
+  const [memorySummaryError, setMemorySummaryError] = useState("");
+  const [aiMemoryConsent, setAiMemoryConsent] = useState(null);
+  const [consentError, setConsentError] = useState("");
+  const [memoryResetError, setMemoryResetError] = useState("");
   const [authForm, setAuthForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -41,6 +49,98 @@ export default function Settings() {
   useEffect(() => {
     setSetting("aiCoach", { persona, tone, model });
   }, [persona, tone, model, setSetting]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadMemorySummary = async () => {
+      const result = await getAIMemorySummary();
+      if (!active) return;
+
+      if (!result.ok || !result.data?.ok) {
+        setMemorySummaryError("Memory summary unavailable right now.");
+        return;
+      }
+
+      const conversationCount = result.data.conversationCount ?? 0;
+      const pillarCount = Object.keys(result.data.pillars || {}).length;
+      const summaryText = `Stored conversations: ${conversationCount} across ${pillarCount} pillar${
+        pillarCount === 1 ? "" : "s"
+      }.`;
+      setMemorySummary(summaryText);
+
+      emitAuditEvent({
+        eventType: "ai_memory.summary.read",
+        payload: { conversationCount, pillarCount },
+        metadata: { source: "settings.ai" },
+      });
+    };
+
+    const loadConsent = async () => {
+      const result = await getUserConsent();
+      if (!active) return;
+
+      if (!result.ok || !result.data?.success) {
+        setConsentError("Consent status unavailable right now.");
+        return;
+      }
+
+      setAiMemoryConsent(Boolean(result.data?.data?.aiConsent));
+    };
+
+    loadMemorySummary().catch(() => {
+      if (active)
+        setMemorySummaryError("Memory summary unavailable right now.");
+    });
+    loadConsent().catch(() => {
+      if (active) setConsentError("Consent status unavailable right now.");
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleConsentToggle = async () => {
+    if (aiMemoryConsent === null) return;
+
+    const nextValue = !aiMemoryConsent;
+    setAiMemoryConsent(nextValue);
+    setConsentError("");
+
+    const result = await updateUserConsent({ aiConsent: nextValue });
+    if (!result.ok || !result.data?.success) {
+      setAiMemoryConsent(!nextValue);
+      setConsentError("Unable to update consent right now.");
+      return;
+    }
+
+    emitAuditEvent({
+      eventType: "ai_memory.consent.update",
+      payload: { aiConsent: nextValue },
+      metadata: { source: "settings.ai" },
+    });
+  };
+
+  const handleMemoryReset = async () => {
+    setMemoryResetError("");
+    const confirmed = window.confirm("Reset AI memory? This cannot be undone.");
+    if (!confirmed) return;
+
+    const result = await resetAIMemory();
+    if (!result.ok || !result.data?.ok) {
+      setMemoryResetError("Unable to reset memory right now.");
+      return;
+    }
+
+    emitAuditEvent({
+      eventType: "ai_memory.reset",
+      payload: { message: result.data?.message || "reset" },
+      metadata: { source: "settings.ai" },
+    });
+
+    setMemorySummary("Stored conversations: 0 across 0 pillars.");
+  };
 
   const handleChangePassword = async () => {
     if (!authForm.newPassword || !authForm.currentPassword) {
@@ -370,6 +470,51 @@ export default function Settings() {
                   <option value="fast">Fast (cheaper)</option>
                   <option value="accurate">Accurate (slower)</option>
                 </select>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-white">AI Memory</p>
+                <p className="text-xs text-white/60">
+                  Review what NorthStar remembers and reset when needed.
+                </p>
+              </div>
+              <div className="text-sm text-white/80">
+                {memorySummaryError ? memorySummaryError : memorySummary}
+              </div>
+              <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-3">
+                <div>
+                  <div className="text-sm font-medium">Memory usage</div>
+                  <div className="text-xs text-white/60">
+                    Allow AI to use saved context.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="px-3 py-1 rounded-full bg-white/10 text-sm text-white hover:bg-white/15 disabled:opacity-60"
+                  aria-pressed={Boolean(aiMemoryConsent)}
+                  onClick={handleConsentToggle}
+                  disabled={aiMemoryConsent === null}
+                >
+                  {aiMemoryConsent ? "On" : "Off"}
+                </button>
+              </div>
+              {consentError && (
+                <p className="text-xs text-white/60">{consentError}</p>
+              )}
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/15"
+                  onClick={handleMemoryReset}
+                >
+                  Reset AI memory
+                </button>
+                {memoryResetError && (
+                  <span className="text-xs text-white/60">
+                    {memoryResetError}
+                  </span>
+                )}
               </div>
             </div>
           </div>
