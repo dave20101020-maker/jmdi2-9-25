@@ -75,7 +75,7 @@ export default function MissionControlActionOverlay({ registerApi }) {
   const isHabit = activeActionId === "LOG_HABIT";
 
   const title = isCoach
-    ? "AI coach (placeholder)"
+    ? "NorthStar (General) (placeholder)"
     : isSleepProtocol
     ? "Sleep protocol (placeholder)"
     : isHabit
@@ -107,7 +107,7 @@ export default function MissionControlActionOverlay({ registerApi }) {
           tabIndex={-1}
           className={
             "mx-auto max-w-2xl rounded-t-2xl bg-white/10 border border-white/20 backdrop-blur-lg p-5 text-white " +
-            "transition-all duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none " +
+            "mc-action-panel duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none " +
             (isVisible
               ? "opacity-100 translate-y-0"
               : "opacity-0 translate-y-4")

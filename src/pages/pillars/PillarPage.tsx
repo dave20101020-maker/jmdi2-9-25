@@ -78,7 +78,7 @@ export default function PillarPage({
               className={themeTokens.buttonGhost}
               onClick={openPillarCoach}
             >
-              Ask {pillar?.label || "coach"}
+              Ask {pillar?.label || "Pillar"} Soldier
             </button>
           </div>
         </div>

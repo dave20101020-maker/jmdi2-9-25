@@ -7,7 +7,7 @@ import "@/App.css";
 import NorthStarAssistant from "@/ai/NorthStarAssistant";
 
 const ROUTES = Object.freeze({
-  dashboard: "/dashboard",
+  dashboard: "/mission-control",
   onboarding: "/onboarding",
   pricing: "/pricing",
   settings: "/settings",
@@ -16,7 +16,7 @@ const ROUTES = Object.freeze({
 });
 
 const PRIMARY_NAV = [
-  { label: "Dashboard", path: ROUTES.dashboard },
+  { label: "Mission Control", path: ROUTES.dashboard },
   { label: "Onboarding", path: ROUTES.onboarding },
   { label: "Pricing", path: ROUTES.pricing },
   { label: "Settings", path: ROUTES.settings },

@@ -11,102 +11,190 @@
  * Frontend makes requests to /api/ai/* endpoints which delegate here.
  *
  * Supported Providers:
+ * - Gemini
  * - OpenAI (GPT-4, GPT-3.5-turbo)
- * - Anthropic (Claude 3 series)
  * - Fallback: Mock responses for development
  */
 
-const OpenAI = require("openai");
-const Anthropic = require("@anthropic-ai/sdk");
+import OpenAI from "openai";
 
 const SAFE_TEXT_FALLBACK =
   "NorthStar AI is temporarily unavailable. Please try again soon.";
+
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+const DEFAULT_OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4-turbo";
+
+const PROVIDER_MODE = String(process.env.AI_PROVIDER || "auto")
+  .trim()
+  .toLowerCase();
+
+const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
+const hasOpenAIKey = Boolean(process.env.OPENAI_API_KEY);
+
+console.log("[LLM] provider config", {
+  mode: PROVIDER_MODE,
+  geminiConfigured: hasGeminiKey,
+  openaiConfigured: hasOpenAIKey,
+});
 
 // ═════════════════════════════════════════════════════════════════════════════
 // INITIALIZATION
 // ═════════════════════════════════════════════════════════════════════════════
 
 let openaiClient = null;
-let anthropicClient = null;
 
-try {
-  if (process.env.OPENAI_API_KEY) {
+function getOpenAIClient() {
+  if (!openaiClient && process.env.OPENAI_API_KEY) {
     openaiClient = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
   }
-} catch (error) {
-  console.warn("⚠️ OpenAI client initialization failed:", error.message);
+  return openaiClient;
 }
 
-try {
-  if (process.env.ANTHROPIC_API_KEY) {
-    anthropicClient = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+function selectModelForProvider(provider, requestedModel) {
+  if (provider === "gemini") {
+    return typeof requestedModel === "string" &&
+      requestedModel.startsWith("gemini")
+      ? requestedModel
+      : DEFAULT_GEMINI_MODEL;
   }
-} catch (error) {
-  console.warn("⚠️ Anthropic client initialization failed:", error.message);
+
+  if (provider === "openai") {
+    if (typeof requestedModel === "string") {
+      if (
+        requestedModel.startsWith("gemini") ||
+        requestedModel.startsWith("claude")
+      ) {
+        return DEFAULT_OPENAI_MODEL;
+      }
+      return requestedModel;
+    }
+    return DEFAULT_OPENAI_MODEL;
+  }
+
+  return requestedModel;
+}
+
+function createProviderError(message, options = {}) {
+  const error = new Error(message);
+  error.status = options.status;
+  error.provider = options.provider;
+  error.type = options.type;
+  error.code = options.code;
+  error.cause = options.cause;
+  return error;
+}
+
+function isInvalidRequestError(error) {
+  return error?.type === "invalid_request";
+}
+
+function shouldFallback(error) {
+  if (!error) return true;
+  return !isInvalidRequestError(error);
+}
+
+function buildGeminiPayload(messages = []) {
+  const systemMessages = messages.filter((msg) => msg.role === "system");
+  const systemText = systemMessages.map((msg) => msg.content).join("\n\n");
+
+  const contents = messages
+    .filter((msg) => msg.role !== "system")
+    .map((msg) => ({
+      role: msg.role === "assistant" ? "model" : "user",
+      parts: [{ text: msg.content || "" }],
+    }));
+
+  return {
+    systemInstruction: systemText
+      ? {
+          role: "system",
+          parts: [{ text: systemText }],
+        }
+      : undefined,
+    contents,
+  };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
 // OPENAI FUNCTIONS
 // ═════════════════════════════════════════════════════════════════════════════
 
-/**
- * Call OpenAI Chat Completion API
- * @param {string} systemPrompt - System message for context
- * @param {string} userMessage - User input
- * @param {Object} config - Optional: model, temperature, max_tokens
- * @returns {Promise<{text: string, message: string, usage: Object, model: string}>}
- */
-async function callOpenAI(systemPrompt, userMessage, config = {}) {
+async function callOpenAIFromMessages({
+  messages,
+  model,
+  temperature = 0.7,
+  maxTokens = 2048,
+  jsonSchema,
+} = {}) {
   try {
-    const {
-      model = process.env.OPENAI_MODEL || "gpt-4-turbo",
-      temperature = 0.7,
-      max_tokens = 2048,
-    } = config;
-
-    console.log("[LLM] callOpenAI", {
-      provider: "openai",
-      model: typeof model === "string" ? model : null,
-      hasApiKey: Boolean(process.env.OPENAI_API_KEY),
-    });
-
-    if (!openaiClient) {
-      throw new Error("OpenAI is not configured. Set OPENAI_API_KEY in .env");
+    if (!process.env.OPENAI_API_KEY) {
+      throw createProviderError("OpenAI is not configured", {
+        provider: "openai",
+        code: "AI_PROVIDER_NOT_CONFIGURED",
+      });
     }
 
-    const response = await openaiClient.chat.completions.create({
-      model,
-      temperature,
-      max_tokens,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-    });
+    const client = getOpenAIClient();
+    if (!client) {
+      throw createProviderError("OpenAI client initialization failed", {
+        provider: "openai",
+        code: "AI_PROVIDER_NOT_CONFIGURED",
+      });
+    }
 
-    const text = response.choices[0].message.content;
+    const resolvedModel = selectModelForProvider("openai", model);
+
+    const payload = {
+      model: resolvedModel,
+      temperature,
+      max_tokens: maxTokens,
+      messages,
+    };
+
+    if (jsonSchema) {
+      payload.response_format = {
+        type: "json_schema",
+        json_schema: {
+          name: "response",
+          schema: jsonSchema,
+        },
+      };
+    }
+
+    const response = await client.chat.completions.create(payload);
+
+    const text = response.choices?.[0]?.message?.content || "";
 
     return {
       text,
-      message: text,
-      usage: {
-        prompt_tokens: response.usage.prompt_tokens,
-        completion_tokens: response.usage.completion_tokens,
-      },
+      usage: response.usage,
       model: response.model,
       provider: "openai",
     };
   } catch (error) {
-    // ⚠️ SECURITY: Never expose API key in error messages
-    const safeError = new Error("OpenAI API call failed");
-    safeError.status = 500;
-    safeError.provider = "openai";
+    if (
+      error?.provider === "openai" &&
+      error?.code === "AI_PROVIDER_NOT_CONFIGURED"
+    ) {
+      throw error;
+    }
+    const status =
+      error?.status ??
+      error?.response?.status ??
+      error?.statusCode ??
+      error?.code ??
+      undefined;
+    const type =
+      status === 400 || status === 422 ? "invalid_request" : undefined;
     console.error("OpenAI error:", error.message);
-    throw safeError;
+    throw createProviderError("OpenAI API call failed", {
+      provider: "openai",
+      status,
+      type,
+      cause: error,
+    });
   }
 }
 
@@ -116,21 +204,16 @@ async function callOpenAI(systemPrompt, userMessage, config = {}) {
  * @param {Object} config - Optional: language, model
  * @returns {Promise<{text: string, language: string}>}
  */
-async function transcribeWithOpenAI(audioFile, config = {}) {
+export async function transcribeWithOpenAI(audioFile, config = {}) {
   try {
-    if (!openaiClient) {
+    const client = getOpenAIClient();
+    if (!client) {
       throw new Error("OpenAI is not configured. Set OPENAI_API_KEY in .env");
     }
 
     const { language = "en", model = "whisper-1" } = config;
 
-    // Convert buffer to File-like object if needed
-    const formFile = {
-      name: "audio.webm",
-      data: audioFile,
-    };
-
-    const response = await openaiClient.audio.transcriptions.create({
+    const response = await client.audio.transcriptions.create({
       file: audioFile,
       model,
       language,
@@ -138,11 +221,10 @@ async function transcribeWithOpenAI(audioFile, config = {}) {
 
     return {
       text: response.text,
-      language: language,
+      language,
       provider: "openai",
     };
   } catch (error) {
-    // ⚠️ SECURITY: Never expose API key in error messages
     const safeError = new Error("Whisper transcription failed");
     safeError.status = 500;
     safeError.provider = "openai";
@@ -152,69 +234,228 @@ async function transcribeWithOpenAI(audioFile, config = {}) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// ANTHROPIC FUNCTIONS
+// GEMINI FUNCTIONS
+// ═════════════════════════════════════════════════════════════════════════════
+
+async function callGeminiFromMessages({
+  messages,
+  model,
+  temperature = 0.7,
+  maxTokens = 2048,
+} = {}) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw createProviderError("Gemini is not configured", {
+      provider: "gemini",
+      code: "AI_PROVIDER_NOT_CONFIGURED",
+    });
+  }
+
+  const resolvedModel = selectModelForProvider("gemini", model);
+  const { contents, systemInstruction } = buildGeminiPayload(messages);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents,
+          systemInstruction,
+          generationConfig: {
+            temperature,
+            maxOutputTokens: maxTokens,
+          },
+        }),
+        signal: controller.signal,
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const type =
+        response.status === 400 || response.status === 422
+          ? "invalid_request"
+          : undefined;
+      throw createProviderError(data?.error?.message || "Gemini API error", {
+        provider: "gemini",
+        status: response.status,
+        type,
+      });
+    }
+
+    const candidate = data?.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+    const text = parts.map((part) => part.text || "").join("") || "";
+
+    return {
+      text,
+      usage: data?.usageMetadata
+        ? {
+            prompt_tokens: data.usageMetadata.promptTokenCount,
+            completion_tokens: data.usageMetadata.candidatesTokenCount,
+          }
+        : undefined,
+      model: data?.model || resolvedModel,
+      provider: "gemini",
+    };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw createProviderError("Gemini request timed out", {
+        provider: "gemini",
+        status: 504,
+      });
+    }
+
+    if (error?.provider === "gemini") {
+      throw error;
+    }
+
+    const status = error?.status;
+    const type =
+      status === 400 || status === 422 ? "invalid_request" : undefined;
+    console.error("Gemini error:", error.message);
+    throw createProviderError("Gemini API call failed", {
+      provider: "gemini",
+      status,
+      type,
+      cause: error,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CANONICAL ENTRY POINT
 // ═════════════════════════════════════════════════════════════════════════════
 
 /**
- * Call Anthropic Claude API
+ * Canonical LLM entry point
+ * @param {Object} params
+ * @param {Array} params.messages
+ * @param {string} params.model
+ * @param {number} params.maxTokens
+ * @param {number} params.temperature
+ * @param {Object} params.jsonSchema
+ * @returns {Promise<{text: string, usage: Object, provider: string, model: string}>}
+ */
+export async function callLLM({
+  messages = [],
+  model,
+  maxTokens = 2048,
+  temperature = 0.7,
+  jsonSchema,
+} = {}) {
+  if (!Array.isArray(messages)) {
+    throw new Error("callLLM requires a messages array");
+  }
+
+  const geminiConfigured = Boolean(process.env.GEMINI_API_KEY);
+  const openaiConfigured = Boolean(process.env.OPENAI_API_KEY);
+
+  if (PROVIDER_MODE === "gemini" && !geminiConfigured) {
+    throw createProviderError("Gemini is not configured", {
+      provider: "gemini",
+      code: "AI_PROVIDER_NOT_CONFIGURED",
+    });
+  }
+
+  if (PROVIDER_MODE === "openai" && !openaiConfigured) {
+    throw createProviderError("OpenAI is not configured", {
+      provider: "openai",
+      code: "AI_PROVIDER_NOT_CONFIGURED",
+    });
+  }
+
+  const orderedProviders = (() => {
+    if (PROVIDER_MODE === "gemini") return ["gemini"];
+    if (PROVIDER_MODE === "openai") return ["openai"];
+    if (geminiConfigured) return ["gemini", "openai"];
+    if (openaiConfigured) return ["openai"];
+    return [];
+  })();
+
+  if (orderedProviders.length === 0) {
+    throw createProviderError(
+      "No LLM providers configured. Set GEMINI_API_KEY or OPENAI_API_KEY in .env",
+      {
+        code: "AI_PROVIDER_NOT_CONFIGURED",
+      }
+    );
+  }
+
+  let lastError;
+
+  for (const provider of orderedProviders) {
+    try {
+      if (provider === "gemini") {
+        return await callGeminiFromMessages({
+          messages,
+          model,
+          temperature,
+          maxTokens,
+        });
+      }
+
+      if (provider === "openai") {
+        return await callOpenAIFromMessages({
+          messages,
+          model,
+          temperature,
+          maxTokens,
+          jsonSchema,
+        });
+      }
+    } catch (error) {
+      lastError = error;
+      if (PROVIDER_MODE !== "auto" || !shouldFallback(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LEGACY COMPATIBILITY
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Call OpenAI Chat Completion API
  * @param {string} systemPrompt - System message for context
  * @param {string} userMessage - User input
  * @param {Object} config - Optional: model, temperature, max_tokens
  * @returns {Promise<{text: string, message: string, usage: Object, model: string}>}
  */
-async function callClaude(systemPrompt, userMessage, config = {}) {
-  try {
-    const {
-      model = process.env.ANTHROPIC_MODEL || "claude-3-sonnet-20240229",
-      temperature = 0.7,
-      max_tokens = 2048,
-    } = config;
+export async function callOpenAI(systemPrompt, userMessage, config = {}) {
+  const { model, temperature = 0.7, max_tokens = 2048 } = config;
 
-    console.log("[LLM] callClaude", {
-      provider: "anthropic",
-      model: typeof model === "string" ? model : null,
-      hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
-    });
+  const response = await callOpenAIFromMessages({
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ],
+    model,
+    temperature,
+    maxTokens: max_tokens,
+  });
 
-    if (!anthropicClient) {
-      throw new Error(
-        "Anthropic is not configured. Set ANTHROPIC_API_KEY in .env"
-      );
-    }
-
-    const response = await anthropicClient.messages.create({
-      model,
-      max_tokens,
-      temperature,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    });
-
-    const text = response.content[0].text;
-
-    return {
-      text,
-      message: text,
-      usage: {
-        input_tokens: response.usage.input_tokens,
-        output_tokens: response.usage.output_tokens,
-      },
-      model: response.model,
-      provider: "anthropic",
-    };
-  } catch (error) {
-    // ⚠️ SECURITY: Never expose API key in error messages
-    const safeError = new Error("Anthropic API call failed");
-    safeError.status = 500;
-    safeError.provider = "anthropic";
-    console.error("Anthropic error:", error.message);
-    throw safeError;
-  }
+  return {
+    text: response.text,
+    message: response.text,
+    usage: response.usage,
+    model: response.model,
+    provider: response.provider,
+  };
 }
-
-// ═════════════════════════════════════════════════════════════════════════════
-// INTELLIGENT ROUTING
-// ═════════════════════════════════════════════════════════════════════════════
 
 /**
  * Automatically select best available provider
@@ -223,145 +464,25 @@ async function callClaude(systemPrompt, userMessage, config = {}) {
  * @param {Object} config - Optional config
  * @returns {Promise<Object>} Response from selected provider
  */
-async function callBestAvailable(systemPrompt, userMessage, config = {}) {
-  const { preferProvider = null, fallbackToGPT = true } = config;
-
-  const providerConfigError = (message) => {
-    const error = new Error(message);
-    error.status = 503;
-    error.code = "AI_PROVIDER_NOT_CONFIGURED";
-    return error;
-  };
-
-  console.log("[LLM] callBestAvailable", {
-    provider: "bestAvailable",
-    model: typeof config?.model === "string" ? config.model : null,
-    hasApiKey: Boolean(
-      process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY
-    ),
+export async function callBestAvailable(
+  systemPrompt,
+  userMessage,
+  config = {}
+) {
+  const response = await callLLM({
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ],
+    model: config?.model,
+    maxTokens: config?.max_tokens,
+    temperature: config?.temperature,
   });
 
-  const providers = {
-    anthropic: anthropicClient,
-    openai: openaiClient,
+  return {
+    ...response,
+    message: response.text,
   };
-
-  const claudeAvailable = Boolean(providers.anthropic);
-  const openaiAvailable = Boolean(providers.openai);
-
-  // ─────────────────────────────────────────────────────────────
-  // HARD RULE:
-  // If a preferred provider is explicitly requested and available,
-  // we MUST use it. llm.js must never override modelRouter intent.
-  // ─────────────────────────────────────────────────────────────
-
-  // Try preferred provider first
-  if (preferProvider === "anthropic") {
-    if (!claudeAvailable) {
-      throw providerConfigError(
-        `Preferred provider ${preferProvider} is not configured`
-      );
-    }
-
-    try {
-      console.log("[LLM] selectedProvider", {
-        provider: "anthropic",
-        model:
-          (typeof config?.model === "string" && config.model) ||
-          process.env.ANTHROPIC_MODEL ||
-          "claude-3-sonnet-20240229",
-        hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
-      });
-      return await callClaude(systemPrompt, userMessage, config);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  if (preferProvider === "openai") {
-    if (!openaiAvailable) {
-      throw providerConfigError(
-        `Preferred provider ${preferProvider} is not configured`
-      );
-    }
-
-    try {
-      console.log("[LLM] selectedProvider", {
-        provider: "openai",
-        model:
-          (typeof config?.model === "string" && config.model) ||
-          process.env.OPENAI_MODEL ||
-          "gpt-4-turbo",
-        hasApiKey: Boolean(process.env.OPENAI_API_KEY),
-      });
-      return await callOpenAI(systemPrompt, userMessage, config);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Default: try OpenAI first, fallback to Claude
-  if (openaiAvailable && fallbackToGPT) {
-    try {
-      console.log("[LLM] selectedProvider", {
-        provider: "openai",
-        model:
-          (typeof config?.model === "string" && config.model) ||
-          process.env.OPENAI_MODEL ||
-          "gpt-4-turbo",
-        hasApiKey: Boolean(process.env.OPENAI_API_KEY),
-      });
-      return await callOpenAI(systemPrompt, userMessage, config);
-    } catch (error) {
-      if (claudeAvailable) {
-        console.warn("OpenAI failed, falling back to Claude");
-        console.log("[LLM] selectedProvider", {
-          provider: "anthropic",
-          model:
-            (typeof config?.model === "string" && config.model) ||
-            process.env.ANTHROPIC_MODEL ||
-            "claude-3-sonnet-20240229",
-          hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
-        });
-        return await callClaude(systemPrompt, userMessage, config);
-      }
-      throw error;
-    }
-  }
-
-  // Try Claude if OpenAI not available
-  if (claudeAvailable) {
-    try {
-      console.log("[LLM] selectedProvider", {
-        provider: "anthropic",
-        model:
-          (typeof config?.model === "string" && config.model) ||
-          process.env.ANTHROPIC_MODEL ||
-          "claude-3-sonnet-20240229",
-        hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
-      });
-      return await callClaude(systemPrompt, userMessage, config);
-    } catch (error) {
-      if (openaiAvailable && fallbackToGPT) {
-        console.warn("Claude failed, falling back to OpenAI");
-        console.log("[LLM] selectedProvider", {
-          provider: "openai",
-          model:
-            (typeof config?.model === "string" && config.model) ||
-            process.env.OPENAI_MODEL ||
-            "gpt-4-turbo",
-          hasApiKey: Boolean(process.env.OPENAI_API_KEY),
-        });
-        return await callOpenAI(systemPrompt, userMessage, config);
-      }
-      throw error;
-    }
-  }
-
-  // No providers configured
-  throw providerConfigError(
-    "No LLM providers configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in .env"
-  );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -373,7 +494,7 @@ async function callBestAvailable(systemPrompt, userMessage, config = {}) {
  * @param {string} text - Text to analyze
  * @returns {Promise<{sentiment: string, score: number}>}
  */
-async function analyzeSentiment(text) {
+export async function analyzeSentiment(text) {
   const prompt = `Analyze the sentiment of this text. Respond with ONLY a JSON object: {"sentiment": "positive|neutral|negative", "score": 0-100}
 
 Text: "${text}"`;
@@ -389,7 +510,6 @@ Text: "${text}"`;
     if (typeof responseText !== "string")
       return { sentiment: "neutral", score: 50 };
 
-    // Parse JSON response
     const match = responseText.match(/\{[\s\S]*\}/);
     if (match) {
       return JSON.parse(match[0]);
@@ -408,7 +528,7 @@ Text: "${text}"`;
  * @param {number} count - Number of insights to generate
  * @returns {Promise<string[]>} Array of insights
  */
-async function generateInsights(context, count = 3) {
+export async function generateInsights(context, count = 3) {
   const prompt = `Generate ${count} concise, actionable insights based on: "${context}"
 Return as JSON array: ["insight1", "insight2", ...]`;
 
@@ -422,7 +542,6 @@ Return as JSON array: ["insight1", "insight2", ...]`;
     const responseText = response?.text ?? response?.message;
     if (typeof responseText !== "string") return [];
 
-    // Parse JSON array
     const match = responseText.match(/\[[\s\S]*\]/);
     if (match) {
       return JSON.parse(match[0]);
@@ -440,7 +559,7 @@ Return as JSON array: ["insight1", "insight2", ...]`;
  * @param {string} message - User message to check
  * @returns {Promise<{isCrisis: boolean, confidence: number, recommendation: string}>}
  */
-async function detectCrisis(message) {
+export async function detectCrisis(message) {
   const prompt = `Determine if this message indicates someone in crisis/emergency.
 Respond with JSON: {"isCrisis": true/false, "confidence": 0-100, "recommendation": "..."}
 
@@ -490,12 +609,13 @@ Message: "${message}"`;
  * Check which LLM providers are configured
  * @returns {Object} Configuration status
  */
-function getAvailableProviders() {
+export function getAvailableProviders() {
   return {
-    openai: !!openaiClient,
-    anthropic: !!anthropicClient,
-    openaiModel: process.env.OPENAI_MODEL || "gpt-4-turbo",
-    anthropicModel: process.env.ANTHROPIC_MODEL || "claude-3-sonnet-20240229",
+    gemini: Boolean(process.env.GEMINI_API_KEY),
+    openai: Boolean(process.env.OPENAI_API_KEY),
+    geminiModel: DEFAULT_GEMINI_MODEL,
+    openaiModel: DEFAULT_OPENAI_MODEL,
+    mode: PROVIDER_MODE,
   };
 }
 
@@ -503,24 +623,10 @@ function getAvailableProviders() {
 // EXPORTS
 // ═════════════════════════════════════════════════════════════════════════════
 
-module.exports = {
-  // Core functions
-  callOpenAI,
-  callClaude,
-  callBestAvailable,
-  transcribeWithOpenAI,
-
-  // Specialized functions
-  analyzeSentiment,
-  generateInsights,
-  detectCrisis,
-
-  // Utilities
-  getAvailableProviders,
-
-  // Internal clients (for testing only)
-  _internal: {
-    openaiClient,
-    anthropicClient,
+export const _internal = {
+  get openaiClient() {
+    return openaiClient;
   },
 };
+
+export { SAFE_TEXT_FALLBACK };

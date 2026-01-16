@@ -16,6 +16,7 @@ dotenv.config({ path: envPath });
 if (process.env.NODE_ENV !== "test") {
   console.log(`✓ Environment loaded: ${envName}`);
   console.log("[BOOT] AI provider env", {
+    geminiApiKeyPresent: Boolean(process.env.GEMINI_API_KEY),
     openaiApiKeyPresent: Boolean(process.env.OPENAI_API_KEY),
     anthropicApiKeyPresent: Boolean(process.env.ANTHROPIC_API_KEY),
   });

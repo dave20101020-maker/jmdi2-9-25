@@ -11,7 +11,7 @@ const ACTION_ID_BY_QUICK_ACTION = {
 const ACTIONS = [
   {
     id: "coach",
-    title: "Ask your AI coach",
+    title: "Ask NorthStar (General)",
     description: "Get a 3-step plan tailored to today's scores.",
     icon: MessageCircle,
   },

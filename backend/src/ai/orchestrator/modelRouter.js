@@ -3,7 +3,7 @@
  *
  * Chooses optimal AI model for task:
  * - GPT-4-turbo: Reasoning, classification, planning
- * - Claude-3: Long-form responses, narrative, complex context
+ * - Gemini: Long-form responses, narrative, complex context
  * - Override: Agent-specific or user-specified model
  *
  * Usage:
@@ -12,6 +12,7 @@
  */
 
 import logger from "../../utils/logger.js";
+import { callLLM } from "../../../services/llm.js";
 
 /**
  * Task types that route to GPT (reasoning/classification)
@@ -29,7 +30,7 @@ const GPT_REASONING_TASKS = [
 ];
 
 /**
- * Task types that route to Claude (narrative/context)
+ * Task types that route to Gemini (narrative/context)
  */
 const CLAUDE_NARRATIVE_TASKS = [
   "coach",
@@ -65,7 +66,7 @@ export async function selectOptimalModel(taskType, context = {}) {
   const hasOpenAI = Boolean(
     process.env.OPENAI_API_KEY || process.env.AI_PROVIDER_KEY
   );
-  const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
+  const hasGemini = Boolean(process.env.GEMINI_API_KEY);
 
   let selectedModel = "gpt"; // Default
   let reason = "";
@@ -88,13 +89,13 @@ export async function selectOptimalModel(taskType, context = {}) {
     reason = `Reasoning task (${taskType}): GPT-4 for analysis`;
   } else if (CLAUDE_NARRATIVE_TASKS.includes(taskType)) {
     selectedModel = "claude";
-    reason = `Narrative task (${taskType}): Claude-3 for warmth`;
+    reason = `Narrative task (${taskType}): Gemini for warmth`;
   } else {
     // Smart heuristic: if context is large/complex, use Claude
     const contextSize = context.contextString?.length || 0;
     if (contextSize > 2000) {
       selectedModel = "claude";
-      reason = `Large context (${contextSize} chars): Claude-3 for handling complexity`;
+      reason = `Large context (${contextSize} chars): Gemini for handling complexity`;
     } else {
       selectedModel = "gpt";
       reason = `Default task type (${taskType}): GPT-4 for reasoning`;
@@ -104,13 +105,13 @@ export async function selectOptimalModel(taskType, context = {}) {
   logger.info(`Model selected: ${selectedModel} - ${reason}`);
 
   // Provider availability fallback
-  // If Anthropic isn't configured, fall back to GPT. GPT handler will emit a
+  // If Gemini isn't configured, fall back to GPT. GPT handler will emit a
   // clear error if OpenAI isn't configured.
-  if (selectedModel === "claude" && !hasAnthropic) {
+  if (selectedModel === "claude" && !hasGemini) {
     selectedModel = "gpt";
-    reason = `${reason} (Anthropic not configured; falling back to GPT)`;
+    reason = `${reason} (Gemini not configured; falling back to GPT)`;
     logger.warn(
-      "Claude selected but ANTHROPIC_API_KEY missing; falling back to GPT",
+      "Gemini selected but GEMINI_API_KEY missing; falling back to GPT",
       {
         taskType,
         pillar: context?.pillar,
@@ -118,11 +119,11 @@ export async function selectOptimalModel(taskType, context = {}) {
     );
   }
 
-  if (selectedModel === "gpt" && !hasOpenAI && hasAnthropic) {
+  if (selectedModel === "gpt" && !hasOpenAI && hasGemini) {
     selectedModel = "claude";
-    reason = `${reason} (OpenAI not configured; falling back to Claude)`;
+    reason = `${reason} (OpenAI not configured; falling back to Gemini)`;
     logger.warn(
-      "GPT selected but OPENAI_API_KEY missing; falling back to Claude",
+      "GPT selected but OPENAI_API_KEY missing; falling back to Gemini",
       {
         taskType,
         pillar: context?.pillar,
@@ -130,15 +131,15 @@ export async function selectOptimalModel(taskType, context = {}) {
     );
   }
 
-  if (selectedModel === "claude" && !hasAnthropic && !hasOpenAI) {
+  if (selectedModel === "claude" && !hasGemini && !hasOpenAI) {
     throw new Error(
-      "AI provider error: No AI provider is configured (set OPENAI_API_KEY or ANTHROPIC_API_KEY)"
+      "AI provider error: No AI provider is configured (set GEMINI_API_KEY or OPENAI_API_KEY)"
     );
   }
 
-  if (selectedModel === "gpt" && !hasOpenAI && !hasAnthropic) {
+  if (selectedModel === "gpt" && !hasOpenAI && !hasGemini) {
     throw new Error(
-      "AI provider error: No AI provider is configured (set OPENAI_API_KEY or ANTHROPIC_API_KEY)"
+      "AI provider error: No AI provider is configured (set GEMINI_API_KEY or OPENAI_API_KEY)"
     );
   }
 
@@ -152,7 +153,7 @@ function buildModelConfig(selectedModel, reason) {
   if (selectedModel === "claude") {
     return {
       model: "claude",
-      modelName: "Claude-3-Sonnet",
+      modelName: "Gemini",
       reasonForChoice: reason,
       handler: callClaudeModel,
       maxTokens: 2000,
@@ -177,14 +178,9 @@ function buildModelConfig(selectedModel, reason) {
 async function callGPTModel({ prompt, systemPrompt, context = {} }) {
   try {
     const apiKey = process.env.OPENAI_API_KEY || process.env.AI_PROVIDER_KEY;
-    if (!apiKey) {
+    if (!apiKey && !process.env.GEMINI_API_KEY) {
       throw new Error("AI provider error: OPENAI_API_KEY is not configured");
     }
-
-    const openai = (await import("openai")).default;
-    const client = new openai({
-      apiKey,
-    });
 
     // Inject context into system prompt if provided
     let finalSystemPrompt = systemPrompt;
@@ -192,8 +188,7 @@ async function callGPTModel({ prompt, systemPrompt, context = {} }) {
       finalSystemPrompt = `${systemPrompt}\n\n${context.contextString}`;
     }
 
-    const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+    const response = await callLLM({
       messages: [
         {
           role: "system",
@@ -204,16 +199,16 @@ async function callGPTModel({ prompt, systemPrompt, context = {} }) {
           content: prompt,
         },
       ],
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       temperature: 0.6,
-      max_tokens: 1500,
-      top_p: 0.95,
+      maxTokens: 1500,
     });
 
     return {
-      text: response.choices[0].message.content,
-      model: "gpt-4-turbo",
+      text: response.text,
+      model: response.model,
       tokensUsed: response.usage?.total_tokens || 0,
-      finishReason: response.choices[0].finish_reason,
+      finishReason: null,
     };
   } catch (error) {
     logger.error(`GPT model error: ${error.message}`);
@@ -226,14 +221,9 @@ async function callGPTModel({ prompt, systemPrompt, context = {} }) {
  */
 async function callClaudeModel({ prompt, systemPrompt, context = {} }) {
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error("AI provider error: ANTHROPIC_API_KEY is not configured");
+    if (!process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY) {
+      throw new Error("AI provider error: GEMINI_API_KEY is not configured");
     }
-
-    const Anthropic = (await import("@anthropic-ai/sdk")).default;
-    const client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
 
     // Inject context into system prompt if provided
     let finalSystemPrompt = systemPrompt;
@@ -241,25 +231,27 @@ async function callClaudeModel({ prompt, systemPrompt, context = {} }) {
       finalSystemPrompt = `${systemPrompt}\n\n${context.contextString}`;
     }
 
-    const response = await client.messages.create({
-      model: "claude-3-sonnet-20240229",
-      max_tokens: 2000,
-      temperature: 0.7,
-      system: finalSystemPrompt,
+    const response = await callLLM({
       messages: [
+        {
+          role: "system",
+          content: finalSystemPrompt,
+        },
         {
           role: "user",
           content: prompt,
         },
       ],
+      model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
+      temperature: 0.7,
+      maxTokens: 2000,
     });
 
     return {
-      text: response.content[0].type === "text" ? response.content[0].text : "",
-      model: "claude-3-sonnet",
-      tokensUsed:
-        response.usage?.input_tokens + response.usage?.output_tokens || 0,
-      finishReason: response.stop_reason,
+      text: response.text,
+      model: response.model,
+      tokensUsed: response.usage?.total_tokens || 0,
+      finishReason: null,
     };
   } catch (error) {
     logger.error(`Claude model error: ${error.message}`);

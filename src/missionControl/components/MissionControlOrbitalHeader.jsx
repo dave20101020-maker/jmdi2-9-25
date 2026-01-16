@@ -6,7 +6,7 @@ const DEFAULT_NARRATIVE = "One priority. One insight. One action.";
 function narrativeForAction(actionId) {
   switch (actionId) {
     case "ASK_AI_COACH":
-      return "Coach channel opened. Ask one clear question.";
+      return "NorthStar (General) opened. Ask one clear question.";
     case "LOG_HABIT":
       return "A win logged. Keep momentum gentle.";
     case "REVIEW_PRIORITIES":

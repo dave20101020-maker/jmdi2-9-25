@@ -5,7 +5,7 @@ import { PILLARS } from "@/config/pillars";
 import BottomNav from "@/components/navigation/BottomNav";
 
 const primaryLinks = [
-  { label: "Dashboard", path: "/dashboard" },
+  { label: "Mission Control", path: "/mission-control" },
   { label: "Timeline", path: "/timeline" },
   { label: "NeuroShield", path: "/neuroshield" },
   { label: "Life Planning AI", path: "/life-planning" },

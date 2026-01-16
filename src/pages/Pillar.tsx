@@ -140,7 +140,7 @@ function CurrentPlan({ pillarId, hasAccess }) {
   if (!plan)
     return (
       <div className="text-sm text-white/70">
-        No active plan. Ask the coach for suggested actions to create one.
+        No active plan. Ask the soldier for suggested actions to create one.
       </div>
     );
 

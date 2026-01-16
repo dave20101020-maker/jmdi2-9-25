@@ -161,7 +161,7 @@ jobs:
 
   ai-endpoint-tests:
     name: AI Endpoint Tests
-    if: ${{ env.SHOULD_SKIP_BACKEND != 'true' && secrets.OPENAI_API_KEY != '' && secrets.ANTHROPIC_API_KEY != '' }}
+    if: ${{ env.SHOULD_SKIP_BACKEND != 'true' && (secrets.GEMINI_API_KEY != '' || secrets.OPENAI_API_KEY != '' || secrets.ANTHROPIC_API_KEY != '') }}
     needs: unit-tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -200,6 +200,7 @@ jobs:
           MONGODB_URI: ${{ env.TEST_MONGODB_URI }}
           NODE_ENV: test
           JWT_SECRET: ${{ env.TEST_JWT_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 

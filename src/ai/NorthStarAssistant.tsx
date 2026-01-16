@@ -15,6 +15,7 @@ import {
   renderAiDiagnosticLabel,
 } from "@/ai/diagnostics";
 import type { AILaunchContext } from "@/ai/context";
+import { emitAuditEvent } from "@/api/auditClient";
 
 const DEMO_MODE =
   (import.meta.env.VITE_DEMO_MODE || "").toLowerCase() === "true";
@@ -131,11 +132,29 @@ export default function NorthStarAssistant() {
       const resolvedAgent = getAgentByBackendId(resolvedPillar) || activeAgent;
 
       if (!backendPillar && resolvedPillar && resolvedPillar !== "general") {
+        const pillarLabel =
+          PILLARS.find(
+            (pillar) =>
+              String(pillar?.id || "").toLowerCase() ===
+              String(resolvedPillar).toLowerCase()
+          )?.label || resolvedPillar;
         setRouteNote(
-          `${
-            resolvedAgent?.name || "Pillar coach"
-          } handled that request (routed by NorthStar).`
+          `NorthStar routed this to ${
+            resolvedAgent?.name || "Pillar soldier"
+          } (${pillarLabel}).`
         );
+        void emitAuditEvent({
+          eventType: "AI_ROUTED",
+          payload: {
+            type: "AI_ROUTED",
+            from: "northstar",
+            to: resolvedAgent?.id || resolvedPillar,
+            pillar: resolvedPillar,
+            timestamp: new Date().toISOString(),
+            requestId: apiResponse?.requestId || null,
+          },
+          metadata: { source: "northstar.assistant" },
+        });
       }
 
       const assistantMessage = {
@@ -480,7 +499,9 @@ export default function NorthStarAssistant() {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        aria-label={open ? "Hide NorthStar" : "Open NorthStar"}
+        aria-label={
+          open ? "Hide NorthStar (General)" : "Open NorthStar (General)"
+        }
         className="pointer-events-auto relative hidden md:flex flex-col items-center justify-center rounded-2xl px-2 py-1 transition-transform duration-150 ease-out active:scale-95"
       >
         <span
@@ -493,7 +514,9 @@ export default function NorthStarAssistant() {
         >
           <Sparkles className="h-7 w-7" />
         </span>
-        <span className="mt-1 text-[11px] font-semibold text-white/85">AI</span>
+        <span className="mt-1 text-[11px] font-semibold text-white/85">
+          NorthStar (General)
+        </span>
       </button>
     </div>
   );

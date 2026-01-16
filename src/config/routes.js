@@ -1,5 +1,5 @@
 export const NAMED_ROUTES = Object.freeze({
-  Dashboard: "/dashboard",
+  Dashboard: "/mission-control",
   Community: "/community",
   Track: "/track",
   Analytics: "/analytics",

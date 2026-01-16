@@ -27,8 +27,8 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label"; // Added Label import
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
 import MilestoneCard from "@/components/shared/MilestoneCard";
+import { featureFlags } from "@/config/featureRuntime";
 
 const MILESTONE_TYPES = [
   { value: "all", label: "All Types", icon: Trophy },
@@ -40,19 +40,98 @@ const MILESTONE_TYPES = [
   { value: "custom", label: "Custom", icon: Medal },
 ];
 
-const SORT_OPTIONS = [
-  { value: "recent", label: "Most Recent" },
-  { value: "oldest", label: "Oldest First" },
-  { value: "points_high", label: "Highest Points" },
-  { value: "points_low", label: "Lowest Points" },
-];
-
 export default function Milestones() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [filterType, setFilterType] = useState("all");
   const [filterPillar, setFilterPillar] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
+  const isGamificationEnabled = featureFlags.FEATURE_GAMIFICATION_B2B;
+  const HeaderIcon = isGamificationEnabled ? Trophy : TrendingUp;
+  const pageTitle = isGamificationEnabled
+    ? "My Milestones"
+    : "Progress markers";
+  const pageSubtitle = isGamificationEnabled
+    ? "Your achievements and progress"
+    : "A calm view of your progress across pillars";
+  const emptyTitle = isGamificationEnabled
+    ? "Start Earning Milestones"
+    : "Start tracking progress";
+  const emptyDescription = isGamificationEnabled
+    ? "Track your pillars, build habits, and complete goals to unlock achievements and climb the leaderboard!"
+    : "Track your pillars, build habits, and complete goals to surface new progress markers.";
+  const guidanceTitle = isGamificationEnabled
+    ? "How to Earn Milestones"
+    : "How progress markers appear";
+  const milestonesLabel = isGamificationEnabled
+    ? "milestones"
+    : "progress markers";
+  const sortOptions = isGamificationEnabled
+    ? [
+        { value: "recent", label: "Most Recent" },
+        { value: "oldest", label: "Oldest First" },
+        { value: "points_high", label: "Highest Points" },
+        { value: "points_low", label: "Lowest Points" },
+      ]
+    : [
+        { value: "recent", label: "Most Recent" },
+        { value: "oldest", label: "Oldest First" },
+      ];
+  const guidanceItems = isGamificationEnabled
+    ? [
+        {
+          icon: Flame,
+          iconClass: "text-orange-400",
+          title: "Build Streaks:",
+          description:
+            "Track pillars or complete habits for 3, 7, 21, 30 days straight",
+        },
+        {
+          icon: Star,
+          iconClass: "text-yellow-400",
+          title: "Score High:",
+          description: "Achieve scores above 80 on individual pillars",
+        },
+        {
+          icon: Target,
+          iconClass: "text-green-400",
+          title: "Complete Plans:",
+          description: "Finish life plans and reach 100% on goals",
+        },
+        {
+          icon: Crown,
+          iconClass: "text-[#D4AF37]",
+          title: "Life Score:",
+          description: "Maintain high overall scores across all pillars",
+        },
+      ]
+    : [
+        {
+          icon: Flame,
+          iconClass: "text-orange-400",
+          title: "Consistency markers:",
+          description:
+            "Track pillars or complete habits for 3, 7, 21, 30 days in a row",
+        },
+        {
+          icon: Star,
+          iconClass: "text-yellow-400",
+          title: "Performance markers:",
+          description: "Reach strong scores on individual pillars (80+)",
+        },
+        {
+          icon: Target,
+          iconClass: "text-green-400",
+          title: "Completion markers:",
+          description: "Finish life plans and reach 100% on goals",
+        },
+        {
+          icon: Crown,
+          iconClass: "text-[#D4AF37]",
+          title: "Balance markers:",
+          description: "Maintain high overall scores across all pillars",
+        },
+      ];
 
   useEffect(() => {
     async function getUser() {
@@ -146,12 +225,10 @@ export default function Milestones() {
           </button>
           <div className="flex-1">
             <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
-              <Trophy className="w-6 h-6 md:w-7 md:h-7 text-[#D4AF37]" />
-              My Milestones
+              <HeaderIcon className="w-6 h-6 md:w-7 md:h-7 text-[#D4AF37]" />
+              {pageTitle}
             </h1>
-            <p className="text-white/60 text-sm">
-              Your achievements and progress
-            </p>
+            <p className="text-white/60 text-sm">{pageSubtitle}</p>
           </div>
         </div>
 
@@ -160,99 +237,107 @@ export default function Milestones() {
           <div className="text-center py-12 md:py-16">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-8 md:p-12 max-w-lg mx-auto">
               {/* Trophy Podium Visual */}
-              <div
-                className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-6"
-                aria-hidden="true"
-              >
-                <svg viewBox="0 0 200 200" className="w-full h-full">
-                  {/* Podium */}
-                  <rect
-                    x="130"
-                    y="100"
-                    width="40"
-                    height="70"
-                    fill="#CD7F32"
-                    opacity="0.3"
-                    rx="4"
+              {isGamificationEnabled ? (
+                <div
+                  className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-6"
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 200 200" className="w-full h-full">
+                    {/* Podium */}
+                    <rect
+                      x="130"
+                      y="100"
+                      width="40"
+                      height="70"
+                      fill="#CD7F32"
+                      opacity="0.3"
+                      rx="4"
+                    />
+                    <text
+                      x="150"
+                      y="180"
+                      textAnchor="middle"
+                      fill="#CD7F32"
+                      fontSize="24"
+                      fontWeight="bold"
+                    >
+                      3
+                    </text>
+
+                    <rect
+                      x="30"
+                      y="80"
+                      width="40"
+                      height="90"
+                      fill="#C0C0C0"
+                      opacity="0.3"
+                      rx="4"
+                    />
+                    <text
+                      x="50"
+                      y="180"
+                      textAnchor="middle"
+                      fill="#C0C0C0"
+                      fontSize="24"
+                      fontWeight="bold"
+                    >
+                      2
+                    </text>
+
+                    <rect
+                      x="80"
+                      y="50"
+                      width="40"
+                      height="120"
+                      fill="#FFD700"
+                      opacity="0.3"
+                      rx="4"
+                    />
+                    <text
+                      x="100"
+                      y="180"
+                      textAnchor="middle"
+                      fill="#FFD700"
+                      fontSize="24"
+                      fontWeight="bold"
+                    >
+                      1
+                    </text>
+
+                    {/* Trophy on top */}
+                    <text x="100" y="35" textAnchor="middle" fontSize="30">
+                      🏆
+                    </text>
+
+                    {/* Stars */}
+                    <text x="40" y="40" fontSize="16" opacity="0.5">
+                      ⭐
+                    </text>
+                    <text x="160" y="60" fontSize="16" opacity="0.5">
+                      ⭐
+                    </text>
+                    <text x="70" y="25" fontSize="12" opacity="0.4">
+                      ✨
+                    </text>
+                    <text x="140" y="35" fontSize="12" opacity="0.4">
+                      ✨
+                    </text>
+                  </svg>
+                </div>
+              ) : (
+                <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center rounded-full bg-white/10">
+                  <TrendingUp
+                    className="w-10 h-10 text-[#D4AF37]"
+                    aria-hidden="true"
                   />
-                  <text
-                    x="150"
-                    y="180"
-                    textAnchor="middle"
-                    fill="#CD7F32"
-                    fontSize="24"
-                    fontWeight="bold"
-                  >
-                    3
-                  </text>
-
-                  <rect
-                    x="30"
-                    y="80"
-                    width="40"
-                    height="90"
-                    fill="#C0C0C0"
-                    opacity="0.3"
-                    rx="4"
-                  />
-                  <text
-                    x="50"
-                    y="180"
-                    textAnchor="middle"
-                    fill="#C0C0C0"
-                    fontSize="24"
-                    fontWeight="bold"
-                  >
-                    2
-                  </text>
-
-                  <rect
-                    x="80"
-                    y="50"
-                    width="40"
-                    height="120"
-                    fill="#FFD700"
-                    opacity="0.3"
-                    rx="4"
-                  />
-                  <text
-                    x="100"
-                    y="180"
-                    textAnchor="middle"
-                    fill="#FFD700"
-                    fontSize="24"
-                    fontWeight="bold"
-                  >
-                    1
-                  </text>
-
-                  {/* Trophy on top */}
-                  <text x="100" y="35" textAnchor="middle" fontSize="30">
-                    🏆
-                  </text>
-
-                  {/* Stars */}
-                  <text x="40" y="40" fontSize="16" opacity="0.5">
-                    ⭐
-                  </text>
-                  <text x="160" y="60" fontSize="16" opacity="0.5">
-                    ⭐
-                  </text>
-                  <text x="70" y="25" fontSize="12" opacity="0.4">
-                    ✨
-                  </text>
-                  <text x="140" y="35" fontSize="12" opacity="0.4">
-                    ✨
-                  </text>
-                </svg>
-              </div>
+                </div>
+              )}
 
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
-                Start Earning Milestones
+                {emptyTitle}
               </h2>
               <p className="text-white/70 mb-6 text-sm md:text-base px-4">
-                Track your pillars, build habits, and complete goals to unlock
-                achievements and climb the leaderboard!
+                {emptyDescription}
               </p>
 
               <Button
@@ -268,37 +353,22 @@ export default function Milestones() {
               <div className="bg-gradient-to-br from-purple-500/10 to-blue-600/10 border border-purple-500/30 rounded-xl p-4 md:p-6 text-left">
                 <h3 className="text-white font-bold mb-3 flex items-center gap-2 text-sm md:text-base">
                   <Target className="w-5 h-5 text-purple-400" />
-                  How to Earn Milestones
+                  {guidanceTitle}
                 </h3>
                 <ul className="space-y-2 text-xs md:text-sm text-white/80">
-                  <li className="flex items-start gap-2">
-                    <Flame className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Build Streaks:</strong> Track pillars or complete
-                      habits for 3, 7, 21, 30 days straight
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Star className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Score High:</strong> Achieve scores above 80 on
-                      individual pillars
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Target className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Complete Plans:</strong> Finish life plans and
-                      reach 100% on goals
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Crown className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Life Score:</strong> Maintain high overall scores
-                      across all pillars
-                    </span>
-                  </li>
+                  {guidanceItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <li key={item.title} className="flex items-start gap-2">
+                        <Icon
+                          className={`w-4 h-4 flex-shrink-0 mt-0.5 ${item.iconClass}`}
+                        />
+                        <span>
+                          <strong>{item.title}</strong> {item.description}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>

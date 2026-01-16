@@ -1,7 +1,7 @@
 export const MISSION_CONTROL_ACTIONS = {
   ASK_AI_COACH: {
     id: "ASK_AI_COACH",
-    description: "Invoke NorthStar AI for today's guidance",
+    description: "Invoke NorthStar (General) for today's guidance",
   },
   START_SLEEP_PROTOCOL: {
     id: "START_SLEEP_PROTOCOL",

@@ -34,7 +34,7 @@ export default function BottomNav() {
   const buildAiDraft = () => {
     const path = location.pathname || "/";
 
-    if (path === "/dashboard" || path === "/") {
+    if (path === "/mission-control" || path === "/dashboard" || path === "/") {
       // "Mission" context = dashboard / mission control.
       return "I'm on Mission Control (dashboard). Help me pick the highest-impact next action across my pillars today, and tell me what to do first.";
     }
@@ -142,7 +142,7 @@ export default function BottomNav() {
             type="button"
             onClick={openAiChat}
             className="relative -mt-4 flex flex-col items-center justify-center rounded-2xl px-2 py-1 transition-transform duration-150 ease-out active:scale-95"
-            aria-label="Open NorthStar AI"
+            aria-label="Open NorthStar (General)"
           >
             <span
               aria-hidden
@@ -155,7 +155,7 @@ export default function BottomNav() {
               <Sparkles className="h-7 w-7" />
             </span>
             <span className="mt-1 text-[11px] font-semibold text-white/85">
-              AI
+              NorthStar (General)
             </span>
           </button>
 

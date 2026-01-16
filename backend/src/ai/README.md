@@ -68,17 +68,23 @@ Required packages (already installed):
 Add to your `.env` file:
 
 ```env
-# OpenAI Configuration
+# Gemini Configuration (preferred)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# OpenAI Configuration (fallback)
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Anthropic Configuration
+# Optional: Anthropic Configuration
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
 Get API keys:
 
+- Gemini: https://aistudio.google.com/app/apikey
 - OpenAI: https://platform.openai.com/api-keys
 - Anthropic: https://console.anthropic.com/
+
+You can start the app without keys for UI work; AI endpoints will report missing configuration until a provider key is set.
 
 ### 3. Verify Configuration
 
@@ -87,7 +93,7 @@ import { checkAPIKeys } from "./src/ai/modelRouter.js";
 
 const keys = checkAPIKeys();
 console.log("API Keys configured:", keys);
-// { openai: true, anthropic: true }
+// { gemini: true, openai: true, anthropic: false }
 ```
 
 ## Usage

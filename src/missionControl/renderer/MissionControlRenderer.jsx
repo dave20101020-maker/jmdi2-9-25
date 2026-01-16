@@ -1,5 +1,6 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { MODULE_TYPES } from "../engine/moduleTypes";
+import MissionControlCard from "../components/MissionControlCard";
 
 import EmptyStateGuidance from "../modules/EmptyStateGuidance";
 import { executeMissionControlAction } from "../actions/executeMissionControlAction";
@@ -42,7 +43,41 @@ function firstSentence(text) {
   return sentence.length > 140 ? `${sentence.slice(0, 137).trim()}…` : sentence;
 }
 
-export default function MissionControlRenderer({ modules = [], userState }) {
+function formatVaultTimestamp(value) {
+  if (!value) return "Awaiting sync";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Awaiting sync";
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function summarizeVaultStorage(storage) {
+  if (!storage) return "Storage sources unknown";
+  const sources = [];
+  if (storage.local) sources.push("Local");
+  if (storage.server) sources.push("Server");
+  if (!sources.length) return "No storage sources connected";
+  return sources.join(" + ");
+}
+
+export default function MissionControlRenderer({
+  modules = [],
+  userState,
+  isLoading: isLoadingProp = false,
+}) {
+  const modulesLoading = modules.some(
+    (module) => module?.loading || module?.isLoading
+  );
+  const isLoading =
+    Boolean(isLoadingProp) ||
+    Boolean(userState?.loading || userState?.isLoading) ||
+    userState?.status === "loading" ||
+    modulesLoading;
+
   if (!Array.isArray(modules) || modules.length === 0) {
     return <EmptyStateGuidance />;
   }
@@ -62,16 +97,16 @@ export default function MissionControlRenderer({ modules = [], userState }) {
   const [layer, setLayer] = useState("calm");
   const [pillarIndex, setPillarIndex] = useState(0);
 
-  const cyclePillar = (direction) => {
+  const cyclePillar = useCallback((direction) => {
     setPillarIndex((current) => current + direction);
-  };
+  }, []);
 
-  const openNorthStar = () => {
+  const openNorthStar = useCallback(() => {
     openAiChat({
       draft: "Help me decide what matters most today.",
       aiContext: { mode: "northstar_intro", source: "mission_control" },
     });
-  };
+  }, []);
 
   const primaryAction = useMemo(() => {
     const actionId = primaryActionModule?.actionId ?? "ASK_AI_COACH";
@@ -137,7 +172,7 @@ export default function MissionControlRenderer({ modules = [], userState }) {
   const activeActionLabel =
     actionLabelById[activeActionId] || primaryAction.label;
 
-  const handleDefer = async () => {
+  const handleDefer = useCallback(async () => {
     const timestamp = Date.now();
     await emitMissionControlActionEvent({
       type: "deferred",
@@ -152,9 +187,9 @@ export default function MissionControlRenderer({ modules = [], userState }) {
       lastUpdatedAt: timestamp,
       userAgency: { deferred: true },
     });
-  };
+  }, [activeActionId]);
 
-  const handleDismiss = async () => {
+  const handleDismiss = useCallback(async () => {
     const timestamp = Date.now();
     await emitMissionControlActionEvent({
       type: "dismissed",
@@ -170,7 +205,7 @@ export default function MissionControlRenderer({ modules = [], userState }) {
       lifecycle: "shown",
       lastUpdatedAt: timestamp,
     });
-  };
+  }, [activeActionId]);
 
   const insight = useMemo(() => {
     const fallback = "Energy is stable, but one system needs attention today.";
@@ -179,10 +214,20 @@ export default function MissionControlRenderer({ modules = [], userState }) {
     return firstSentence(source) || fallback;
   }, [narrativeInsightModule]);
 
+  const vaultStatus = userState?.vault?.status;
+  const vaultStatusLabel =
+    vaultStatus === "unlocked"
+      ? "Unlocked"
+      : vaultStatus === "locked"
+      ? "Locked"
+      : "Status unknown";
+  const vaultLastUpdated = formatVaultTimestamp(userState?.vault?.lastSyncAt);
+  const vaultStorageSummary = summarizeVaultStorage(userState?.vault?.storage);
+
   const longPressTimerRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
 
-  const startStarLongPress = () => {
+  const startStarLongPress = useCallback(() => {
     longPressTriggeredRef.current = false;
 
     if (longPressTimerRef.current) {
@@ -193,29 +238,61 @@ export default function MissionControlRenderer({ modules = [], userState }) {
       longPressTriggeredRef.current = true;
       openNorthStar();
     }, 520);
-  };
+  }, [openNorthStar]);
 
-  const cancelStarLongPress = () => {
+  const cancelStarLongPress = useCallback(() => {
     if (longPressTimerRef.current) {
       window.clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-  };
+  }, []);
 
-  const onStarClick = () => {
+  const onStarClick = useCallback(() => {
     if (longPressTriggeredRef.current) return;
     executeMissionControlAction(activeActionId);
-  };
+  }, [activeActionId]);
+
+  const handleSwipeUp = useCallback(() => setLayer("actions"), []);
+  const handleSwipeDown = useCallback(() => setLayer("calm"), []);
+  const handleSwipeLeft = useCallback(() => cyclePillar(-1), [cyclePillar]);
+  const handleSwipeRight = useCallback(() => cyclePillar(1), [cyclePillar]);
 
   const gestures = useMissionControlGestures({
-    onUp: () => setLayer("actions"),
-    onDown: () => setLayer("calm"),
-    onLeft: () => cyclePillar(-1),
-    onRight: () => cyclePillar(1),
+    onUp: handleSwipeUp,
+    onDown: handleSwipeDown,
+    onLeft: handleSwipeLeft,
+    onRight: handleSwipeRight,
   });
 
   void layer;
   void pillarIndex;
+
+  if (isLoading) {
+    return (
+      <div className="mc-core mc-core--loading" aria-busy="true">
+        <div className="mc-life" aria-hidden="true">
+          <div className="mc-lifeStar mc-lifeStar--skeleton">
+            <div className="mc-skeleton mc-skeleton--score" />
+          </div>
+        </div>
+
+        <div className="mc-skeleton-group" aria-hidden="true">
+          <div className="mc-skeleton mc-skeleton--text" />
+          <div className="mc-skeleton mc-skeleton--text mc-skeleton--text-short" />
+        </div>
+
+        <div className="mc-actionStack" aria-hidden="true">
+          <div className="mc-skeleton mc-skeleton--button" />
+          <div className="mc-skeleton-row">
+            <div className="mc-skeleton mc-skeleton--pill" />
+            <div className="mc-skeleton mc-skeleton--pill" />
+          </div>
+        </div>
+
+        <div className="mc-skeleton mc-skeleton--dock" aria-hidden="true" />
+      </div>
+    );
+  }
 
   return (
     <div className="mc-core" {...gestures}>
@@ -238,7 +315,7 @@ export default function MissionControlRenderer({ modules = [], userState }) {
         {insight}
       </p>
 
-      <div>
+      <div className="mc-actionStack">
         <button
           type="button"
           className="mc-primary-action"
@@ -246,7 +323,7 @@ export default function MissionControlRenderer({ modules = [], userState }) {
         >
           {activeActionLabel}
         </button>
-        <div className="mt-3 flex flex-wrap gap-3 text-sm text-white/70">
+        <div className="mc-secondary-actions">
           <button type="button" onClick={handleDefer}>
             Defer
           </button>
@@ -256,10 +333,30 @@ export default function MissionControlRenderer({ modules = [], userState }) {
         </div>
       </div>
 
+      <div className="mt-6 grid gap-3 text-left sm:grid-cols-2">
+        <MissionControlCard title="Vault Status" description={vaultStatusLabel}>
+          <div className="mt-2 space-y-1 text-sm text-white/70">
+            <div>
+              Last updated{" "}
+              <span className="text-white/90">{vaultLastUpdated}</span>
+            </div>
+            <div>
+              Data source{" "}
+              <span className="text-white/90">{vaultStorageSummary}</span>
+            </div>
+          </div>
+        </MissionControlCard>
+        <MissionControlCard
+          to="/trust-center"
+          title="Trust Center"
+          description="Privacy, consent, and vault controls."
+        />
+      </div>
+
       <button
         type="button"
         className="mc-aiDock"
-        aria-label="Open AI command"
+        aria-label="Open NorthStar (General)"
         onClick={openNorthStar}
       >
         <span className="mc-aiDock__star" aria-hidden="true" />

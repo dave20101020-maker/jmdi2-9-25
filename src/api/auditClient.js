@@ -35,3 +35,19 @@ export const emitAuditEvent = async (event = {}) => {
   const data = await _safeJson(response);
   return { ok: true, data };
 };
+
+export const getRoutingEvents = async (limit = 8) => {
+  const response = await _safeFetch(`/api/audit/routing?limit=${limit}`, {
+    method: "GET",
+  });
+
+  if (!response?.ok) {
+    return {
+      ok: false,
+      error: response?.error || response?.status || "audit_event_failed",
+    };
+  }
+
+  const data = await _safeJson(response);
+  return { ok: true, data };
+};

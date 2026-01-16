@@ -1286,7 +1286,7 @@ function DashboardContent({ user }) {
             Start Today&apos;s Journey
           </h3>
           <p className="text-white/70 mb-6">
-            Track a pillar, view insights, or chat with your AI coach
+            Track a pillar, view insights, or chat with your soldiers
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
@@ -1300,7 +1300,7 @@ function DashboardContent({ user }) {
               className="px-6 py-3 bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] rounded-xl text-[#0A1628] font-bold hover:shadow-lg transition-all inline-flex items-center justify-center"
               style={{ boxShadow: "0 0 20px rgba(212, 175, 55, 0.4)" }}
             >
-              Talk to Coach 💬
+              Talk to Soldier 💬
             </Link>
           </div>
         </div>

@@ -574,9 +574,9 @@ export default function PillarDashboard({ pillar, coachAgent = null }) {
         </DataCard>
       )}
 
-      {/* AI Coach Section */}
+      {/* AI Soldier Section */}
       <DataCard
-        title={`Ask the ${pillar.name} Coach`}
+        title={`Ask the ${pillar.name} Soldier`}
         titleIcon={<MessageSquare />}
         color={pillar.color}
       >
@@ -584,7 +584,7 @@ export default function PillarDashboard({ pillar, coachAgent = null }) {
           <textarea
             value={coachMessage}
             onChange={(e) => setCoachMessage(e.target.value)}
-            placeholder={`Ask your ${pillar.name} coach anything...`}
+            placeholder={`Ask your ${pillar.name} soldier anything...`}
             className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white placeholder-white/40 focus:outline-none focus:border-white/30 min-h-24 resize-none"
           />
           <Button
@@ -607,8 +607,8 @@ export default function PillarDashboard({ pillar, coachAgent = null }) {
           </Button>
         </form>
         <p className="text-xs text-white/50 mt-3">
-          The {pillar.name} coach will respond with personalized advice based on
-          your situation.
+          The {pillar.name} soldier will respond with personalized advice based
+          on your situation.
         </p>
       </DataCard>
 

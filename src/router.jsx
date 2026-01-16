@@ -28,9 +28,9 @@ const MainLayout = lazyPage(
   () => import("@/components/Layout/MainLayout"),
   "MainLayout"
 );
-const DashboardPage = lazyPage(
-  () => import("@/pages/Dashboard"),
-  "DashboardPage"
+const MissionControlPage = lazyPage(
+  () => import("@/missionControl/MissionControlRoot"),
+  "MissionControlPage"
 );
 const CommunityPage = lazyPage(
   () => import("@/pages/Community"),
@@ -111,7 +111,7 @@ const OnboardingPage = lazyPage(
   () => import("@/pages/Onboarding"),
   "OnboardingPage"
 );
-const CRITICAL_ROUTES = [DashboardPage, OnboardingPage];
+const CRITICAL_ROUTES = [MissionControlPage, OnboardingPage];
 const MyPlansPage = lazyPage(() => import("@/pages/MyPlans"), "MyPlansPage");
 const PlanDetailPage = lazyPage(
   () => import("@/pages/PlanDetail"),
@@ -151,8 +151,8 @@ const routeConfig = [
   {
     key: "dashboard",
     path: NAMED_ROUTES.Dashboard,
-    Component: DashboardPage,
-    label: "dashboard",
+    Component: MissionControlPage,
+    label: "mission control",
   },
   {
     key: "community",
@@ -578,6 +578,10 @@ export default function AppRouter() {
       <Route path="/" element={mainLayoutElement}>
         <Route
           index
+          element={<Navigate to={NAMED_ROUTES.Dashboard} replace />}
+        />
+        <Route
+          path="dashboard"
           element={<Navigate to={NAMED_ROUTES.Dashboard} replace />}
         />
         {routeConfig.map(({ key, path, Component, isProtected, label }) => (

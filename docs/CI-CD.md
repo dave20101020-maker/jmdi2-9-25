@@ -38,7 +38,7 @@ Push/PR to main/develop
        ├─ All tests pass?
        ├─ Build successful?
        └─ Coverage acceptable?
-        
+
 Merge to main
     ↓
 Deployment Pipeline
@@ -63,6 +63,7 @@ All workflows are in `.github/workflows/`:
 ### Triggers
 
 Runs on:
+
 - Push to `main` or `develop` branches
 - Pull requests to `main` or `develop`
 - Only if `src/`, `package.json`, or `vite.config.js` changed
@@ -78,6 +79,7 @@ Duration: ~3 minutes
 ```
 
 **Steps:**
+
 1. Checkout code
 2. Setup Node.js (with npm cache)
 3. Install dependencies
@@ -106,6 +108,7 @@ Validates type consistency
 ### Success Criteria
 
 All jobs must pass:
+
 - ✅ Linting: 0 errors
 - ✅ Tests: All pass
 - ✅ Build: Successfully compiles to dist/
@@ -114,6 +117,7 @@ All jobs must pass:
 ### Artifacts
 
 Successful builds generate:
+
 - `dist-18.x/` - Production build
 - `dist-20.x/` - Production build (alternate Node version)
 - Coverage reports to Codecov
@@ -135,6 +139,7 @@ act push -j test
 ### Triggers
 
 Runs on:
+
 - Push to `main` or `develop` branches
 - Pull requests to `main` or `develop`
 - Only if `backend/` or workflow file changed
@@ -150,6 +155,7 @@ Duration: ~4 minutes
 ```
 
 **Steps:**
+
 1. Checkout code
 2. Setup Node.js
 3. Install dependencies
@@ -158,6 +164,7 @@ Duration: ~4 minutes
 6. Upload coverage reports
 
 **Environment Variables:**
+
 ```
 MONGODB_URI: mongodb://localhost:27017/northstar-test
 NODE_ENV: test
@@ -172,6 +179,7 @@ Duration: ~3 minutes
 ```
 
 Tests database operations, API endpoints, workflows:
+
 - User creation and authentication
 - Habit CRUD operations
 - Entry logging
@@ -185,9 +193,11 @@ Duration: ~2 minutes (or skip if no API keys)
 
 Tests AI coach, insights, meditation endpoints with mocked responses.
 
-**Requires secrets:**
-- `OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
+**Requires secrets (at least one provider key):**
+
+- `GEMINI_API_KEY` (Gemini-first)
+- `OPENAI_API_KEY` (fallback)
+  _Other provider keys (for example `ANTHROPIC_API_KEY`) are also honored if configured._
 
 #### 4. Security Audit
 
@@ -197,6 +207,7 @@ Tools: npm audit, Trivy scanner
 ```
 
 Scans for:
+
 - Vulnerable npm packages
 - Critical security issues
 - Dependency vulnerabilities
@@ -225,9 +236,11 @@ Runs basic AI endpoint stress test with low concurrency.
 ### Triggers
 
 Manual workflow dispatch:
+
 - Input: Environment (staging/production)
 
 OR automatic on:
+
 - Merge to `main` branch
 
 ### Jobs
@@ -241,6 +254,7 @@ Duration: ~5 minutes
 ```
 
 **Steps:**
+
 1. Checkout code
 2. Setup Docker Buildx
 3. Login to GHCR
@@ -248,6 +262,7 @@ Duration: ~5 minutes
 5. Build and push Docker image
 
 **Image Tags:**
+
 ```
 ghcr.io/dave20101020-maker/northstar-beta:main
 ghcr.io/dave20101020-maker/northstar-beta:sha-abc123
@@ -272,6 +287,7 @@ Automatic on main branch
 ```
 
 **Steps:**
+
 1. Deploy to staging app
 2. Health check (5 attempts, 10s between)
 3. Notify Slack
@@ -286,6 +302,7 @@ Manual trigger only
 ```
 
 **Steps:**
+
 1. Create GitHub deployment record
 2. Deploy to production
 3. Run health checks
@@ -308,8 +325,8 @@ Required secrets in GitHub Settings > Secrets:
 ```
 FLY_API_TOKEN         # Fly.io deployment token
 SLACK_WEBHOOK         # Slack notification webhook
-OPENAI_API_KEY        # For AI tests
-ANTHROPIC_API_KEY     # For AI tests
+GEMINI_API_KEY        # Optional: AI tests (Gemini-first)
+OPENAI_API_KEY        # Optional: AI tests (fallback)
 GITHUB_TOKEN          # Auto-provided by GitHub
 ```
 
@@ -350,6 +367,9 @@ Value: <your-fly-token>
 
 Name: SLACK_WEBHOOK
 Value: https://hooks.slack.com/services/...
+
+Name: GEMINI_API_KEY
+Value: <your-gemini-key>
 
 Name: OPENAI_API_KEY
 Value: sk-...
@@ -412,6 +432,7 @@ ports = [{ handlers = ["http"], port = 80 }, { handlers = ["tls", "http"], port 
 ### View Workflow Runs
 
 **In GitHub UI:**
+
 1. Navigate to repo
 2. Actions tab
 3. Select workflow
@@ -479,13 +500,15 @@ curl -X POST -H 'Content-type: application/json' \
 ### Reduce Build Time
 
 1. **Cache npm dependencies**
+
    ```yaml
    - uses: actions/setup-node@v4
      with:
-       cache: 'npm'
+       cache: "npm"
    ```
 
 2. **Parallelize jobs**
+
    ```yaml
    jobs:
      test:
@@ -504,6 +527,7 @@ curl -X POST -H 'Content-type: application/json' \
 ### Reduce Storage
 
 1. Delete old artifacts
+
    ```yaml
    retention-days: 5
    ```

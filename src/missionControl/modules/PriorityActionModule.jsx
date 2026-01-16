@@ -2,6 +2,7 @@ import QuickActions from "@/components/dashboard/QuickActions";
 import MissionControlCard from "../components/MissionControlCard";
 
 export default function PriorityActionModule({ module }) {
+  const isLoading = module?.loading || module?.isLoading;
   const pillar = module?.pillar;
 
   const copyByPillar = {
@@ -24,16 +25,26 @@ export default function PriorityActionModule({ module }) {
     : "NorthStar is finding what matters most.";
 
   return (
-    <section id="mc-priority">
-      <MissionControlCard className="p-6" emphasis="primary">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/50">
-          Mission Control
-        </p>
-        <h1 className="text-white text-3xl font-bold mt-3">{headline}</h1>
-        <p className="text-white/70 text-base mt-3 max-w-xl">{subhead}</p>
-        <div className="mt-5">
-          <QuickActions />
-        </div>
+    <section id="mc-priority" className="mc-module">
+      <MissionControlCard className="mc-priority-card" emphasis="primary">
+        {isLoading ? (
+          <div className="mc-skeleton-stack" aria-hidden="true">
+            <div className="mc-skeleton mc-skeleton--eyebrow" />
+            <div className="mc-skeleton mc-skeleton--title" />
+            <div className="mc-skeleton mc-skeleton--text" />
+            <div className="mc-skeleton mc-skeleton--text mc-skeleton--text-short" />
+            <div className="mc-skeleton mc-skeleton--button" />
+          </div>
+        ) : (
+          <>
+            <p className="mc-priority-eyebrow">Mission Control</p>
+            <h1 className="mc-priority-title">{headline}</h1>
+            <p className="mc-priority-subhead">{subhead}</p>
+            <div className="mt-5">
+              <QuickActions />
+            </div>
+          </>
+        )}
       </MissionControlCard>
     </section>
   );

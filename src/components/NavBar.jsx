@@ -15,7 +15,7 @@ export default function NavBar() {
 
   const navItems = useMemo(
     () => [
-      { path: "/dashboard", label: "Dashboard", icon: "🏠" },
+      { path: "/mission-control", label: "Mission Control", icon: "🏠" },
       { path: "/settings", label: "Settings", icon: "⚙️" },
     ],
     []
@@ -45,7 +45,7 @@ export default function NavBar() {
     }
     setCtaLoading(true);
     try {
-      navigate("/dashboard", { replace: false });
+      navigate("/mission-control", { replace: false });
       toast.success("Daily Focus launched");
     } catch (error) {
       const message = error?.message || "Could not start Daily Focus.";
@@ -89,13 +89,13 @@ export default function NavBar() {
                   {displayName}
                 </span>
                 <NSButton
-                  to="/dashboard"
+                  to="/mission-control"
                   variant="secondary"
                   analyticsPage="navbar"
-                  analyticsLabel="Dashboard"
+                  analyticsLabel="Mission Control"
                   className="hidden sm:inline-flex"
                 >
-                  Dashboard
+                  Mission Control
                 </NSButton>
                 <NSButton
                   onClick={handleDailyFocus}

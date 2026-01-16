@@ -45,6 +45,7 @@ export const sendNorthStarMessage = async ({
       body: JSON.stringify(payload),
     });
 
+    const requestId = res?.headers?.get?.("x-ns-request-id") || null;
     const text = await res.text();
     let data;
     try {
@@ -61,6 +62,7 @@ export const sendNorthStarMessage = async ({
         error: true,
         status,
         message,
+        requestId,
         diagnostics: {
           status,
           body: text,
@@ -78,6 +80,7 @@ export const sendNorthStarMessage = async ({
       pillar: data?.pillar,
       module: data?.module,
       provider: data?.provider,
+      requestId,
       diagnostics: {
         status: res.status,
         body: text,

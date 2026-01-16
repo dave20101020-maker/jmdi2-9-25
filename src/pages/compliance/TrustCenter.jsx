@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { getRoutingEvents } from "@/api/auditClient";
+import { PILLARS } from "@/config/pillars";
 
 const highlights = [
   {
@@ -30,6 +32,55 @@ const disclosures = [
 ];
 
 export default function TrustCenter() {
+  const [routingEvents, setRoutingEvents] = useState([]);
+  const [routingError, setRoutingError] = useState(false);
+
+  const pillarLabelMap = useMemo(() => {
+    const map = new Map();
+    PILLARS.forEach((pillar) => {
+      map.set(String(pillar.id), pillar.label);
+    });
+    return map;
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadRoutingEvents = async () => {
+      const result = await getRoutingEvents(6);
+      if (!active) return;
+
+      if (!result.ok || !result.data?.ok) {
+        setRoutingError(true);
+        return;
+      }
+
+      setRoutingEvents(
+        Array.isArray(result.data?.events) ? result.data.events : []
+      );
+    };
+
+    loadRoutingEvents().catch(() => {
+      if (active) setRoutingError(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const formatTimestamp = (value) => {
+    if (!value) return "Time unavailable";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Time unavailable";
+    return date.toLocaleString();
+  };
+
+  const labelForEvent = (event) =>
+    pillarLabelMap.get(String(event.pillar || "")) ||
+    event.pillar ||
+    "a specialist";
+
   return (
     <div className="min-h-screen bg-ns-navy text-ns-white">
       <div className="mx-auto max-w-5xl px-6 py-12 space-y-8">
@@ -113,6 +164,45 @@ export default function TrustCenter() {
               legal@northstar.app.
             </p>
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-ns-card space-y-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.28em] text-white/60">
+              Routing transparency
+            </p>
+            <h2 className="text-xl font-semibold text-white">
+              Recent specialist handoffs
+            </h2>
+            <p className="text-white/70 text-sm">
+              A short record when NorthStar connects you to a specialist.
+            </p>
+          </div>
+          {routingError ? (
+            <p className="text-sm text-white/60">
+              Routing history is unavailable right now.
+            </p>
+          ) : routingEvents.length === 0 ? (
+            <p className="text-sm text-white/60">
+              No recent routing activity yet.
+            </p>
+          ) : (
+            <ul className="space-y-2 text-sm text-white/80">
+              {routingEvents.map((event, index) => (
+                <li
+                  key={event.id || `${event.timestamp || "event"}-${index}`}
+                  className="flex flex-col gap-1 rounded-lg bg-white/5 px-3 py-2"
+                >
+                  <span>
+                    NorthStar connected you to {labelForEvent(event)}.
+                  </span>
+                  <span className="text-xs text-white/50">
+                    {formatTimestamp(event.timestamp)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
     </div>

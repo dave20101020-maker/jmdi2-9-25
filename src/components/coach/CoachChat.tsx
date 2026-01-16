@@ -23,7 +23,7 @@ export default function CoachChat({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">
-            Coach
+            Soldier
           </p>
           <p className="text-lg font-semibold text-white">{coachName}</p>
         </div>

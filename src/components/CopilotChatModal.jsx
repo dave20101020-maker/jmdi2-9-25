@@ -121,7 +121,9 @@ export default function CopilotChatModal({
 
   const contextLabel = useMemo(() => {
     const path = String(location?.pathname || "/");
-    if (path === "/dashboard" || path === "/") return "Mission Control";
+    if (path === "/mission-control" || path === "/dashboard" || path === "/") {
+      return "Mission Control";
+    }
 
     const pillarId = (aiContext?.pillar || "").toString().toLowerCase();
     if (!pillarId || pillarId === "general") return null;

@@ -35,6 +35,7 @@ jobs:
       - name: Validate required secrets
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           required=(JWT_SECRET)
@@ -50,8 +51,8 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${OPENAI_API_KEY:-}" ]; then
-            echo "OPENAI_API_KEY not set. Using mocked provider in CI; set this secret for full integration tests."
+          if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
+            echo "No GEMINI_API_KEY or OPENAI_API_KEY set. Using mocked provider in CI; set a provider secret for full integration tests."
           fi
 
       - name: Install frontend dependencies
@@ -74,6 +75,7 @@ jobs:
           PORT: ${{ env.BACKEND_PORT }}
           NODE_ENV: test
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           node backend/server.js > backend.log 2>&1 &

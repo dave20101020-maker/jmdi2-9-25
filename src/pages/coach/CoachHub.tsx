@@ -58,7 +58,7 @@ export default function CoachHub() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">
-              Coach hub
+              Soldier hub
             </p>
             <h1 className="text-2xl font-semibold text-white">
               Choose a companion
@@ -67,7 +67,7 @@ export default function CoachHub() {
           <Sparkles className="h-6 w-6 text-cyan-400" />
         </div>
         <p className="text-sm text-white/60">
-          Each coach listens through a different wellness lens.
+          Each soldier listens through a different wellness lens.
         </p>
       </div>
 
@@ -98,7 +98,7 @@ export default function CoachHub() {
             }`}
           >
             <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-              Coach
+              Soldier
             </p>
             <p className="text-lg font-semibold text-white">{coach.name}</p>
             <p className="text-xs text-white/60">{coach.persona}</p>

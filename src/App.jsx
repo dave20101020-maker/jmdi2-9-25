@@ -69,8 +69,12 @@ function AppRoutes() {
       />
 
       <Route element={<AppShell />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<MissionControlRoot />} />
+        <Route index element={<Navigate to="/mission-control" replace />} />
+        <Route path="/mission-control" element={<MissionControlRoot />} />
+        <Route
+          path="/dashboard"
+          element={<Navigate to="/mission-control" replace />}
+        />
         <Route
           path="/pillars/:pillarId"
           element={

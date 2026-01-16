@@ -159,7 +159,7 @@ export default function PillarsMenu({ open, onClose }: Props) {
           <div className="max-h-[55vh] overflow-y-auto p-3 pb-6">
             <div className="grid grid-cols-1 gap-2">
               <NavLink
-                to="/dashboard"
+                to="/mission-control"
                 onClick={onClose}
                 className={({ isActive }) =>
                   `flex items-center justify-between gap-3 rounded-2xl border border-[var(--ns-color-border)] px-4 py-3 text-sm font-semibold transition ${
@@ -177,9 +177,9 @@ export default function PillarsMenu({ open, onClose }: Props) {
                     <Home className="h-5 w-5" />
                   </span>
                   <div className="flex flex-col">
-                    <span className="text-white">Dashboard</span>
+                    <span className="text-white">Mission Control</span>
                     <span className="text-[12px] font-medium text-white/55">
-                      Mission Control
+                      OS surface
                     </span>
                   </div>
                 </div>
